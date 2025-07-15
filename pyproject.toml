@@ -1,0 +1,21 @@
+[project]
+name = "spinsimulation"
+version = "0.1.1"
+description = "Library for python code based on Markus Ternes' dIdV simulation tool"
+authors = [
+    {name = "PaulGreule",email = "paul.greule.kit.edu"}
+    {name = "JohannesSchwenk",email = "j.schwenk.kit.edu"}
+]
+readme = "README.md"
+requires-python = ">= 3.10"
+dependencies = [
+    "numpy (>=2.3.0,<3.0.0)",
+    "scipy (>=1.15.3,<2.0.0)",
+    "matplotlib",
+    "functools"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
