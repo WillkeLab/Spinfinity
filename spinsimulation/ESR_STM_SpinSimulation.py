@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import quad
 from scipy.linalg import null_space
-from functools import lru_cache 
+from functools import lru_cache
+from pprint import pprint
 
 class SpinSys:
 
@@ -36,6 +37,13 @@ class SpinSys:
         self.ReadoutSpin = 0 
         self.AtomPositions = np.zeros((self.NSpins,3))
         self.latticeLengthXY = np.array([0.2877, 0.2877, 0]) # [nm]
+        self.basisStates = np.empty(self.dimensionOfMatrix, dtype=object)
+        
+        # Initialize the states and other strings
+        self.states = np.empty(self.dimensionOfMatrix, dtype=object)
+        self.statesOnlyLHS = np.empty(self.dimensionOfMatrix, dtype=object)
+        self.statesWithoutE = np.empty(self.dimensionOfMatrix, dtype=object)
+        self.statesOnlyRHS = np.empty(self.dimensionOfMatrix, dtype=object)
 
         # External Parameters
         self.T = 1 # [K]
@@ -287,7 +295,6 @@ class SpinSys:
     
     def calcEigStates(self):
         # Create the basis states in Bra-Ket notation
-        basisStates = np.empty(self.dimensionOfMatrix, dtype=object)
         for i in range(self.dimensionOfMatrix):
             basisStates[i] = "|"
             for j in range(self.NSpins):
@@ -297,11 +304,6 @@ class SpinSys:
                     basisStates[i] += str(np.real(self.Sz[j, i, i]))
             basisStates[i] += ">"
 
-        # Initialize the states and other strings
-        states = np.empty(self.dimensionOfMatrix, dtype=object)
-        statesOnlyLHS = np.empty(self.dimensionOfMatrix, dtype=object)
-        statesWithoutE = np.empty(self.dimensionOfMatrix, dtype=object)
-        statesOnlyRHS = np.empty(self.dimensionOfMatrix, dtype=object)
 
         # Sort the absolute values of the eigenvectors
         SortedIndices = np.argsort(-np.abs(self.eigVectors), axis=0)  # Sort by absolute value, descending
@@ -330,6 +332,7 @@ class SpinSys:
         self.statesOnlyLHS = statesOnlyLHS
         self.statesWithoutE = statesWithoutE
         self.statesOnlyRHS = statesOnlyRHS
+        #pprint(basisStates)
         self.basisStates = basisStates
     
     def showEigenMatrix(self, plot_type='p'):
