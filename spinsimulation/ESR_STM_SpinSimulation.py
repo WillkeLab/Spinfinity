@@ -108,6 +108,7 @@ class SpinSys:
         # print(f"T02: {self.T02}")
         # print(f"Jrs: {self.Jrs}")
 
+    #region Spin-Operator Calculations
     ## Spin-Operator Calculations ##    
     def calcSpinOperators(self):
         self.Sx = np.zeros((self.NSpins, self.dimensionOfMatrix, self.dimensionOfMatrix), dtype=complex)
@@ -334,7 +335,8 @@ class SpinSys:
         self.statesOnlyRHS = statesOnlyRHS
         #pprint(basisStates)
         self.basisStates = basisStates
-    
+    #endregion
+    #region PlottingAndVisualization
     def showEigenMatrix(self, plot_type='p'):
                
         projection = np.zeros([self.dimensionOfMatrix,self.dimensionOfMatrix],dtype=complex)
@@ -400,7 +402,8 @@ class SpinSys:
         ax.set_title('Zeeman Diagramm')
         ax.legend()
         plt.show()
-    
+    #endregion
+    #region ESR Simulation Functions
     def calcRecordedTransitions(self,MinE,MaxE):
     
      # This function calculates the recorded transitions based on the occupation probability
@@ -533,7 +536,7 @@ class SpinSys:
         
 
         return freq, ESRsignal, self.p0
-    
+    #endregion
     def plotESRTipfieldsweep(self,**kwargs):
         # Function that plots various ESR Spectra for different Tipfields
 
