@@ -6,6 +6,7 @@ class SpinSys:
     """
     SpinSys(Spins)
     A class to represent a quantum spin system for spin simulations.
+
     Parameters
     ----------
     Spins : list
@@ -74,6 +75,7 @@ class SpinSys:
         Tunneling parameter.
     Jrs : float
         Exchange coupling parameter.
+        
     Notes
     -----
     This class provides a framework for simulating quantum spin systems, including
