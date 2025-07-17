@@ -119,7 +119,7 @@ def calcEigEnergies(spinsys: SpinSys):
     The function sequentially adds various interaction terms to the Hamiltonian, including Zeeman, tip field,
     zero-field splitting, exchange interaction, and dipolar coupling. It then diagonalizes the Hamiltonian,
     sorts the eigenenergies, and updates the spin system with the results.
-    
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -150,7 +150,7 @@ def calcEigEnergies(spinsys: SpinSys):
     spinsys.E_All_inGHz = spinsys.E_All * spinsys.meVtoGHzConversion
     spinsys.eigVectors = Evec[:, Eindex]
 
-
+    # Old stuff...
     # Build the basis states in vector from the solutions of the Sz operator
     # Sz_Operator = np.sum(spinsys.Sz, axis=0)
     # E_b,Evec_b = np.linalg.eigh(-Sz_Operator)
