@@ -3,6 +3,7 @@ import scipy as sp
 import scipy.constants as const
 from SpinSys import SpinSys
 
+# region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
         """
         Calculate and assign spin operator matrices (Sx, Sy, Sz) for each spin in the system.
@@ -111,7 +112,93 @@ def calcAngMomMatrices(s: float):
 
     return S_x, S_y, S_z
 
-## Spin Hamiltonian Functions ## 
+# endregion SpinOperators
+
+# region Hamiltonian
+
+def calcEigStates(spinsys: SpinSys):
+    """
+    Calculates and constructs the eigenstates of a spin system in Bra-Ket notation.
+    This function generates the basis states, sorts the eigenvectors by their absolute values,
+    and constructs human-readable representations of the eigenstates, including their energies
+    and dominant basis state contributions. The results are stored as attributes in the provided
+    `spinsys` object.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the Hamiltonian, eigenvectors, eigenvalues, and
+        other relevant properties. The function updates this object with additional attributes
+        representing the eigenstates in various notations.
+
+    Returns
+    -------
+    None
+        This function modifies the `spinsys` object in place and does not return a value.
+    Attributes Added to `spinsys`
+    -----------------------------
+    states : np.ndarray of str
+        Full eigenstate expressions in Bra-Ket notation with energies.
+    statesOnlyLHS : np.ndarray of str
+        Left-hand side of the eigenstate expressions (state label and energy).
+    statesWithoutE : np.ndarray of str
+        State labels without energy information.
+    statesOnlyRHS : np.ndarray of str
+        Right-hand side of the eigenstate expressions, showing only the top two basis state contributions.
+    basisStates : np.ndarray of str
+        Basis states in Bra-Ket notation.
+    """
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+            calcEigEnergies(spinsys)
+
+    # Create the basis states in Bra-Ket notation
+    basisStates = np.empty(spinsys.dimensionOfMatrix, dtype=object)
+    for i in range(spinsys.dimensionOfMatrix):
+        basisStates[i] = "|"
+        for j in range(spinsys.NSpins):
+            if j != spinsys.NSpins - 1:
+                basisStates[i] += str(np.real(spinsys.Sz[j, i, i])) + ","
+            else:
+                basisStates[i] += str(np.real(spinsys.Sz[j, i, i]))
+        basisStates[i] += ">"
+
+    # Initialize the states and other strings
+    states = np.empty(spinsys.dimensionOfMatrix, dtype=object)
+    statesOnlyLHS = np.empty(spinsys.dimensionOfMatrix, dtype=object)
+    statesWithoutE = np.empty(spinsys.dimensionOfMatrix, dtype=object)
+    statesOnlyRHS = np.empty(spinsys.dimensionOfMatrix, dtype=object)
+
+    # Sort the absolute values of the eigenvectors
+    SortedIndices = np.argsort(-np.abs(spinsys.eigVectors), axis=0)  # Sort by absolute value, descending
+    SortedEigenvectors = np.empty_like(spinsys.eigVectors, dtype=complex)
+
+    for j in range(spinsys.dimensionOfMatrix):
+        SortedEigenvectors[:, j] = spinsys.eigVectors[SortedIndices[:, j], j]
+
+    # Construct states in bracket notation
+    for i in range(spinsys.dimensionOfMatrix):
+        states[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)}) = "
+        statesOnlyLHS[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)})"
+        statesWithoutE[i] = f"|{i}>"
+        statesOnlyRHS[i] = ""
+
+        for j in range(spinsys.dimensionOfMatrix):
+            if np.abs(SortedEigenvectors[j, i]) > 1e-4:  # Threshold for relevance
+                sign = "+" if np.real(SortedEigenvectors[j, i]) >= 0 else ""
+                states[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
+
+                if j < 2:  # Only include the top two contributions in statesOnlyRHS
+                    statesOnlyRHS[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
+
+    # Store the results in the Sys object
+    spinsys.states = states
+    spinsys.statesOnlyLHS = statesOnlyLHS
+    spinsys.statesWithoutE = statesWithoutE
+    spinsys.statesOnlyRHS = statesOnlyRHS
+    spinsys.basisStates = basisStates
+
+    return
+
 def calcEigEnergies(spinsys: SpinSys):
     """
     Constructs the spin Hamiltonian for the given spin system, solves for its eigenvalues and eigenvectors,
@@ -132,8 +219,12 @@ def calcEigEnergies(spinsys: SpinSys):
         This function modifies the `spinsys` object in place, updating its Hamiltonian, sorted eigenenergies,
         eigenvectors, and related attributes.
     """
+
+    # Ensure the spin operators are calculated before constructing the Hamiltonian
+    if not hasattr(spinsys, 'Sx') or spinsys.Sx is None:
+            calcSpinOperators(spinsys)
     
-    # This function builds the Spin Hamiltonian and then solves it 
+    # This section initializes the Spin Hamiltonian and then solves it 
     spinsys.H = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix), dtype=complex)  # Important to reset the spin Hamiltonian
     addZeeman(spinsys)
     addTipField(spinsys)
@@ -395,83 +486,4 @@ def addDipolarCoupling(spinsys: SpinSys):
     
     return
 
-def calcEigStates(spinsys: SpinSys):
-    """
-    Calculates and constructs the eigenstates of a spin system in Bra-Ket notation.
-    This function generates the basis states, sorts the eigenvectors by their absolute values,
-    and constructs human-readable representations of the eigenstates, including their energies
-    and dominant basis state contributions. The results are stored as attributes in the provided
-    `spinsys` object.
-
-    Parameters
-    ----------
-    spinsys : SpinSys
-        The spin system object containing the Hamiltonian, eigenvectors, eigenvalues, and
-        other relevant properties. The function updates this object with additional attributes
-        representing the eigenstates in various notations.
-
-    Returns
-    -------
-    None
-        This function modifies the `spinsys` object in place and does not return a value.
-    Attributes Added to `spinsys`
-    -----------------------------
-    states : np.ndarray of str
-        Full eigenstate expressions in Bra-Ket notation with energies.
-    statesOnlyLHS : np.ndarray of str
-        Left-hand side of the eigenstate expressions (state label and energy).
-    statesWithoutE : np.ndarray of str
-        State labels without energy information.
-    statesOnlyRHS : np.ndarray of str
-        Right-hand side of the eigenstate expressions, showing only the top two basis state contributions.
-    basisStates : np.ndarray of str
-        Basis states in Bra-Ket notation.
-    """
-
-    # Create the basis states in Bra-Ket notation
-    basisStates = np.empty(spinsys.dimensionOfMatrix, dtype=object)
-    for i in range(spinsys.dimensionOfMatrix):
-        basisStates[i] = "|"
-        for j in range(spinsys.NSpins):
-            if j != spinsys.NSpins - 1:
-                basisStates[i] += str(np.real(spinsys.Sz[j, i, i])) + ","
-            else:
-                basisStates[i] += str(np.real(spinsys.Sz[j, i, i]))
-        basisStates[i] += ">"
-
-    # Initialize the states and other strings
-    states = np.empty(spinsys.dimensionOfMatrix, dtype=object)
-    statesOnlyLHS = np.empty(spinsys.dimensionOfMatrix, dtype=object)
-    statesWithoutE = np.empty(spinsys.dimensionOfMatrix, dtype=object)
-    statesOnlyRHS = np.empty(spinsys.dimensionOfMatrix, dtype=object)
-
-    # Sort the absolute values of the eigenvectors
-    SortedIndices = np.argsort(-np.abs(spinsys.eigVectors), axis=0)  # Sort by absolute value, descending
-    SortedEigenvectors = np.empty_like(spinsys.eigVectors, dtype=complex)
-
-    for j in range(spinsys.dimensionOfMatrix):
-        SortedEigenvectors[:, j] = spinsys.eigVectors[SortedIndices[:, j], j]
-
-    # Construct states in bracket notation
-    for i in range(spinsys.dimensionOfMatrix):
-        states[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)}) = "
-        statesOnlyLHS[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)})"
-        statesWithoutE[i] = f"|{i}>"
-        statesOnlyRHS[i] = ""
-
-        for j in range(spinsys.dimensionOfMatrix):
-            if np.abs(SortedEigenvectors[j, i]) > 1e-4:  # Threshold for relevance
-                sign = "+" if np.real(SortedEigenvectors[j, i]) >= 0 else ""
-                states[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
-
-                if j < 2:  # Only include the top two contributions in statesOnlyRHS
-                    statesOnlyRHS[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
-
-    # Store the results in the Sys object
-    spinsys.states = states
-    spinsys.statesOnlyLHS = statesOnlyLHS
-    spinsys.statesWithoutE = statesWithoutE
-    spinsys.statesOnlyRHS = statesOnlyRHS
-    spinsys.basisStates = basisStates
-
-    return
+# endregion Hamiltonian
