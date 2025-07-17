@@ -1,0 +1,173 @@
+import numpy as np
+import scipy as sp
+import scipy.constants as const
+import matplotlib.pyplot as plt
+from SpinSys import SpinSys
+import SpinHamiltonian as hamil 
+
+# region Hamiltonian
+
+def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
+        """
+        Visualizes the eigenstate matrix of the spin system as a heatmap.
+
+        Parameters
+        ----------
+        spinsys : SpinSys
+            The spin system object containing eigenvectors, basis states, and other relevant properties.
+        plot_type : str, optional
+            Type of plot to generate:
+            - 'p': Probability (default), displays the probability matrix using the 'hot' colormap.
+            - 'a': Amplitude, displays the amplitude matrix using the 'coolwarm' colormap.
+
+        Returns
+        -------
+        None
+            This function generates a matplotlib figure and does not return any value.
+
+        Raises
+        ------
+        ValueError
+            If `plot_type` is not 'p' or 'a'.
+            
+        Notes
+        -----
+        The function generates a matplotlib figure showing either the probability or amplitude
+        projection of the eigenstates onto the basis states. The matrix is flipped vertically
+        so that the first entry appears in the lower left corner of the plot.
+        The color limits are set to [0, 1] for probability and [-1, 1] for amplitude.
+        """
+
+        # Check if eigVectors are calculated, if not calculate them. They are needed for the projection matrix.
+        if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+            hamil.calcEigStates(spinsys)
+               
+        projection = np.zeros([spinsys.dimensionOfMatrix,spinsys.dimensionOfMatrix],dtype=complex)
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                projection[i, j] = np.dot(spinsys.eigVectors[:, i].conj().T, np.identity(spinsys.dimensionOfMatrix)[:, j])
+
+
+        if plot_type == 'p':
+            m = abs(np.conjugate(projection) * projection)
+            name0, colormap = 'Probability', 'hot'
+        elif plot_type == 'a':
+            m = np.real(projection) + np.imag(projection)
+            name0, colormap = 'Amplitude', 'coolwarm'
+        else:
+            raise ValueError("Invalid plot_type. Use 'p' for probability or 'a' for amplitude.")
+
+        
+        # Generate the figure
+        plt.figure(110)
+        plt.imshow(np.flipud(m), cmap=colormap, aspect='auto') #We have to flip the projection matrix in order to have the first entry on the lower left corner
+        c = plt.colorbar()
+        plt.xlabel('Basis States')
+        plt.ylabel('Eigenstates')
+        plt.title(f"System Eigenstates, B_Ext = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]")
+        c.set_label(name0)
+        plt.xticks(np.arange(spinsys.dimensionOfMatrix), spinsys.basisStates)
+        plt.yticks(np.arange(spinsys.dimensionOfMatrix), spinsys.statesOnlyLHS[::-1])
+
+        # Set color limits
+        plt.clim(0, 1) if plot_type == 'p' else plt.clim(-1, 1)
+
+        return
+    
+def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
+    """
+    Plots the Zeeman diagram for a given spin system over a specified magnetic field range.
+    This function computes and visualizes the energy levels of a spin system as a function of an applied magnetic field along the z-axis. The Zeeman diagram illustrates how the eigenenergies of the system evolve with the magnetic field.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing all relevant parameters and methods, including the magnetic field vector and energy levels.
+    Brange : list of float, optional
+        The range of magnetic field values (in Tesla) to sweep, given as [B_min, B_max]. Default is [0, 1].
+    N : int, optional
+        The number of points in the magnetic field sweep. Default is 200.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It displays a plot of the Zeeman diagram.
+
+    Notes
+    -----
+    - The function temporarily modifies the magnetic field vector of `spinsys` during the calculation and restores it to its original value afterwards.
+    - The energy levels are converted to GHz using the `meVtoGHzConversion` attribute of `spinsys`.
+    """
+
+    # Save the initial B-Vector
+    Binitial = spinsys.B
+    B = np.linspace(Brange[0],Brange[1],N)
+    E = np.zeros((N,spinsys.dimensionOfMatrix))
+    
+    for i in range(N):
+        spinsys.B = [0,0,B[i]]
+        hamil.calcEigEnergies(spinsys)
+        E[i,:] = spinsys.E_sort
+
+    # Resotre the initial solution
+    spinsys.B = Binitial
+    hamil.calcEigEnergies(spinsys)
+        
+    fig, ax = plt.subplots()
+    for i in range(spinsys.dimensionOfMatrix):
+        ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+    ax.set_xlabel('Magnetic Field (T)')
+    ax.set_ylabel('Energy (GHz)')
+    ax.set_title('Zeeman Diagramm')
+    ax.legend()
+    plt.show()
+
+    return
+
+def plotEnergyVsSz(spinsys: SpinSys):
+        """
+        Plots the energy eigenvalues of a spin system versus the expectation values of the Sz operator.
+        This function computes the expectation value of the total Sz operator for each eigenstate of the given
+        spin system and plots these values against the corresponding energy eigenvalues.
+
+        Parameters
+        ----------
+        spinsys : SpinSys
+            An instance of the SpinSys class containing the spin system's Hamiltonian, eigenvectors, and eigenvalues.
+            The object must have the attributes `eigVectors`, `E_All_inGHz`, `Sz`, and `dimensionOfMatrix`.
+
+        Returns
+        -------
+        None
+            This function displays a matplotlib scatter plot and does not return any value.
+
+        Notes
+        -----
+        If the eigenvectors are not already computed and stored in `spinsys.eigVectors`, the function will
+        call `hamil.calcEigEnergies(spinsys)` to compute them.
+        """
+        
+        
+        if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+            hamil.calcEigEnergies(spinsys)
+
+        # Calculate the Sz matrix elements for each state
+        Sz_elements = np.zeros(spinsys.dimensionOfMatrix)
+
+        Sz_Operator = np.sum(spinsys.Sz, axis=0)
+        for i in range(spinsys.dimensionOfMatrix):
+            Sz_elements[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ Sz_Operator @ spinsys.eigVectors[:, i])
+
+        # Plot the energy vs Sz matrix elements
+        plt.figure()
+        plt.scatter(Sz_elements, spinsys.E_All_inGHz, c='b', marker='o')
+        #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
+        plt.xlabel('m_z')
+        plt.ylabel('Energy (GHz)')
+        plt.title('Energy vs Sz Matrix Elements')
+        plt.grid(True)
+        plt.show()
+
+        return
+    
+# endregion Hamiltonian
