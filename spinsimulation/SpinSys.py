@@ -86,6 +86,7 @@ class SpinSys:
 
     # Constants
     muB = 0.05788 # [meV/T]
+    kB = const.Boltzmann / const.e * 1e3  # [meV/K] Boltzmann constant in meV/K
     meVtoGHzConversion = 1e-12*const.e/const.h # approx 241.8 GHz/meV
 
     ## Initialize the Spin System ##

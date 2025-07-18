@@ -4,6 +4,7 @@ import scipy.constants as const
 import matplotlib.pyplot as plt
 from SpinSys import SpinSys
 import SpinHamiltonian as hamil 
+import calcdIdV as dIdV
 
 # region Hamiltonian
 
@@ -171,3 +172,49 @@ def plotEnergyVsSz(spinsys: SpinSys):
         return
     
 # endregion Hamiltonian
+
+# region dIdV
+
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd'):
+    """
+    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object for which the IETS spectrum is to be calculated.
+    Vrange : list, optional
+        The voltage range [min, max] in millivolts over which to calculate the spectrum (default is [-30, 30]).
+    N : int, optional
+        Number of points in the voltage range for the spectrum calculation (default is 400).
+    norm : bool, optional
+        If True, normalize the calculated spectrum (default is False).
+    order : str, optional
+        The order of the IETS calculation. Currently, only '2nd' order is supported (default is '2nd').
+
+    Raises
+    ------
+    ValueError
+        If an unsupported order is specified.
+
+    Returns
+    -------
+    None
+        This function creates a plot of the IETS spectrum but does not return any value.
+    """
+
+    # Calculate the IETS spectrum for the specified order
+    if order == '2nd':
+        x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+    else:
+        raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+   
+    # Plot the IETS spectrum
+    plt.figure() 
+    plt.plot(x, y, label='IETS Spectrum')
+    plt.xlabel('Bias Voltage (mV)')
+    plt.ylabel('dI/dV (a.u.)')
+    plt.title('IETS Spectrum ' + f'({order} Order)')
+    return 
+
+# endregion dIdV
