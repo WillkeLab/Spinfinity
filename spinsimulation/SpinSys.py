@@ -11,10 +11,13 @@ class SpinSys:
     ----------
     Spins : list
         List of spin quantum numbers for each spin in the system.
+        
     Attributes
     ----------
     muB : float
         Bohr magneton in meV/T.
+    kB : float
+        Boltzmann constant in meV/K.
     meVtoGHzConversion : float
         Conversion factor from meV to GHz.
     g : float
@@ -74,7 +77,7 @@ class SpinSys:
     T02 : float
         Tunneling parameter.
     Jrs : float
-        Exchange coupling parameter.
+        Another Tunneling parameter.
         
     Notes
     -----
@@ -88,7 +91,9 @@ class SpinSys:
     muB = 0.05788 # [meV/T]
     kB = const.Boltzmann / const.e * 1e3  # [meV/K] Boltzmann constant in meV/K
     meVtoGHzConversion = 1e-12*const.e/const.h # approx 241.8 GHz/meV
-
+    hbar_meV = const.hbar * 1e-12 / const.e  # [meV*s] Reduced Planck's constant in meV*s
+    h_meV = const.h * 1e-12 / const.e  # [meV*s] Planck's constant in meV*s
+    
     ## Initialize the Spin System ##
     def __init__(self, Spins: list):
 
@@ -125,7 +130,7 @@ class SpinSys:
         self.SamplePolarization = [0,0,0]
         self.U = np.zeros(self.NSpins) 
         self.b0 = 0 # Ratio how many electrons that tunnel do not care about the spin!!
-        self.G = 1e-9; # [A/V], Experimental conductance at 0V;
+        self.G = 1e-12; # [A/V], Experimental conductance at 0V;
         self.G_ss = [1e-8]*self.NSpins # Sample-Sample conductance
         self.G_tt = 0 # 1 enables tip-tip scattering contribution, 0 disables it!
 

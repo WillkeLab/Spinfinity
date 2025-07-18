@@ -33,9 +33,6 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
             
         Notes
         -----
-        The function generates a matplotlib figure showing either the probability or amplitude
-        projection of the eigenstates onto the basis states. The matrix is flipped vertically
-        so that the first entry appears in the lower left corner of the plot.
         The color limits are set to [0, 1] for probability and [-1, 1] for amplitude.
         """
 
@@ -78,7 +75,6 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
 def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
     """
     Plots the Zeeman diagram for a given spin system over a specified magnetic field range.
-    This function computes and visualizes the energy levels of a spin system as a function of an applied magnetic field along the z-axis. The Zeeman diagram illustrates how the eigenenergies of the system evolve with the magnetic field.
 
     Parameters
     ----------
@@ -97,7 +93,6 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
     Notes
     -----
     - The function temporarily modifies the magnetic field vector of `spinsys` during the calculation and restores it to its original value afterwards.
-    - The energy levels are converted to GHz using the `meVtoGHzConversion` attribute of `spinsys`.
     """
 
     # Save the initial B-Vector
@@ -128,8 +123,6 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
 def plotEnergyVsSz(spinsys: SpinSys):
         """
         Plots the energy eigenvalues of a spin system versus the expectation values of the Sz operator.
-        This function computes the expectation value of the total Sz operator for each eigenstate of the given
-        spin system and plots these values against the corresponding energy eigenvalues.
 
         Parameters
         ----------
@@ -206,6 +199,8 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     # Calculate the IETS spectrum for the specified order
     if order == '2nd':
         x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+    elif order == '2ndR':
+        x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
     else:
         raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
    

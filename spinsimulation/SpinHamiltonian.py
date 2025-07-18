@@ -6,7 +6,6 @@ from SpinSys import SpinSys
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
         """
-        Calculate and assign spin operator matrices (Sx, Sy, Sz) for each spin in the system.
         This function computes the spin operator matrices for all spins in the given `SpinSys` object.
         For each spin, the corresponding Sx, Sy, and Sz matrices are constructed using Kronecker products,
         such that each operator acts on the correct subspace of the total Hilbert space. The results are
@@ -148,6 +147,7 @@ def calcEigStates(spinsys: SpinSys):
     basisStates : np.ndarray of str
         Basis states in Bra-Ket notation.
     """
+    # Ensure the Hamiltonian is calculated and solved 
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
             calcEigEnergies(spinsys)
 
@@ -444,6 +444,7 @@ def addDipolarCoupling(spinsys: SpinSys):
     spinsys : SpinSys
         The spin system object containing spin positions, spin operators, dipolar coupling
         constants, and the Hamiltonian matrix to be updated.
+        
     Returns
     -------
     None
