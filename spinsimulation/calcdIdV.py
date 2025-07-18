@@ -149,14 +149,43 @@ def calcIETS_2ndR(
     norm: bool = True,
     Approach: str = "Loth"
 ):
-    # This function calculates the IETS spectrum using the rate equation approach
+    """
+    Calculate the IETS (Inelastic Electron Tunneling Spectroscopy) spectrum using the rate equation approach.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing all relevant parameters and matrices.
+    Vrange : list of float, optional
+        The voltage range [V_min, V_max] (in mV) over which to calculate the spectrum. Default is [-30, 30].
+    N : int, optional
+        Number of voltage points in the spectrum. Default is 200.
+    AllowPumping : bool, optional
+        If True, allows for non-thermal population of spin states (pumping). If False, uses thermal (Boltzmann) population. Default is True.
+    norm : bool, optional
+        If True, normalizes the resulting dI/dV spectrum to the range [0, 1]. Default is True.
+    Approach : {'Loth', 'Ternes'}, optional
+        The approach used for rate factor calculation. "Loth" uses the Loth 2010 method, "Ternes" uses the Ternes 2010 method. Default is "Loth".
+    
+    Returns
+    -------
+    V_array : ndarray
+        Array of voltage values (in mV) at which the spectrum is calculated.
+    dIdV : ndarray
+        The normalized differential conductance (dI/dV) spectrum.
+    P : ndarray
+        Matrix of state populations for each voltage point.
+    
+    Notes
+    -----
+    - The calculation is based on the rate equation approach and supports both thermal and non-thermal
+      population distributions.
+    """
 
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
     I = np.zeros((N), dtype=float)
     P = np.zeros((spinsys.dimensionOfMatrix, N), dtype=float)
-    
-    # Prepare for everything that is not affected by the voltage
     Rates = np.zeros((5, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
      # Calculate the Eignevalues and Eignevectors if not already done
@@ -191,8 +220,9 @@ def calcIETS_2ndR(
 
     # Calculate the rates that stem from Tip tip and sample sample scattering, since they are not affected by the voltage
     RateIntegrals_ss = calcRateIntegrals(spinsys, spinsys.V_DC, 'ss')
+    RateIntegrals_tt = RateIntegrals_ss
     Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
-    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_ss
+    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt
 
     # This part happens now as often as we need it
     for I_index in range(N):
@@ -262,6 +292,34 @@ def calcIETS_2ndR(
 
 
 def calcRateIntegrals(spinsys: SpinSys, V_DC: float, type: str):
+    """
+    Calculate rate integrals for a given spin system and bias voltage.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        An instance of the SpinSys class containing system parameters such as energy levels,
+        Boltzmann constant, temperature, and matrix dimension.
+    V_DC : float
+        The applied DC bias voltage. If zero, a small value is used to avoid division by zero.
+    type : str
+        The type of transition to calculate. Must be one of:
+        - 'ts': tip to sample
+        - 'st': sample to tip
+        - 'ss': sample to sample
+        - 'tt': tip to tip
+
+    Returns
+    -------
+    RateIntegrals : np.ndarray
+        A 2D numpy array of shape (dimensionOfMatrix, dimensionOfMatrix) containing the
+        calculated rate integrals for each pair of energy levels.
+
+    Notes
+    -----
+    - The function avoids division by zero by substituting a small value for V_DC if it is zero.
+    """
+
     # Create the three nxn matrices [I_ts, I_st, I_ss]
     RateIntegrals = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
@@ -283,7 +341,27 @@ def calcRateIntegrals(spinsys: SpinSys, V_DC: float, type: str):
 
     return RateIntegrals
 
-def calculate_derivative(I, V):
+def calculate_derivative(I: list, V: list):
+    """
+    Calculate the numerical derivative dI/dV of current (I) with respect to voltage (V).
+
+    Parameters
+    ----------
+    I : array_like
+        Array of current values.
+    V : array_like
+        Array of voltage values. Must be the same length as `I`.
+        
+    Returns
+    -------
+    dIdV : ndarray
+        Array of numerical derivatives dI/dV, same length as input arrays.
+
+    Notes
+    -----
+    Assumes that `I` and `V` are one-dimensional arrays of equal length.
+    """
+
     n = len(I)  # Length of the array
     dIdV = np.zeros(n)  # Initialize the output array for derivative
 
