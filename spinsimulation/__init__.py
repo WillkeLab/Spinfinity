@@ -1,5 +1,8 @@
 from .SpinSys import SpinSys
-import SpinHamiltonian as hamil 
-import calcdIdV as dIdV
-import calcESR as ESR
-import SpinVisualization as vis
+from . import SpinHamiltonian as hamil 
+from . import calcdIdV as dIdV
+from . import calcESR as ESR
+from . import SpinVisualization as vis
+
+# Make everything available when importing the package
+__all__ = ['SpinSys', 'hamil', 'dIdV', 'ESR', 'vis']
