@@ -4,6 +4,8 @@ import scipy.constants as const
 import matplotlib.pyplot as plt
 from SpinSys import SpinSys
 import SpinHamiltonian as hamil 
+import calcdIdV as dIdV
+import calcESR as ESR
 
 # region Hamiltonian
 
@@ -32,9 +34,6 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
             
         Notes
         -----
-        The function generates a matplotlib figure showing either the probability or amplitude
-        projection of the eigenstates onto the basis states. The matrix is flipped vertically
-        so that the first entry appears in the lower left corner of the plot.
         The color limits are set to [0, 1] for probability and [-1, 1] for amplitude.
         """
 
@@ -77,7 +76,6 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
 def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
     """
     Plots the Zeeman diagram for a given spin system over a specified magnetic field range.
-    This function computes and visualizes the energy levels of a spin system as a function of an applied magnetic field along the z-axis. The Zeeman diagram illustrates how the eigenenergies of the system evolve with the magnetic field.
 
     Parameters
     ----------
@@ -96,7 +94,6 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
     Notes
     -----
     - The function temporarily modifies the magnetic field vector of `spinsys` during the calculation and restores it to its original value afterwards.
-    - The energy levels are converted to GHz using the `meVtoGHzConversion` attribute of `spinsys`.
     """
 
     # Save the initial B-Vector
@@ -127,8 +124,6 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
 def plotEnergyVsSz(spinsys: SpinSys):
         """
         Plots the energy eigenvalues of a spin system versus the expectation values of the Sz operator.
-        This function computes the expectation value of the total Sz operator for each eigenstate of the given
-        spin system and plots these values against the corresponding energy eigenvalues.
 
         Parameters
         ----------
@@ -171,3 +166,196 @@ def plotEnergyVsSz(spinsys: SpinSys):
         return
     
 # endregion Hamiltonian
+
+# region dIdV
+
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd'):
+    """
+    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object for which the IETS spectrum is to be calculated.
+    Vrange : list, optional
+        The voltage range [min, max] in millivolts over which to calculate the spectrum (default is [-30, 30]).
+    N : int, optional
+        Number of points in the voltage range for the spectrum calculation (default is 400).
+    norm : bool, optional
+        If True, normalize the calculated spectrum (default is False).
+    order : str, optional
+        The order of the IETS calculation. Currently, only '2nd' order is supported (default is '2nd').
+
+    Raises
+    ------
+    ValueError
+        If an unsupported order is specified.
+
+    Returns
+    -------
+    None
+        This function creates a plot of the IETS spectrum but does not return any value.
+    """
+
+    # Calculate the IETS spectrum for the specified order
+    if order == '2nd':
+        x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+    elif order == '2ndR':
+        x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+    else:
+        raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+   
+    # Plot the IETS spectrum
+    plt.figure() 
+    plt.plot(x, y, label='IETS Spectrum')
+    plt.xlabel('Bias Voltage (mV)')
+    plt.ylabel('dI/dV (a.u.)')
+    plt.title('IETS Spectrum ' + f'({order} Order)')
+    return 
+
+# endregion dIdV
+
+# region ESR
+
+def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True):
+    """
+    Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
+    This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
+    It also marks the resonance frequencies corresponding to recorded transitions in the spin system.
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing resonance frequencies and recorded transitions.
+    FreqRange : list of float, optional
+        The frequency range [start, stop] in GHz over which to compute the ESR spectrum (default is [10, 20]).
+    AllowPumping : bool, optional
+        Whether to allow pumping effects in the ESR calculation (default is False).
+    N : int, optional
+        Number of frequency points in the sweep (default is 1000).
+    lw : float, optional
+        Linewidth for the ESR calculation (default is 0.02).
+    norm : bool, optional
+        Whether to normalize the ESR signal (default is True).
+    Returns
+    -------
+    None
+        The function generates a plot and does not return any value.
+    Notes
+    -----
+    - Resonance frequencies and transitions are marked on the plot with different colors.
+    - The ESR spectrum is calculated using `ESR.calcESR_Benjamin`.
+    """
+    
+    # calculate the ESR spectrum
+    freq_array, ESRsignal = ESR.calcESR_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=True)
+
+    # Make the plot
+    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+
+    plt.figure()
+    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+
+    # Mark resonances
+    for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
+        index = np.argmin(np.abs(freq_array - freq_res))
+        amp = ESRsignal[index]
+        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
+                            f"f = {np.round(freq_res,4)} GHz")
+        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
+                label=transition_str, linewidth=2)
+
+    plt.xlabel('Freq (GHz)')
+    plt.ylabel('ΔI (a.u.)')
+    plt.title('ESR-Simulation')
+    plt.legend()
+    plt.xlim([freq_array[0],freq_array[-1]])
+    plt.show()
+
+    return
+
+def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):
+    
+    """
+    Plot ESR spectra as a function of tip magnetic field for a given spin system.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing all relevant spin and field parameters.
+    FreqRange : list of float, optional
+        Frequency range [min, max] in GHz for the ESR spectrum (default is [10, 20]).
+    N_Freq : int, optional
+        Number of frequency points in the ESR spectrum (default is 500).
+    lw : float, optional
+        Linewidth for the ESR peaks (default is 0.02).
+    norm : bool, optional
+        Whether to normalize the ESR signal (default is True).
+    BTipRange : list of float, optional
+        Range [min, max] of tip magnetic field values in Tesla (default is [-0.05, 0.05]).
+    N_B : int, optional
+        Number of tip field values to compute (default is 100).
+    AllowPumping : bool, optional
+        Whether to allow pumping effects in the ESR calculation (default is False).
+    Angle : float, optional
+        Angle (in degrees) of the tip field with respect to the z-axis (default is 0).
+
+    Returns
+    -------
+    None
+        This function displays a plot and does not return any value.
+        
+    Notes
+    -----
+    The function visualizes the ESR signal as a 2D color plot with frequency on the x-axis
+    and tip field on the y-axis. A secondary y-axis shows the corresponding detuning in GHz.
+    """
+
+    # Predefine Arrays
+    BTip_array = np.linspace(BTipRange[0],BTipRange[1],N_B,dtype=float)
+    Freq_array = np.linspace(FreqRange[0],FreqRange[1],N_Freq,dtype=float)
+
+    ESRsignal = np.zeros((N_B, N_Freq), dtype=float)
+    
+    # calculating the ESR signal for each Field 
+    for i in range(N_B):
+        spinsys.BTip[2]=BTip_array[i]*np.cos(Angle*np.pi/180) # BTip[2] is the z-component of the tip field
+        spinsys.BTip[0]=BTip_array[i]*np.sin(Angle*np.pi/180) # BTip[0] is the x-component of the tip field
+        spinsys.BTip[1]=0  # BTip[0] is the y-component of the tip field
+        hamil.calcEigEnergies(spinsys)
+        f , ESRsignal[i][:] = ESR.calcESR_Benjamin(spinsys, norm=norm,N=N_Freq,lw=lw,FreqRange=FreqRange,AllowPumping=AllowPumping, output=False)
+        
+
+    # Calculating the Detuning from the Tipfield
+    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.g * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
+
+
+    # Plot the ESR Signal as a color plot
+    fig, ax1 = plt.subplots()
+
+    #Plot the matrix using imshow
+    im = ax1.imshow(ESRsignal, cmap='Blues', interpolation='none', 
+                    extent=[Freq_array[0], Freq_array[-1], BTip_array[0]*1e3, BTipRange[-1]*1e3], origin='lower', aspect='auto')
+
+    # Add labels and title for primary Y-axis
+    ax1.set_xlabel('Freq (GHz)')
+    ax1.set_ylabel('B_Tip (mT)')
+    ax1.set_title('Tipfield dependent ESR' + f' (Angle = {Angle}°)')
+
+    # Create a secondary Y-axis
+    ax2 = ax1.twinx()
+    ax2.set_ylim(BTip_array[0], BTip_array[-1])
+    y_ticks = ax1.get_yticks()
+    detuning_labels = np.interp(y_ticks / 1e3, BTip_array, Detuning)
+    ax2.set_yticks(y_ticks)
+    ax2.set_yticklabels(np.round(detuning_labels, 2))
+    ax2.set_ylabel('Detuning (GHz)')
+
+    cbar = plt.colorbar(im, ax=ax1)
+    cbar.ax.set_position([0.9, 0.1, 0.03, 0.8])
+    
+    
+    plt.show()
+
+    return
+
+# endregion ESR
