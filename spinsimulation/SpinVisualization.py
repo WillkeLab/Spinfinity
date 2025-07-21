@@ -6,6 +6,7 @@ from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcdIdV as dIdV
 import spinsimulation.calcESR as ESR
+import spinsimulation.calcdIdV3 as dIdV3
 
 # region Hamiltonian
 
@@ -196,12 +197,16 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     None
         This function creates a plot of the IETS spectrum but does not return any value.
     """
-
+    
     # Calculate the IETS spectrum for the specified order
     if order == '2nd':
         x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
     elif order == '2ndR':
         x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+    elif order == '3rd':
+        print(1)
+        x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        print(1)
     else:
         raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
    
