@@ -2,10 +2,10 @@ import numpy as np
 import scipy as sp
 import scipy.constants as const
 import matplotlib.pyplot as plt
-from SpinSys import SpinSys
-import SpinHamiltonian as hamil 
-import calcdIdV as dIdV
-import calcESR as ESR
+from spinsimulation.SpinSys import SpinSys
+import spinsimulation.SpinHamiltonian as hamil 
+import spinsimulation.calcdIdV as dIdV
+import spinsimulation.calcESR as ESR
 
 # region Hamiltonian
 

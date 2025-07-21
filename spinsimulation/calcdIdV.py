@@ -3,8 +3,8 @@ import scipy as sp
 import scipy.constants as const
 from scipy.linalg import null_space
 
-from SpinSys import SpinSys
-import SpinHamiltonian as hamil 
+from spinsimulation.SpinSys import SpinSys
+import spinsimulation.SpinHamiltonian as hamil 
 
 # region 2nd Order
 

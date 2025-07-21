@@ -3,9 +3,9 @@ import scipy as sp
 import scipy.constants as const
 from scipy.linalg import null_space
 
-from SpinSys import SpinSys
-import SpinHamiltonian as hamil 
-import calcdIdV as dIdV
+from spinsimulation.SpinSys import SpinSys
+import spinsimulation.SpinHamiltonian as hamil 
+import spinsimulation.calcdIdV as dIdV
 
 
 def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):

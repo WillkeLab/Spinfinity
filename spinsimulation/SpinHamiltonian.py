@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sp
 import scipy.constants as const
-from SpinSys import SpinSys
+from spinsimulation.SpinSys import SpinSys
 
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
