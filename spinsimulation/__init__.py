@@ -1,1 +1,5 @@
-from .ESR_STM_SpinSimulation import SpinSys
+from .SpinSys import SpinSys
+import SpinHamiltonian as hamil 
+import calcdIdV as dIdV
+import calcESR as ESR
+import SpinVisualization as vis
