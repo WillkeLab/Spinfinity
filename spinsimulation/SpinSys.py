@@ -136,3 +136,53 @@ class SpinSys:
 
         self.T02 = 2e-5 
         self.Jrs = 0.1 
+    
+    def print_parameters(self):
+        """
+        Prints the parameters of the spin system and tunneling setup.
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+            This method prints information to the standard output and does not return a value.
+
+        Notes
+        -----
+        The method assumes that all relevant attributes (such as NSpins, AtomPositions,
+        B, Dvector, Jvector, etc.) are already initialized in the class instance.
+        """
+
+        print("Spin System Parameters:")
+        print(f"Number of Spins: {self.NSpins}")
+        print(f"Dimension of Matrix: {self.dimensionOfMatrix}")
+        print(f"Readout Spin: {self.ReadoutSpin}")
+        print(f"Atom Positions: \n{self.AtomPositions}")
+        # print(f"Lattice Length XY: {self.latticeLengthXY}")
+        print(f"Temperature (T): {self.T} K")
+        print(f"External Magnetic Field (B): {self.B} T")
+        print(f"Tip Magnetic Field (BTip): {self.BTip} T")
+        print(f"Tip Field Gradient (BTipGradient): {self.BTipGradient} T")
+        print(f"Tip Type: {self.tip}")
+        print(f"g-factor Vector: {self.gfactorvector}")
+        print(f"Out of Plane Anisotropy (Dvector): {self.Dvector} meV")
+        print(f"In Plane Anisotropy (Evector): {self.Evector} meV")
+        print(f"Dipole Interaction Matrix (D0): \n{self.D0*self.meVtoGHzConversion} GHz")
+        print(f"Dipole Interaction Bool Array (DipoleBool): {self.DipoleBool}")
+        print(f"Exchange Interaction Vector (Jvector): \n{self.Jvector} meV")
+        print(f"Exchange Interaction Vector (Jvector): \n{self.Jvector*self.meVtoGHzConversion} GHz")
+        print()
+        print("Tunneling Parameters:")
+        print(f"DC Voltage (V_DC): {self.V_DC} mV")
+        print(f"Tip Polarization: {self.TipPolarization}")
+        print(f"Sample Polarization: {self.SamplePolarization}")
+        print(f"U: {self.U}")
+        print(f"b0: {self.b0}")
+        print(f"Conductance (G): {self.G} A/V")
+        print(f"Sample-Sample Conductance (G_ss): {self.G_ss} A/V")
+        print(f"Tip-Tip Scattering Contribution (G_tt): {self.G_tt}")
+        
+        return

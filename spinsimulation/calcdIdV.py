@@ -377,4 +377,145 @@ def calculate_derivative(I: list, V: list):
 
     return dIdV
 
+def calcRates(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+    """
+    Calculate transition rates, populations, and tunneling current for a given spin system and voltage.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing all relevant parameters, matrices, and state information.
+    AllowPumping : bool, optional
+        If True, allows for non-thermal population pumping by solving the rate equations.
+        If False, uses the thermal (Boltzmann) population. Default is True.
+    Approach : str, optional
+        The theoretical approach to use for rate calculations. Options are:
+        - "Loth": Uses the Loth 2010 approach (default).
+        - "Ternes": Uses the Ternes 2010 approach.
+
+    Returns
+    -------
+    None
+        The function updates the following attributes of the `spinsys` object in-place:
+        - Rates : ndarray
+            Transition rates between states for different tunneling processes.
+        - Rates_Summed : ndarray
+            Summed transition rates for all processes.
+        - K : ndarray
+            Rate-equation matrix.
+        - Tau_total : ndarray
+            Total lifetimes of each state.
+        - pop_0 : ndarray
+            Normalized thermal (Boltzmann) population.
+        - Populations : ndarray
+            Steady-state populations (thermal or pumped).
+        - I : float
+            Calculated tunneling current.
+
+    Notes
+    -----
+    - The function assumes that the spin system object (`spinsys`) contains all necessary
+      physical constants, tunneling matrices, and energy levels.
+    - The function modifies the `spinsys` object in-place and does not return any value.
+    - The calculation of rates and current depends on the chosen theoretical approach.
+    """
+
+    # Initialize the Rates matrix
+    spinsys.Rates = np.zeros((5,spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+
+     # Calculate the Eignevalues and Eignevectors if not already done
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        hamil.calcEigEnergies(spinsys)
+
+    # Getting the relevant matrix elements
+    spinsys.Matrix = calcTunnelingMatrixElements(spinsys,"st")[0]
+    spinsys.MatrixSS = calcTunnelingMatrixElements(spinsys,"ss")
+    spinsys.MatrixTT = calcTunnelingMatrixElements(spinsys,"tt")[0]
+    
+    MatrixSS_summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+
+    for i in range(spinsys.NSpins):
+        MatrixSS_summed += spinsys.MatrixSS[i, :, :] * spinsys.G_ss[i]
+
+    # Calculating the 3 different integrals
+    RateIntegrals_ts = calcRateIntegrals(spinsys, spinsys.V_DC, 'ts')
+    RateIntegrals_st = calcRateIntegrals(spinsys, spinsys.V_DC, 'st')
+    RateIntegrals_ss = calcRateIntegrals(spinsys, spinsys.V_DC, 'ss')
+    #RateIntegrals_tt = spinsys.calcRateIntegrals(spinsys.V_DC, 'tt')
+
+    Rate_0 = spinsys.Matrix[0][0]  # Transition matrix element of the ground state
+
+    ### Rate-Factors using Loth 2010
+    if Approach == "Loth":
+        spinsys.G_st = (1 - spinsys.b0) * spinsys.G
+
+        RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
+        RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
+        # The G_ss value might be different for every spin thats why we previously incorpareted it when we summed the Matrix
+        RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
+        RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
+
+    ### Rate-Factors using Ternes 2010 (not default)
+    if Approach == "Ternes":
+        RateFactor_ts = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
+        RateFactor_st = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
+        RateFactor_ss = 2 * np.pi / spinsys.hbar_meV * spinsys.Jrs**2
+        RateFactor_tt = 2 * np.pi / spinsys.hbar_meV * spinsys.T02**2 / (spinsys.Jrs**2) * spinsys.G_tt
+
+    # Calculate rates based on rate factors and integrals
+    spinsys.Rates[0, :, :] = RateFactor_ts * spinsys.Matrix.T *  RateIntegrals_ts
+    spinsys.Rates[1, :, :] = RateFactor_st * spinsys.Matrix *  RateIntegrals_st
+    spinsys.Rates[2, :, :] = RateFactor_ss * MatrixSS_summed *  RateIntegrals_ss
+    spinsys.Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT *  RateIntegrals_ss
+
+    # Sum the rates
+    spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
+                        spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] + 
+                        spinsys.Rates[4, :, :])
+
+    # Build the Rate-Equation matrix
+    spinsys.K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    R1 = np.zeros(spinsys.dimensionOfMatrix)
+    RSS = np.zeros(spinsys.dimensionOfMatrix)
+
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            if i != j:
+                spinsys.K[i, i] -= spinsys.Rates_Summed[i, j]  # Rates leaving state i
+                spinsys.K[i, j] = spinsys.Rates_Summed[j, i]  # Rates leading to state i
+                R1[i] += spinsys.Rates[2, i, j]  # Summing up all the rates
+
+    # Calculate the total lifetime (Tau_total)
+    spinsys.Tau_total = 1 / R1
+
+    # Calculate the thermal population (Boltzmann distribution)
+    p0 = np.exp(-spinsys.E_All / (spinsys.kB * spinsys.T))
+    pTot = np.sum(p0)
+    spinsys.pop_0 = p0 / pTot  # Normalized thermal population
+
+    # Solve the Rate-Equation if non-thermal population is desired
+    if AllowPumping:
+        p = null_space(spinsys.K)
+        if p.size == 0:  # If no valid solution, use thermal distribution
+            spinsys.Populations = spinsys.pop_0
+        else:
+            spinsys.Populations = p[:, 0] / np.sum(p[:, 0])
+    else:
+        spinsys.Populations = spinsys.pop_0
+
+    # Deriving the tunneling current using Equation 41 from Ternes paper
+    spinsys.I = 0
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            I_temp = const.e * spinsys.Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
+            spinsys.I += I_temp
+
+    # Adjust current calculation based on approach
+    if Approach == "Ternes":
+        spinsys.I = spinsys.I / (const.e**2 * spinsys.T02 / spinsys.h_meV)
+    if Approach == "Loth":
+        spinsys.I += spinsys.b0 * spinsys.G * spinsys.V_DC
+
+    return
+
 # endregion 2nd Order + Rate
