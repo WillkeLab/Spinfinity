@@ -5,7 +5,7 @@ from scipy.linalg import null_space
 
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.calcdIdV as dIdV
+import spinsimulation.calcBath as bath
 
 
 def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
@@ -56,15 +56,7 @@ def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping:
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
 
-    # Get the populations
-    p0 = np.exp((-spinsys.E_All)/(spinsys.kB*spinsys.T)) # Both E and kb in meV bzw. meV/T
-    pTot = sum(p0)
-    spinsys.pop_0 = p0/pTot
-
-    if AllowPumping:
-        dIdV.calcRates(spinsys, AllowPumping=True)
-    else:       
-        spinsys.Populations = spinsys.pop_0
+    bath.calcPopulations(spinsys, AllowPumping=AllowPumping, Approach="Loth")
 
     # Look at transitions
     spinsys.RecordedTransitions = calcRecordedTransitions(spinsys,freq[0],freq[-1])

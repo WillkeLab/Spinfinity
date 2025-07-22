@@ -4,6 +4,7 @@ import scipy.constants as const
 import matplotlib.pyplot as plt
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
+import spinsimulation.calcBath as bath
 import spinsimulation.calcdIdV as dIdV
 import spinsimulation.calcESR as ESR
 import spinsimulation.calcdIdV3 as dIdV3
@@ -169,6 +170,53 @@ def plotEnergyVsSz(spinsys: SpinSys):
         return
     
 # endregion Hamiltonian
+
+# region Bath
+def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+    """
+    Plots the thermal populations of the spin system's states.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the necessary parameters and methods.
+    AllowPumping : bool, optional
+        Whether to allow pumping effects in the calculation (default is True).
+    Approach : str, optional
+        The approach to use for calculating populations (default is "Loth").
+
+    Returns
+    -------
+    None
+        This function generates a plot of the populations but does not return any value.
+    
+    Notes
+    -----
+    - The function assumes that the `spinsys` object has the necessary attributes and methods for rate calculations.
+    """
+    if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
+            bath.calcPopulations(spinsys,AllowPumping=AllowPumping, Approach=Approach)
+    if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
+            hamil.calcEigStates(spinsys)
+    
+    import matplotlib.ticker as ticker
+
+    x = np.arange(len(spinsys.Populations))
+    width = 0.35
+
+    fig, ax = plt.subplots()
+    ax.barh(x + width/2, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
+    ax.barh(x - width/2, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
+    ax.set_yticks(x)
+    ax.set_yticklabels(spinsys.basisStates)
+    ax.set_xlabel('Population')
+    ax.set_ylabel('Basis States')
+    ax.set_title('Population of Spin States')
+    ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+# endregion Bath
 
 # region dIdV
 
