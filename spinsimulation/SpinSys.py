@@ -137,6 +137,17 @@ class SpinSys:
 
         self.T02 = 2e-5 
         self.Jrs = 0.1 
+
+        # Kondo Parameters
+        self.J = 0.1 
+        self.ptip = [0, 0, 0] #spin polarisation in the tip electrode
+        self.psample = [0, 0, 0] # spin polarisation in the sample electrode
+        self.lt = 0.005;        # intrinsic lifetime broadening 5 µeV
+        self.w=20;              # bandwidth
+        self.precission=0.001
+        # %precission sets the mininal (in) state occupation to be calculated
+        # and %precission^2 the minimal matrix element to be evaluated
+        # the calculation speed drastically depends on that value
     
     def print_parameters(self):
         """

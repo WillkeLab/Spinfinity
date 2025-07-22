@@ -6,6 +6,7 @@ from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcdIdV as dIdV
 import spinsimulation.calcESR as ESR
+import spinsimulation.calcdIdV3 as dIdV3
 
 # region Hamiltonian
 
@@ -112,9 +113,11 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
         
     fig, ax = plt.subplots()
     for i in range(spinsys.dimensionOfMatrix):
-        ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+        # ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+        ax.plot(B,E[:,i],label=f"E_{i}")
     ax.set_xlabel('Magnetic Field (T)')
-    ax.set_ylabel('Energy (GHz)')
+    # ax.set_ylabel('Energy (GHz)')
+    ax.set_ylabel('Energy (meV)')
     ax.set_title('Zeeman Diagramm')
     ax.legend()
     plt.show()
@@ -196,12 +199,14 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     None
         This function creates a plot of the IETS spectrum but does not return any value.
     """
-
+    
     # Calculate the IETS spectrum for the specified order
     if order == '2nd':
         x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
     elif order == '2ndR':
         x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+    elif order == '3rd':
+        x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
     else:
         raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
    
@@ -210,6 +215,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     plt.plot(x, y, label='IETS Spectrum')
     plt.xlabel('Bias Voltage (mV)')
     plt.ylabel('dI/dV (a.u.)')
+    plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
     plt.title('IETS Spectrum ' + f'({order} Order)')
     return 
 
