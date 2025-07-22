@@ -8,10 +8,37 @@ import spinsimulation.SpinHamiltonian as hamil
 
 # region 2nd Order
 
-def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-10,10], N: int = 100, norm: bool = False):
+def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: bool = False):
     """
-    Calculates the IETS spectrum for a thermally occupied spin system in 2nd order perturbation.
+    Calculate the second derivative of the tunneling current (dI/dV) for a given spin system  in 2nd Order.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing eigenvalues, eigenvectors, temperature, and other relevant parameters.
+    Vrange : list of float, optional
+        The voltage range [V_min, V_max] over which to calculate dI/dV. Default is [-10, 10].
+    N : int, optional
+        Number of voltage points in the output array. Default is 100.
+    norm : bool, optional
+        If True, normalize the output dI/dV array to the range [0, 1]. Default is False.
+
+    Returns
+    -------
+    V_array : ndarray
+        Array of voltage values over the specified range.
+    dIdV_array : ndarray
+        Calculated dI/dV values corresponding to each voltage in V_array.
+
+    Notes
+    -----
+    - The function assumes that the spin system object contains all necessary attributes.
+    - Eigenvalues and eigenvectors are calculated if not already present in the spin system.
+    - The calculation uses a Boltzmann distribution for thermal population.
+    - The tunneling rate matrix is computed using the `calcTunnelingMatrixElements` function.
+    - The output can be normalized for easier comparison between different systems or parameters.
     """
+    
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
     dIdV_array = np.zeros(N, dtype=float)
@@ -45,7 +72,30 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-10,10], N: int = 100, norm: 
 def calcTunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
     """
     Calculate the tunneling matrix elements for a given spin system and scattering type.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        An instance of the SpinSys class containing the spin system properties, eigenvectors,
+        and spin operators (Sx, Sy, Sz, U).
+    scattertype : str
+        Type of scattering process. If "ss", calculations are performed for all spins;
+        otherwise, calculations are performed for the readout spin only.
+
+    Returns
+    -------
+    RateMatrix : np.ndarray
+        Array containing the calculated tunneling rate matrix elements. The shape is
+        (NSpins, dimensionOfMatrix, dimensionOfMatrix) for "ss" scattertype, and
+        (1, dimensionOfMatrix, dimensionOfMatrix) otherwise.
+
+    Notes
+    -----
+    The function computes the tunneling matrix elements by projecting spin operators
+    into the eigenbasis and combining them with electron tunneling matrix elements.
+    The resulting rate matrix is used in further calculations of tunneling rates.
     """
+    
     # Get the electron tunneling matrix elements
     x_el, y_el, z_el, u_el = calcTunnelingElectronMatrixElements(spinsys, scattertype)
 
@@ -75,6 +125,37 @@ def calcTunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
 def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
     """
     Calculate tunneling electron matrix elements for a given spin system and scattering type.
+    This function computes the matrix elements associated with tunneling electrons between tip and sample,
+    considering their spin polarizations. It normalizes the tip and sample polarizations if necessary,
+    constructs the corresponding density matrices, and calculates the matrix elements for the specified
+    scattering type ('st', 'tt', or 'ss').
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        An object representing the spin system, containing tip and sample polarizations.
+    scattertype : str
+        The type of scattering to calculate matrix elements for. Options are:
+        - 'st': tip-to-sample scattering
+        - 'tt': tip-to-tip scattering
+        - 'ss': sample-to-sample scattering
+
+    Returns
+    -------
+    x : ndarray
+        Matrix elements for the x-component of spin.
+    y : ndarray
+        Matrix elements for the y-component of spin.
+    z : ndarray
+        Matrix elements for the z-component of spin.
+    u : ndarray
+        Matrix elements for the identity component.
+
+    Notes
+    -----
+    If an invalid `scattertype` is provided, the function defaults to 'st' (tip-to-sample scattering).
+    The function uses Pauli matrices for spin-1/2 electrons and computes the matrix elements in the eigenbasis
+    of the tip and sample density matrices.
     """
     # Normalize the Tip and Sample Polarizations if their norms are greater than 1
     if np.linalg.norm(spinsys.TipPolarization) > 1:
@@ -130,8 +211,25 @@ def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
 
 def tunnelingBroadenedStepFunction(x_V):
     """
-    Compute the tunneling-broadened step function.
+    Compute the tunneling broadened step function.
+    This function calculates a broadened step function commonly used in tunneling spectroscopy.
+
+    Parameters
+    ----------
+    x_V : array_like or float
+        Input value(s) at which to evaluate the broadened step function.
+
+    Returns
+    -------
+    y : ndarray or float
+        The value(s) of the tunneling broadened step function at `x_V`. If the computation results
+        in NaN values, they are replaced with 0.0.
+
+    Notes
+    -----
+    The function uses an exponential transformation and handles potential NaN values gracefully.
     """
+    
     z = np.exp(x_V)
     y = (1 + (x_V - 1) * z) / ((z - 1) ** 2)
     y = np.nan_to_num(y, nan=0.0)
