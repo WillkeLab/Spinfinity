@@ -3,7 +3,7 @@ import scipy as sp
 import scipy.constants as const
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
-import calcdIdV as dIdV
+import spinsimulation.calcdIdV as dIdV
 import matplotlib.pyplot as plt
 
 def e_epsilon(SpinSys: SpinSys):
