@@ -229,7 +229,7 @@ def spec3(SpinSys: SpinSys, initial_state_idx, V_array):
 
     # Adjust precision threshold
     prec = SpinSys.precission**2
-    print(f"Precision threshold: {prec}")
+    # To be added from Ternes Code: If SpinSys has T_ts, use it; otherwise, use SpinSys.precission
     #if hasattr(SpinSys, 'T_ts'):
         #prec = SpinSys.precission**2 * (np.sum(SpinSys.T_ts**2)**2) / 9
     #else:
@@ -239,15 +239,8 @@ def spec3(SpinSys: SpinSys, initial_state_idx, V_array):
 
     y = np.zeros(speclength)
     yr = np.zeros(speclength)
-    
-    print(f"Initial state index: {initial_state_idx}")
-    print(rate)
-    print(raten)
-    print(rater)
-    print(ratenr)
 
     dim = SpinSys.eigVectors.shape[0]
-    print(f"Dimension of eigVectors: {dim}")
     for mid in range(dim):
         for fin in range(dim):
             if (
@@ -260,11 +253,11 @@ def spec3(SpinSys: SpinSys, initial_state_idx, V_array):
                 E_fi = ve[fin] - ve[initial_state_idx]
 
                 # These are vectorized versions across V_array
-                tlog1 = ln_t2(E_mi + V_array, w, SpinSys.T, lt)
-                tlog2 = ln_t2(E_mi - V_array, w, SpinSys.T, lt)
+                tlog1 = ln_t2(E_mi + V_array, w, SpinSys.kB * SpinSys.T, lt)
+                tlog2 = ln_t2(E_mi - V_array, w, SpinSys.kB * SpinSys.T, lt)
 
-                ep = fstep((E_fi - V_array) / SpinSys.T)
-                en = fstep((E_fi + V_array) / SpinSys.T)
+                ep = fstep((E_fi - V_array) / (SpinSys.kB * SpinSys.T))
+                en = fstep((E_fi + V_array) / (SpinSys.kB * SpinSys.T))
 
                 ytemp   = -occ[initial_state_idx] * 2 * np.real(rate[mid, fin] * ep * tlog2)
                 ytempn  = -occ[initial_state_idx] * 2 * np.real(raten[mid, fin] * en * tlog1)
@@ -296,7 +289,7 @@ def occupations(SpinSys: SpinSys):
     shifted_energies = eigenvalues - np.min(eigenvalues)  # Shift ground state to 0
 
     if SpinSys.T != 0:
-        unnormalized_probs = np.exp(-shifted_energies / SpinSys.T)
+        unnormalized_probs = np.exp(-shifted_energies / (SpinSys.kB * SpinSys.T))
         occupations = unnormalized_probs / np.sum(unnormalized_probs)
     else:
         occupations = np.zeros_like(shifted_energies)
@@ -433,7 +426,7 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
     for i in range(dim):
         if SpinSys.p0[i] > 1e-6:
             x, y1, y1r = spec3(SpinSys, i, V_array)
-            print(y1.shape, y1r.shape)
+            # Add contributions from the third-order processes
             dIdV_3rd += (y1 + y1r)
 
     # Normalize result

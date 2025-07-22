@@ -204,9 +204,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     elif order == '2ndR':
         x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
     elif order == '3rd':
-        print(1)
         x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
-        print(1)
     else:
         raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
    
@@ -215,6 +213,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     plt.plot(x, y, label='IETS Spectrum')
     plt.xlabel('Bias Voltage (mV)')
     plt.ylabel('dI/dV (a.u.)')
+    plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
     plt.title('IETS Spectrum ' + f'({order} Order)')
     return 
 
