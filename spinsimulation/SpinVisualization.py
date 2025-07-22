@@ -125,49 +125,55 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
 
     return
 
-def plotEnergyVsSz(spinsys: SpinSys):
-        """
-        Plots the energy eigenvalues of a spin system versus the expectation values of the Sz operator.
+def plotEnergyVsS(spinsys: SpinSys, type: str='z'):
+    """
+    Plots the energy eigenvalues of a spin system versus the expectation values of a spin operator (Sx, Sy, or Sz).
 
-        Parameters
-        ----------
-        spinsys : SpinSys
-            An instance of the SpinSys class containing the spin system's Hamiltonian, eigenvectors, and eigenvalues.
-            The object must have the attributes `eigVectors`, `E_All_inGHz`, `Sz`, and `dimensionOfMatrix`.
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing Hamiltonian, eigenvectors, and energies.
+    type : str, optional
+        The spin operator to use for the expectation value ('x', 'y', or 'z'). Default is 'z'.
 
-        Returns
-        -------
-        None
-            This function displays a matplotlib scatter plot and does not return any value.
-
-        Notes
-        -----
-        If the eigenvectors are not already computed and stored in `spinsys.eigVectors`, the function will
-        call `hamil.calcEigEnergies(spinsys)` to compute them.
-        """
+    Returns
+    -------
+    None
+        This function displays a scatter plot and does not return any value.
         
-        
-        if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-            hamil.calcEigEnergies(spinsys)
+    Notes
+    -----
+    If the eigenvectors of the spin system are not already calculated, the function will compute them.
+    The expectation value of the selected spin operator is calculated for each eigenstate and plotted against its energy.
+    """
+    
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        hamil.calcEigEnergies(spinsys)
 
-        # Calculate the Sz matrix elements for each state
-        Sz_elements = np.zeros(spinsys.dimensionOfMatrix)
+    if type == 'z':
+        S_Operator = np.sum(spinsys.Sz, axis=0)
+    elif type == 'x':
+        S_Operator = np.sum(spinsys.Sx, axis=0)
+    elif type == 'y':
+        S_Operator = np.sum(spinsys.Sy, axis=0)
 
-        Sz_Operator = np.sum(spinsys.Sz, axis=0)
-        for i in range(spinsys.dimensionOfMatrix):
-            Sz_elements[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ Sz_Operator @ spinsys.eigVectors[:, i])
+    # Calculate the Sz matrix elements for each state
+    S_elements = np.zeros(spinsys.dimensionOfMatrix)
 
-        # Plot the energy vs Sz matrix elements
-        plt.figure()
-        plt.scatter(Sz_elements, spinsys.E_All_inGHz, c='b', marker='o')
-        #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
-        plt.xlabel('m_z')
-        plt.ylabel('Energy (GHz)')
-        plt.title('Energy vs Sz Matrix Elements')
-        plt.grid(True)
-        plt.show()
+    for i in range(spinsys.dimensionOfMatrix):
+        S_elements[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S_Operator @ spinsys.eigVectors[:, i])
 
-        return
+    # Plot the energy vs Sz matrix elements
+    plt.figure()
+    plt.scatter(S_elements, spinsys.E_All_inGHz, c='b', marker='o')
+    #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
+    plt.xlabel('m_'+type)
+    plt.ylabel('Energy (GHz)')
+    plt.title('Energy vs S_' + type +  ' Matrix Elements')
+    plt.grid(True)
+    plt.show()
+
+    return
     
 # endregion Hamiltonian
 

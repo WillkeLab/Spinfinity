@@ -8,16 +8,132 @@ import spinsimulation.SpinHamiltonian as hamil
 
 
 # region Physical Quantities
-def calcMagnetization(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
-   
-    spinsys.Mag = 0
-    return spinsys.Mag
+def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True, Approach: str = "Loth"):
+    """
+    Calculates the magnetization of a spin system along a specified axis.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing eigenvectors, spin operators, and populations.
+    type : str, optional
+        The axis along which to calculate magnetization ('x', 'y', or 'z'). Default is 'z'.
+    AllowPumping : bool, optional
+        Whether to allow population pumping during calculation. Default is True.
+    Approach : str, optional
+        The approach used for population calculation. Default is "Loth".
+
+    Raises
+    ------
+    ValueError
+        If `type` is not one of 'x', 'y', or 'z'.
+
+    Notes
+    -----
+    The function updates the following attributes of `spinsys`:
+        - Mag_tot: Total magnetization of the system.
+        - Mag_tot_max: Maximum possible total magnetization.
+        - Mag: Magnetization for each individual spin.
+        - Mag_max: Maximum possible magnetization for each spin.
+        - Magtype: The axis along which magnetization was calculated.
+
+    Returns
+    -------
+    None
+        The results are stored in the `spinsys` object.
+    """
+
+    if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
+        calcPopulations(spinsys, AllowPumping=AllowPumping, Approach=Approach)
+    
+    # Choose the Operator based on the type of magnetization
+    if type == 'z':
+        S = spinsys.Sz
+    elif type == 'y':
+        S = spinsys.Sy
+    elif type == 'x':
+        S = spinsys.Sx
+    else:
+        raise ValueError("Invalid type for magnetization. Choose 'x', 'y', or 'z'.")
+    
+    S_Operator = np.sum(S, axis=0)
+    
+    # Initialize the magnetization arrays
+    S_elements = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix)) #Individual projection 
+    S_elements_tot = np.zeros(spinsys.dimensionOfMatrix) # Projection of the total spin system
+    Mag = np.zeros((spinsys.NSpins))
+    Mag_tot = 0
+
+    # Itterate through every eigenstate and each spin 
+    for i in range(spinsys.dimensionOfMatrix):
+            S_elements_tot[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S_Operator @ spinsys.eigVectors[:, i])
+            Mag_tot += S_elements_tot[i] * spinsys.Populations[i]
+            for j in range(spinsys.NSpins):
+                S_elements[j, i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S[j, :, :] @ spinsys.eigVectors[:, i])
+                Mag[j] += S_elements[j,i] * spinsys.Populations[i]
+    
+    # Remember the maximum value for each spin to have the opportunity to normalize
+    Mag_tot_max = S_elements_tot.max()
+    Mag_max = S_elements.max(axis=1)
+
+    # Store the magnetization in the spinsys object
+    spinsys.Mag_tot = Mag_tot  # Store the total magnetization in the spinsys object
+    spinsys.Mag_tot_max = Mag_tot_max  # Store the maximum magnetization in the spinsys object
+    spinsys.Mag = Mag  # Store the individual magnetizations in the spinsys object
+    spinsys.Mag_max = Mag_max  # Store the maximum magnetization for each spin in
+    spinsys.Magtype = type  # Store the type of magnetization calculated
+
+    return
 
 def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+    """
+    Calculates the lifetimes (T1) for each state in a spin system.
+    This function computes the total and natural lifetimes for each state in the given spin system
+    by summing the transition rates out of each state. If the rate matrix is not already calculated,
+    it will be computed using the specified approach.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing state information and rate matrices.
+    AllowPumping : bool, optional
+        Whether to allow pumping effects in the calculation (default is True).
+    Approach : str, optional
+        The approach used to calculate the rate matrix if not already present (default is "Loth").
+
+    Returns
+    -------
+    None
+        The results are stored as attributes (`T1_tot` and `T1_ss`) in the `spinsys` object.
+
+    Notes
+    -----
+    - `T1_tot` is the total lifetime for each state, considering all possible transitions.
+    - `T1_ss` is the natural lifetime for each state, considering only sample scattering transitions.
+    - Requires the `Rates` and `Rates_Summed` attributes in the `spinsys` object.
+    """
+    
+    # Check whether the RateMatrix is already calculated
+    if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
+        calcRates(spinsys, Approach=Approach)
+
+    # Initialize the Rate array that somes up all rates that leave the state
+    R1_tot = np.zeros(spinsys.dimensionOfMatrix)
+    R1_ss = np.zeros(spinsys.dimensionOfMatrix)
+
+    # Summing up all rates that leave the state
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            if i != j:
+                R1_tot[i] += spinsys.Rates_Summed[i, j]  # Summing up all the rates
+                R1_ss[i] = spinsys.Rates[2, i, j] # Just sample sample scattering
+
+    spinsys.T1_tot = 1 / R1_tot  # Total lifetime
+    spinsys.T1_ss = 1 / R1_ss  # natural lifetime
 
     return 
 
-def calcTunnelingCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
     """
     Calculates the tunneling current for the given spin system.
 
