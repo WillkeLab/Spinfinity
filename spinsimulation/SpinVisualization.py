@@ -113,9 +113,11 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
         
     fig, ax = plt.subplots()
     for i in range(spinsys.dimensionOfMatrix):
-        ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+        # ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+        ax.plot(B,E[:,i],label=f"E_{i}")
     ax.set_xlabel('Magnetic Field (T)')
-    ax.set_ylabel('Energy (GHz)')
+    # ax.set_ylabel('Energy (GHz)')
+    ax.set_ylabel('Energy (meV)')
     ax.set_title('Zeeman Diagramm')
     ax.legend()
     plt.show()
