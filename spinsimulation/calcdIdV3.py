@@ -101,18 +101,22 @@ def compute_third_order_rates(SpinSys: SpinSys, initial_state_idx):
     returning rate matrices for different tunneling processes. The computation involves transforming
     spin operator matrices into the eigenbasis, constructing tensor contractions with symmetry factors,
     and accumulating contributions for each process.
+    Markus Ternes (function M35):
+    calculate the tunneling rate in 3rd order via all possible tunneling pathes
+    output are 4 matrices which give the probabiliy to tunnel from in->i->j
+
     SpinSys : SpinSys
         Object containing spin operator matrices (Sx, Sy, Sz), eigenvectors, and coupling constants.
     initial_state_idx : int
         Index of the initial state in the eigenbasis.
     rate_e : np.ndarray
-        Rate matrix for the direct tunneling process.
+        'normal' matrix for tunneling from tip to sample
     rate_er : np.ndarray
-        Rate matrix for the reversed tunneling process.
+        er is the 'time-reversed' matrix for tunneling from tip to sample.
     rate_en : np.ndarray
-        Rate matrix for the exchange tunneling process.
+        en is the 'normal' matrix for tunneling from sample to tip
     rate_enr : np.ndarray
-        Rate matrix for the reversed exchange tunneling process.
+        enr is the 'time-reversed' matrix for tunneling from sample to tip
     
     Notes
     ---------
@@ -165,7 +169,7 @@ def compute_third_order_rates(SpinSys: SpinSys, initial_state_idx):
     so2 = [Smatrxx,Smatrxy,Smatrxz,Smatrxu]           # list of 4 matrices
     so3 = so1
 
-    mone = np.ones((1, 2)) # Spin-½ basis vector |↑⟩
+    mone = np.ones((1, dim)) # Spin-½ basis vector |↑⟩
 
     e_tensor   = 0
     er_tensor  = 0
