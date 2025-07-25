@@ -140,6 +140,7 @@ def compute_third_order_rates(SpinSys: SpinSys, initial_state_idx):
     Index = np.array([SpinSys.ReadoutSpin])
 
     # Use @ for matrix multiplication instead of * (which is element-wise)
+    # Slightly different notation. The idea is to use the same language for the 3rd order code as in the 2nd order code.
     for k in range(N):
         MatrixX = np.conjugate(np.transpose(SpinSys.eigVectors)) @ SpinSys.Sx[Index[k], :, :] @ SpinSys.eigVectors
         MatrixY = np.conjugate(np.transpose(SpinSys.eigVectors)) @ SpinSys.Sy[Index[k], :, :] @ SpinSys.eigVectors
@@ -151,7 +152,7 @@ def compute_third_order_rates(SpinSys: SpinSys, initial_state_idx):
     # I = np.eye(SpinSys.Sx[0].shape[0])
     # matrxu=SpinSys.U * E.conj().T @ I @ E
 
-    J = SpinSys.J*np.array([1, 1, 1])
+    J = SpinSys.J[SpinSys.ReadoutSpin]*np.array([1, 1, 1])
 
     Smatrxx = J[0] * MatrixX
     Smatrxy = J[1] * MatrixY
