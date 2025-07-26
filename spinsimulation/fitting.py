@@ -278,7 +278,7 @@ class KondoFitter:
         self.V_exp = V_exp
         self.dIdV_exp = dIdV_exp
         self.n_evaluations = 0
-        self.weights = weights if weights.size > 0 else np.ones_like(V_exp)q
+        self.weights = weights if weights.size > 0 else np.ones_like(V_exp)
         
     def objective(self, params:np.ndarray) -> float:
         """
