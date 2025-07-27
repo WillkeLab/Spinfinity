@@ -125,7 +125,7 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
 
     return
 
-def plotEnergyVsS(spinsys: SpinSys, type: str='z'):
+def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     """
     Plots the energy eigenvalues of a spin system versus the expectation values of a spin operator (Sx, Sy, or Sz).
 
@@ -165,10 +165,15 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z'):
 
     # Plot the energy vs Sz matrix elements
     plt.figure()
-    plt.scatter(S_elements, spinsys.E_All_inGHz, c='b', marker='o')
+    if energyscale == 'GHz':
+        plt.scatter(S_elements, spinsys.E_All_inGHz, c='k', marker='_', s=1200)
+        plt.ylabel('Energy (GHz)')
+    elif energyscale == 'meV':
+        plt.scatter(S_elements, spinsys.E_All, c='k', marker='_', s=1000, linewidths=5)
+        plt.ylabel('Energy (meV)')
     #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
     plt.xlabel('m_'+type)
-    plt.ylabel('Energy (GHz)')
+    
     plt.title('Energy vs S_' + type +  ' Matrix Elements')
     plt.grid(True)
     plt.show()
