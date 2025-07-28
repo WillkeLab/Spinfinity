@@ -165,7 +165,12 @@ class SpinSys:
         # %precission sets the mininal (in) state occupation to be calculated
         # and %precission^2 the minimal matrix element to be evaluated
         # the calculation speed drastically depends on that value
-    
+        
+        # Stevens Operators
+        self.Stevens = [{} for _ in range(self.NSpins)]
+        self.use_Stevens = False  # Flag to indicate if Stevens operators are used
+
+    ## Print the parameters of the Spin System ##
     def print_parameters(self):
         """
         Prints the parameters of the spin system and tunneling setup.
