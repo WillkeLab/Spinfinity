@@ -78,6 +78,23 @@ class SpinSys:
         Tunneling parameter.
     Jrs : float
         Another Tunneling parameter.
+    
+    Kondo Parameters
+    J : ndarray
+        Kondo exchange coupling for each spin.
+    ptip : list of float
+        Spin polarization vector in the tip electrode.
+    psample : list of float
+        Spin polarization vector in the sample electrode.
+    lt : float
+        Intrinsic lifetime broadening (default: 0.005, i.e., 5 µeV).
+    w : float
+        Bandwidth parameter.
+    precission : float
+        Markus Ternes: Precision parameter; sets the minimal (in) state occupation to be calculated,
+        and precission^2 the minimal matrix element to be evaluated. The calculation
+        speed drastically depends on this value.
+    tunneling parameters relevant for scanning probe experiments, and Kondo physics.
         
     Notes
     -----
@@ -139,7 +156,7 @@ class SpinSys:
         self.Jrs = 0.1 
 
         # Kondo Parameters
-        self.J = 0.1 
+        self.J = np.zeros(self.NSpins)
         self.ptip = [0, 0, 0] #spin polarisation in the tip electrode
         self.psample = [0, 0, 0] # spin polarisation in the sample electrode
         self.lt = 0.005;        # intrinsic lifetime broadening 5 µeV
