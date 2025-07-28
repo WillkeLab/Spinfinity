@@ -347,7 +347,7 @@ def ln_t2(x, e0, T, lt):
 
 
 def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm: bool = False,
-    plot: bool = False,
+    plot: bool = False
 ):
     """
     Calculate IETS spectrum with third-order contributions (e.g. Kondo processes)
@@ -388,12 +388,17 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
 
     for i in range(dim):
         if SpinSys.p0[i] > 1e-6:
-            x, y1, y1r = spec3(SpinSys, i, V_array)
-            # Add contributions from the third-order processes
-            dIdV_3rd += (y1 + y1r)
+            # Calculate third-order contributions for each state
+            if SpinSys.use_Frota:
+                y1 = calcFrota(SpinSys, V_array)
+            else:
+                x, y1, y1r = spec3(SpinSys, i, V_array)
+                y1 = y1+ y1r  # Combine forward and reverse contributions
+                # Add contributions from the third-order processes
+            dIdV_3rd += y1
 
     # Normalize result
-    if norm:
+    if norm == True:
         dIdV_3rd = (dIdV_3rd - np.min(dIdV_3rd)) / (np.max(dIdV_3rd) - np.min(dIdV_3rd))
 
     if plot:
@@ -408,3 +413,36 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
         plt.show()
 
     return V_array, dIdV_3rd
+
+
+def calcFrota(SpinSys: SpinSys, V_array):
+    """
+    Calculate the Frota function for Kondo resonance in STS.
+
+    Parameters:
+        V_array : ndarray
+            Voltage array (in Volts)
+        a : float
+            Amplitude
+        theta_r : float
+            Phase shift (in radians)
+        Gamma : float
+            Kondo width
+        epsilon : float
+            Resonance energy
+        b : float
+            Linear background coefficient
+        c : float
+            Constant background coefficient
+
+    Returns:
+        dIdV : ndarray
+            Differential conductance dI/dV
+    """
+    numerator = 0.39 * 1j * SpinSys.GammaFrota
+    denominator = V_array - SpinSys.epsilonFrota + 0.39 * 1j * SpinSys.GammaFrota
+    sqrt_term = np.sqrt(numerator / denominator)
+    frota = SpinSys.AmpFrota * np.imag(-1j * np.exp(1j * SpinSys.theta_rFrota) * sqrt_term)
+    return frota + SpinSys.BkgndLinFrota * V_array + SpinSys.OffsetFrota
+
+
