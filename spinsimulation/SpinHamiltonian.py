@@ -457,33 +457,32 @@ def addDipolarCoupling(spinsys: SpinSys):
     where D0 is the dipolar coupling constant, S1 and S2 are spin operators, and r̂ is the
     normalized vector connecting the two spins.
     """
-    
-    # Loop over spins
-    for i_spin in range(spinsys.NSpins):
-        for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
-            if i_spin != j_spin:
-                # Calculate the normalized connection vector (rhat)
-                diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
-                rhat = diff_vec / np.linalg.norm(diff_vec)
+    if np.any(spinsys.DipoleBool):
+        for i_spin in range(spinsys.NSpins):
+            for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
+                if i_spin != j_spin:
+                    # Calculate the normalized connection vector (rhat)
+                    diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
+                    rhat = diff_vec / np.linalg.norm(diff_vec)
 
-                # Add the dipolar interaction to the Hamiltonian
-                spinsys.H += (
-                    spinsys.D0[j_spin, i_spin]
-                    * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
-                        + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
-                        + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
-                )
+                    # Add the dipolar interaction to the Hamiltonian
+                    spinsys.H += (
+                        spinsys.D0[j_spin, i_spin]
+                        * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
+                            + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
+                            + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
+                    )
 
-                # Subtract the 3*(D0) term with the projection of spin operators along rhat
-                spinsys.H -= (
-                    3 * spinsys.D0[j_spin, i_spin]
-                    * ((spinsys.Sx[j_spin, :, :] * rhat[0]
-                        + spinsys.Sy[j_spin, :, :] * rhat[1]
-                        + spinsys.Sz[j_spin, :, :] * rhat[2])
-                    @ (spinsys.Sx[i_spin, :, :] * rhat[0]
-                        + spinsys.Sy[i_spin, :, :] * rhat[1]
-                        + spinsys.Sz[i_spin, :, :] * rhat[2]))
-                )
+                    # #Subtract the 3*(D0) term with the projection of spin operators along rhat
+                    spinsys.H -= (
+                        3 * spinsys.D0[j_spin, i_spin]
+                        * ((spinsys.Sx[j_spin, :, :] * rhat[0]
+                            + spinsys.Sy[j_spin, :, :] * rhat[1]
+                            + spinsys.Sz[j_spin, :, :] * rhat[2])
+                        @ (spinsys.Sx[i_spin, :, :] * rhat[0]
+                            + spinsys.Sy[i_spin, :, :] * rhat[1]
+                            + spinsys.Sz[i_spin, :, :] * rhat[2]))
+                    )
     
     return
 
