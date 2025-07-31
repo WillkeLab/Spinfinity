@@ -300,6 +300,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
         plt.title('IETS Spectrum ' + f'({order} Order)')
     elif plotAllSpins==True:
+        fig, ax = plt.subplots()
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
             print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
@@ -315,15 +316,17 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             # Plot all IETS spectra in the same figure on top of each other
             # Only create the figure once, before the loop
             #if i == 0:
-            plt.figure()
-            plt.plot(x, y, label=f'IETS Spectrum Spin {i}')  # add to the same figure
+            ax.plot(x, y, label=f'Spin {i}')
 
-            plt.xlabel('Bias Voltage (mV)')
-            plt.ylabel('dI/dV (a.u.)')
-            plt.ylim([0, np.max(y) * 1.1])
-            plt.legend()
-            plt.title(f'IETS Spectrum ({order} Order) for All Spins')
-            plt.show()
+        # Set labels and title for the plot
+        ax.set_xlabel('Bias Voltage (mV)')
+        ax.set_ylabel('dI/dV (a.u.)')
+        ax.set_title(f'IETS Spectrum ({order} Order) for All Spins')
+        ax.legend()
+        ax.set_ylim(bottom=0)  # start from 0
+
+        plt.tight_layout()
+        plt.show()
             
         
     return 
