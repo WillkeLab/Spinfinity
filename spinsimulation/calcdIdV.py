@@ -64,8 +64,7 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
 
     # Normalize dI/dV if required
     if norm:
-        dIdV_array = (dIdV_array - np.min(dIdV_array)) / (np.max(dIdV_array) - np.min(dIdV_array))
-
+        dIdV_array = dIdV_array / dIdV_array[0]  # Normalize to the first value
     return V_array, dIdV_array
 
 
@@ -245,7 +244,7 @@ def calcIETS_2ndR(
 
     # Normalize dI/dV if required
     if norm:
-        dIdV = (dIdV - np.min(dIdV)) / (np.max(dIdV) - np.min(dIdV))
+        dIdV = (dIdV / dIdV[0]) # Normalize to the first value
 
     return V_array, dIdV, P
 

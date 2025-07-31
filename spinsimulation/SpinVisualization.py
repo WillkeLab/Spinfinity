@@ -254,7 +254,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
 
 # region dIdV
 
-def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd'):
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd', plotAllSpins: bool=False):
     """
     Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
 
@@ -281,24 +281,54 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     None
         This function creates a plot of the IETS spectrum but does not return any value.
     """
+    if plotAllSpins==False:
+        # Calculate the IETS spectrum for the specified order
+        if order == '2nd':
+            x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        elif order == '2ndR':
+            x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+        elif order == '3rd':
+            x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        else:
+            raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
     
-    # Calculate the IETS spectrum for the specified order
-    if order == '2nd':
-        x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
-    elif order == '2ndR':
-        x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
-    elif order == '3rd':
-        x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
-    else:
-        raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
-   
-    # Plot the IETS spectrum
-    plt.figure() 
-    plt.plot(x, y, label='IETS Spectrum')
-    plt.xlabel('Bias Voltage (mV)')
-    plt.ylabel('dI/dV (a.u.)')
-    plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
-    plt.title('IETS Spectrum ' + f'({order} Order)')
+        # Plot the IETS spectrum
+        plt.figure() 
+        plt.plot(x, y, label='IETS Spectrum')
+        plt.xlabel('Bias Voltage (mV)')
+        plt.ylabel('dI/dV (a.u.)')
+        plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
+        plt.title('IETS Spectrum ' + f'({order} Order)')
+    elif plotAllSpins==True:
+        fig, ax = plt.subplots()
+        for i in range(len(spinsys.Spins)):
+            spinsys.ReadoutSpin = i
+            print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            if order == '2nd':
+                x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+            elif order == '2ndR':
+                x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+            elif order == '3rd':
+                x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+            else:
+                raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
+            
+            # Plot all IETS spectra in the same figure on top of each other
+            # Only create the figure once, before the loop
+            #if i == 0:
+            ax.plot(x, y, label=f'Spin {i}')
+
+        # Set labels and title for the plot
+        ax.set_xlabel('Bias Voltage (mV)')
+        ax.set_ylabel('dI/dV (a.u.)')
+        ax.set_title(f'IETS Spectrum ({order} Order) for All Spins')
+        ax.legend()
+        ax.set_ylim(bottom=0)  # start from 0
+
+        plt.tight_layout()
+        plt.show()
+            
+        
     return 
 
 # endregion dIdV
