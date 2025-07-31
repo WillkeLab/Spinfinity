@@ -75,7 +75,7 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
 
         return
     
-def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
+def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energyscale: str='meV'):
     """
     Plots the Zeeman diagram for a given spin system over a specified magnetic field range.
 
@@ -113,12 +113,14 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200):
     hamil.calcEigEnergies(spinsys)
         
     fig, ax = plt.subplots()
-    for i in range(spinsys.dimensionOfMatrix):
-        # ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")
+    for i in range(spinsys.dimensionOfMatrix): 
         ax.plot(B,E[:,i],label=f"E_{i}")
+        if energyscale == 'GHz':
+            ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")           
+        elif energyscale == 'meV':
+            ax.plot(B,E[:,i],label=f"E_{i}")          
     ax.set_xlabel('Magnetic Field (T)')
-    # ax.set_ylabel('Energy (GHz)')
-    ax.set_ylabel('Energy (meV)')
+    ax.set_ylabel(f'Energy ("{energyscale}")')
     ax.set_title('Zeeman Diagramm')
     ax.legend()
     plt.show()
@@ -166,7 +168,7 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     # Plot the energy vs Sz matrix elements
     plt.figure()
     if energyscale == 'GHz':
-        plt.scatter(S_elements, spinsys.E_All_inGHz, c='k', marker='_', s=1200)
+        plt.scatter(S_elements, spinsys.E_All_inGHz, c='k', marker='_', s=1000, linewidths=5)
         plt.ylabel('Energy (GHz)')
     elif energyscale == 'meV':
         plt.scatter(S_elements, spinsys.E_All, c='k', marker='_', s=1000, linewidths=5)
