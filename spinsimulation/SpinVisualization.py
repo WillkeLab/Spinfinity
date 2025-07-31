@@ -120,12 +120,12 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
         elif energyscale == 'meV':
             ax.plot(B,E[:,i],label=f"E_{i}")          
     ax.set_xlabel('Magnetic Field (T)')
-    ax.set_ylabel(f'Energy ("{energyscale}")')
+    ax.set_ylabel(f'Energy ({energyscale})')
     ax.set_title('Zeeman Diagramm')
     ax.legend()
     plt.show()
 
-    return
+    return fig
 
 def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     """
@@ -169,19 +169,40 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     plt.figure()
     if energyscale == 'GHz':
         plt.scatter(S_elements, spinsys.E_All_inGHz, c='k', marker='_', s=1000, linewidths=5)
-        plt.ylabel('Energy (GHz)')
     elif energyscale == 'meV':
         plt.scatter(S_elements, spinsys.E_All, c='k', marker='_', s=1000, linewidths=5)
-        plt.ylabel('Energy (meV)')
     #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
     plt.xlabel('m_'+type)
-    
+    plt.ylabel(f'Energy ({energyscale})')   
     plt.title('Energy vs S_' + type +  ' Matrix Elements')
     plt.grid(True)
     plt.show()
 
-    return
-    
+    return plt
+
+def plotAll(spinsys: SpinSys, type: str='z', energyscale: str='meV'):
+    """
+    Plots all relevant information for the spin system, including energy levels, Zeeman diagram, and energy vs spin expectation values.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing Hamiltonian, eigenvectors, and energies.
+    type : str, optional
+        The spin operator to use for the expectation value ('x', 'y', or 'z'). Default is 'z'.
+    energyscale : str, optional
+        The energy scale to use for the plots ('meV' or 'GHz'). Default is 'meV'.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It displays several plots.
+    """
+    # make them all plot next to each other
+    plotEigenMatrix(spinsys, plot_type='p')
+    plotEnergyVsS(spinsys, type=type, energyscale=energyscale)
+    plotZeemanDiagramm(spinsys, energyscale=energyscale)
+    plotPopulations(spinsys, AllowPumping=True, Approach="Loth")
 # endregion Hamiltonian
 
 # region Bath
