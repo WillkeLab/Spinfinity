@@ -82,10 +82,6 @@ class SpinSys:
     Kondo Parameters
     J : ndarray
         Kondo exchange coupling for each spin.
-    ptip : list of float
-        Spin polarization vector in the tip electrode.
-    psample : list of float
-        Spin polarization vector in the sample electrode.
     lt : float
         Intrinsic lifetime broadening (default: 0.005, i.e., 5 µeV).
     w : float
@@ -157,8 +153,6 @@ class SpinSys:
 
         # Kondo Parameters
         self.J = np.zeros(self.NSpins)
-        self.ptip = [0, 0, 0] #spin polarisation in the tip electrode
-        self.psample = [0, 0, 0] # spin polarisation in the sample electrode
         self.lt = 0.005;        # intrinsic lifetime broadening 5 µeV
         self.w=20;              # bandwidth
         self.precission=0.001
