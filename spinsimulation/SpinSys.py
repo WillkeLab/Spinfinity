@@ -148,8 +148,9 @@ class SpinSys:
         self.G_ss = [1e-8]*self.NSpins # Sample-Sample conductance
         self.G_tt = 0 # 1 enables tip-tip scattering contribution, 0 disables it!
 
-        self.T02 = 2e-5 
-        self.Jrs = 0.1 
+        self.T02 = 1 # Tunneling parameter, used in the tunneling calculation
+        # Markus Ternes: T02 is the tunneling parameter, which is used to normalize the tunneling current, default set to 1 as in Ternes code
+        self.Jrs = -0.04 # Kondo coupling strength in rate equation model, default set to -0.04 as in Ternes code
 
         # Kondo Parameters
         self.J = np.zeros(self.NSpins)
