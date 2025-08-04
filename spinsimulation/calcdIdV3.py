@@ -34,7 +34,7 @@ def e_epsilon(SpinSys: SpinSys):
     -----
     - The tensors are computed by contracting spin operator matrices with spin-½ basis vectors.
     - The function assumes the presence of an `e_transport` function and that `SpinSys`
-      has attributes `ptip` and `psample`.
+      has attributes `TipPolarization` and `SamplePolarization`.
     - All tensors are complex-valued and represent different physical tunneling processes.
     
     Compute third-order spin ε-tensors for all tunneling directions.
@@ -45,7 +45,7 @@ def e_epsilon(SpinSys: SpinSys):
     # Transport operators for tip → sample
     [x,y,z,u] = bath.calcTunnelingElectronMatrixElements(SpinSys,scattertype='ss')
     tempSpinSys=SpinSys
-    tempSpinSys.ptip=tempSpinSys.psample
+    tempSpinSys.TipPolarization=tempSpinSys.SamplePolarization
     [xs,ys,zs,us] = bath.calcTunnelingElectronMatrixElements(tempSpinSys,scattertype='ss')
 
     # so1 = tip, so2 = sample, so3 = conjugate of tip
@@ -408,3 +408,67 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
         plt.show()
 
     return V_array, dIdV_3rd
+
+#####Attention: This function is experimental! It just adds the third order contributions to the second order contributions for the rate equations!
+def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm: bool = False,
+    plot: bool = False,
+):
+    """
+    Calculate IETS spectrum with third-order contributions (e.g. Kondo processes)
+
+    Parameters
+    ----------
+    SpinSys : SpinSys
+        Spin system object containing all relevant parameters and operators.
+    Vrange : list, optional
+        Voltage range as [Vmin, Vmax] (default: [-10, 10]).
+    N : int, optional
+        Number of voltage points (default: 100).
+    norm : bool, optional
+        If True, normalize the resulting spectrum (default: False).
+    plot : bool, optional
+        If True, plot the resulting spectrum (default: True).
+
+    Returns
+    -------
+    V_array : np.ndarray
+        Array of bias voltages (mV).
+    dIdV_3rd : np.ndarray
+        Third-order differential conductance spectrum (a.u.).
+    """
+
+    # Bias voltage array
+    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    dIdV_3rdR = np.zeros_like(V_array, dtype=float)
+
+    [V_array, dIdV2,P] = dIdV.calcIETS_2ndR(SpinSys, Vrange=[np.min(V_array), np.max(V_array)],N=N, norm=False)  # Calculate the second order IETS:
+    dIdV_3rdR += dIdV2
+
+    # Calculate thermal calcPopulations
+    p0 = np.exp(-SpinSys.E_All / (SpinSys.kB * SpinSys.T))
+    pTot = np.sum(p0)
+    SpinSys.p0 = p0 / pTot
+    dim = SpinSys.eigVectors.shape[1]
+
+    for i in range(dim):
+        if SpinSys.p0[i] > 1e-6:
+            x, y1, y1r = spec3(SpinSys, i, V_array)
+            # Add contributions from the third-order processes
+            dIdV_3rdR += (y1 + y1r)
+
+    # Normalize result
+    if norm:
+        dIdV_3rdR = (dIdV_3rdR / dIdV_3rdR[0])  # Normalize to the first value
+
+    if plot:
+        plt.figure(189)
+        plt.plot(V_array, dIdV_3rdR, '-b', linewidth=2)
+        plt.ylabel('dI/dV (3rd order, a.u.)')
+        plt.xlabel('Bias Voltage (mV)')
+        plt.xlim([Vrange[0], Vrange[1]])
+        plt.title('IETS Spectrum - Third Order (Kondo) and second Order rates')
+        plt.grid(True)
+        plt.tick_params(axis='both', which='major', labelsize=16)
+        plt.show()
+
+    return V_array, dIdV_3rdR

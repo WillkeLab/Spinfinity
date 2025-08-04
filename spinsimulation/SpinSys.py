@@ -82,10 +82,6 @@ class SpinSys:
     Kondo Parameters
     J : ndarray
         Kondo exchange coupling for each spin.
-    ptip : list of float
-        Spin polarization vector in the tip electrode.
-    psample : list of float
-        Spin polarization vector in the sample electrode.
     lt : float
         Intrinsic lifetime broadening (default: 0.005, i.e., 5 µeV).
     w : float
@@ -152,13 +148,12 @@ class SpinSys:
         self.G_ss = [1e-8]*self.NSpins # Sample-Sample conductance
         self.G_tt = 0 # 1 enables tip-tip scattering contribution, 0 disables it!
 
-        self.T02 = 2e-5 
-        self.Jrs = 0.1 
+        self.T02 = 1 # Tunneling parameter, used in the tunneling calculation
+        # Markus Ternes: T02 is the tunneling parameter, which is used to normalize the tunneling current, default set to 1 as in Ternes code
+        self.Jrs = -0.04 # Kondo coupling strength in rate equation model, default set to -0.04 as in Ternes code
 
         # Kondo Parameters
         self.J = np.zeros(self.NSpins)
-        self.ptip = [0, 0, 0] #spin polarisation in the tip electrode
-        self.psample = [0, 0, 0] # spin polarisation in the sample electrode
         self.lt = 0.005;        # intrinsic lifetime broadening 5 µeV
         self.w=20;              # bandwidth
         self.precission=0.001
