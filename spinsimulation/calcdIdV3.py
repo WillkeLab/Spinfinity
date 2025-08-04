@@ -411,7 +411,7 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
 
 #####Attention: This function is experimental! It just adds the third order contributions to the second order contributions for the rate equations!
 def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm: bool = False,
-    plot: bool = False,
+    plot: bool = False, KondoAmplitude: float = 1
 ):
     """
     Calculate IETS spectrum with third-order contributions (e.g. Kondo processes)
@@ -428,6 +428,8 @@ def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, nor
         If True, normalize the resulting spectrum (default: False).
     plot : bool, optional
         If True, plot the resulting spectrum (default: True).
+    KondoAmplitude : float, optional
+        Variable Amplitude of the Kondo contribution (default: 1).
 
     Returns
     -------
@@ -454,7 +456,7 @@ def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, nor
         if SpinSys.p0[i] > 1e-6:
             x, y1, y1r = spec3(SpinSys, i, V_array)
             # Add contributions from the third-order processes
-            dIdV_3rdR += (y1 + y1r)
+            dIdV_3rdR += (y1 + y1r)*KondoAmplitude
 
     # Normalize result
     if norm:
