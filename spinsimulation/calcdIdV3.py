@@ -439,10 +439,10 @@ def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, nor
 
     # Bias voltage array
     V_array = np.linspace(Vrange[0], Vrange[1], N)
-    dIdV_3rd = np.zeros_like(V_array, dtype=float)
+    dIdV_3rdR = np.zeros_like(V_array, dtype=float)
 
-    [V_array, dIdV2] = dIdV.calcIETS_2ndR(SpinSys, Vrange=[np.min(V_array), np.max(V_array)],N=N, norm=False)  # Calculate the second order IETS:
-    dIdV_3rd += dIdV2
+    [V_array, dIdV2,P] = dIdV.calcIETS_2ndR(SpinSys, Vrange=[np.min(V_array), np.max(V_array)],N=N, norm=False)  # Calculate the second order IETS:
+    dIdV_3rdR += dIdV2
 
     # Calculate thermal calcPopulations
     p0 = np.exp(-SpinSys.E_All / (SpinSys.kB * SpinSys.T))
@@ -454,15 +454,15 @@ def calcIETS_3rdR( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, nor
         if SpinSys.p0[i] > 1e-6:
             x, y1, y1r = spec3(SpinSys, i, V_array)
             # Add contributions from the third-order processes
-            dIdV_3rd += (y1 + y1r)
+            dIdV_3rdR += (y1 + y1r)
 
     # Normalize result
     if norm:
-        dIdV_3rd = (dIdV_3rd / dIdV_3rd[0])  # Normalize to the first value
+        dIdV_3rdR = (dIdV_3rdR / dIdV_3rdR[0])  # Normalize to the first value
 
     if plot:
         plt.figure(189)
-        plt.plot(V_array, dIdV_3rd, '-b', linewidth=2)
+        plt.plot(V_array, dIdV_3rdR, '-b', linewidth=2)
         plt.ylabel('dI/dV (3rd order, a.u.)')
         plt.xlabel('Bias Voltage (mV)')
         plt.xlim([Vrange[0], Vrange[1]])

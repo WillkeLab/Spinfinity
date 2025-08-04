@@ -289,6 +289,8 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
         elif order == '3rd':
             x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        elif order == '3rdR':
+            x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
     
@@ -310,6 +312,8 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
                 x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '3rd':
                 x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+            elif order == '3rdR':
+                x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
             else:
                 raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
             
@@ -329,7 +333,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         plt.show()
             
         
-    return 
+    return x,y 
 
 # endregion dIdV
 
