@@ -157,7 +157,7 @@ def calcIETS_2ndR(
     MatrixSS_summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
     for i in range(spinsys.NSpins):
         MatrixSS_summed += spinsys.MatrixSS[i, :, :] * spinsys.G_ss[i]
-
+   
     Rate_0 = spinsys.Matrix[0][0]  # Transition matrix element of the ground state
 
     # Rate-Factors using Loth 2010
@@ -166,7 +166,7 @@ def calcIETS_2ndR(
         RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
         RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
         RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-        RateFactor_tt = 0
+        RateFactor_tt = 1 / (const.e * Rate_0) / 1e3 #Before 05.08.2024: 0, PW
 
     # Rate-Factors using Ternes 2010 (not default)
     if Approach == "Ternes":
@@ -179,7 +179,7 @@ def calcIETS_2ndR(
     RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
     RateIntegrals_tt = RateIntegrals_ss
     Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
-    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt
+    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt*spinsys.G_tt
 
     # This part happens now as often as we need it
     for I_index in range(N):
