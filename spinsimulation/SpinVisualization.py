@@ -395,6 +395,75 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
 
     return
 
+def plotESR_FreqSweep_ESRRate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, AllowPumping: bool = True, T2: float = 10, RabiRate: float = 1, norm: bool = True):
+    """
+    This function computes the ESR spectrum based on an ESR driving rate for a given spin system over a specified frequency range
+    and plots the resulting ESR signal. It also marks the resonance frequencies corresponding to allowed transitions in the spin
+    system.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing energy levels and transition information.
+    FreqRange : list of float, optional
+        The frequency range [start, stop] in GHz over which to perform the sweep (default is [10, 20]).
+    N : int, optional
+        Number of frequency points in the sweep (default is 1000).
+    AllowPumping : bool, optional
+        Whether to allow optical pumping in the simulation (default is True).
+    T2 : float, optional
+        Spin coherence time (default is 10).
+    RabiRate : float, optional
+        microwave driving strength (default is 1).
+    norm : bool, optional
+        Whether to normalize the ESR signal (default is True).
+
+    Returns
+    -------
+    None
+        This function generates a plot and does not return any value.
+        
+    Notes
+    -----
+    - The function updates `spinsys.RecordedTransitions` and `spinsys.ResonanceFrequencies` with the
+      calculated transitions and their corresponding resonance frequencies.
+    - Each resonance is marked on the plot with a unique color and labeled with the transition information.
+    """
+
+    # Calculate the ESR spectrum using the specified parameters
+    freq_array, ESRsignal = ESR.calcESR_FrequencySweep(spinsys, FreqRange=FreqRange, N=N, AllowPumping=AllowPumping, T2=T2, RabiRate=RabiRate, norm=norm)
+    
+    # Record the transitions
+    spinsys.RecordedTransitions = ESR.calcRecordedTransitions(spinsys,freq_array[0],freq_array[-1])
+    spinsys.ResonanceFrequencies = np.zeros(len(spinsys.RecordedTransitions))
+    for i in range(len(spinsys.RecordedTransitions)):
+        spinsys.ResonanceFrequencies[i] = abs(spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][1]] - 
+                                        spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][0]])
+
+    # Make the plot
+    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+
+    plt.figure()
+    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+
+    # Mark resonances
+    for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
+        index = np.argmin(np.abs(freq_array - freq_res))
+        amp = ESRsignal[index]
+        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
+                            f"f = {np.round(freq_res,4)} GHz")
+        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
+                label=transition_str, linewidth=2)
+        
+    plt.xlabel('Freq (GHz)')
+    plt.ylabel('ΔI (a.u.)')
+    plt.title('ESR-Simulation')
+    plt.legend()
+    plt.xlim([freq_array[0],freq_array[-1]])
+    plt.show()
+
+    return
+
 def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):
     
     """
@@ -441,7 +510,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     # calculating the ESR signal for each Field 
     for i in range(N_B):
         spinsys.BTip[2]=BTip_array[i]*np.cos(Angle*np.pi/180) # BTip[2] is the z-component of the tip field
-        spinsys.BTip[0]=BTip_array[i]*np.sin(Angle*np.pi/180) # BTip[0] is the x-component of the tip field
+        spinsys.BTip[0]=BTip_array[i]*np.sin(Angle*np.pi/180)+1e-6 # BTip[0] is the x-component of the tip field
         spinsys.BTip[1]=0  # BTip[0] is the y-component of the tip field
         hamil.calcEigEnergies(spinsys)
         f , ESRsignal[i][:] = ESR.calcESR_Benjamin(spinsys, norm=norm,N=N_Freq,lw=lw,FreqRange=FreqRange,AllowPumping=AllowPumping, output=False)

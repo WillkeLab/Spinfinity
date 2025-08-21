@@ -101,12 +101,16 @@ class SpinSys:
 
 
     # Constants
+    mu0 = 1.25663706127e-6  # [N/A^2]
     muB = 0.05788 # [meV/T]
+    muBHz = 9.274010078328e-24 # [J/T]
     kB = const.Boltzmann / const.e * 1e3  # [meV/K] Boltzmann constant in meV/K
     meVtoGHzConversion = 1e-12*const.e/const.h # approx 241.8 GHz/meV
     GHztomeVConversion =1/meVtoGHzConversion # approx 4.1357 uV/GHz
     hbar_meV = const.hbar * 1e-12 / const.e  # [meV*s] Reduced Planck's constant in meV*s
     h_meV = const.h * 1e-12 / const.e  # [meV*s] Planck's constant in meV*s
+    meVtoJConversion=1.602e-22; # approx 1.6e-22 J/meV
+    JtomeVConversion=1/meVtoJConversion; # approx 6.24e21 meV/J
     
     ## Initialize the Spin System ##
     def __init__(self, Spins: list):

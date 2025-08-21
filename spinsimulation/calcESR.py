@@ -67,7 +67,6 @@ def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping:
                                         spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][0]])
 
     # Optionally print the transitions
-    
     if output:
         if len(spinsys.RecordedTransitions) < 300:
             print(f"Found {len(spinsys.RecordedTransitions)} potential transitions:")
@@ -102,7 +101,7 @@ def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping:
 
     return freq, ESRsignal
 
-def calcRecordedTransitions(spinsys: SpinSys,MinE: float,MaxE: float):
+def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     """
     Calculates and records all transitions between quantum states within a given energy range. 
     
@@ -148,3 +147,164 @@ def calcRecordedTransitions(spinsys: SpinSys,MinE: float,MaxE: float):
     RecordedTransitions.pop(0)
 
     return RecordedTransitions 
+
+def calcESR_FrequencySweep(
+        spinsys: SpinSys, 
+        FreqRange: list = [10, 20], 
+        N: int = 200, 
+        T2: float = 10, 
+        RabiRate: float = 1, 
+        AllowPumping: bool = True,
+        norm: bool = True):
+    """
+    Simulates a continuous-wave ESR (Electron Spin Resonance) frequency sweep for a given spin system.
+    This function calculates the ESR signal as a function of frequency by solving the rate equations
+    for the spin system, including the effects of Rabi driving and relaxation.
+    The ESR signal is computed as the difference in tunneling current with and without RF excitation.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing Hamiltonian, rates, eigenvectors, and other relevant properties.
+    FreqRange : list of float, optional
+        The frequency range [start, stop] in GHz over which to perform the sweep (default is [10, 20]).
+    N : int, optional
+        Number of frequency points in the sweep (default is 200).
+    T2 : float, optional
+        coherence time (default is 10).
+    RabiRate : float, optional
+        Rabi frequency (default is 1).
+    AllowPumping : bool, optional
+        If True, allows for spin pumping through bath electrons (default is True).
+    norm : bool, optional
+        If True, normalizes the ESR signal to its maximum value (default is True).
+
+    Returns
+    -------
+    freq : ndarray
+        Array of frequency points (in GHz) at which the ESR signal is calculated.
+    ESRsignal : ndarray
+        Array of calculated ESR signal values corresponding to each frequency point.
+
+    Notes
+    -----
+    - The function assumes that the `spinsys` object provides all necessary matrices and properties,
+        including eigenvectors, rates, and population vectors.
+    - The ESR signal is calculated as the difference in tunneling current with and without RF excitation.
+    - The rate equations are solved for each frequency point.
+    """
+
+    freq = np.linspace(FreqRange[0], FreqRange[1], N)  # Frequency array
+    ESRsignal = np.zeros(len(freq))
+
+    # Calculate the Eignevalues and Eignevectors if not already done
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        hamil.calcEigEnergies(spinsys)
+
+    # Calculate the RF off tunnel current via the rates
+
+    #if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
+    bath.calcPopulations(spinsys, AllowPumping = AllowPumping) # Here we do not care about the approach yet
+    
+    I_off = 0
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            I_temp = const.e * spinsys.Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
+            I_off += I_temp
+    
+    # Calculate the ESR Transition Matrix Elements
+    TransitionMatrixElement = np.conjugate(np.transpose(spinsys.eigVectors)) @ spinsys.Sx[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors
+    
+    # Calculate the cw current for each frequency
+    for freq_index in range(N):
+        # calculate the ESR rate matrix
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                if i != j:
+                    spinsys.Rates[4, i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+
+        # Sum the rates
+        Rates_Summed = (
+            spinsys.Rates[0, :, :] + spinsys.Rates[1, :, :] +
+            spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] +
+            spinsys.Rates[4, :, :]
+        )
+
+        # Build the Rate-Equation matrix
+        K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                if i != j:
+                    K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
+                    K[i, j] = Rates_Summed[j, i]   # Rates leading to state i
+
+
+        # Solve the Rate-Equation if non-thermal population is desired
+        if AllowPumping:
+            p = null_space(K)
+            if p.size == 0:  # If no valid solution, use thermal distribution
+                Populations = spinsys.p0
+            else:
+                Populations = p[:, 0] / np.sum(p[:, 0])
+        else:
+            Populations = spinsys.pop_0
+
+        # Deriving the tunneling current 
+        I_cw = 0
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                I_temp = const.e * Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
+                I_cw += I_temp
+
+        ESRsignal[freq_index] = I_cw - I_off 
+
+    # Normalization
+    if norm:
+        ESRsignal = ESRsignal / ESRsignal.max()
+
+    return freq, ESRsignal
+
+def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: float = 14):
+    """
+    Adds the ESR (Electron Spin Resonance) transition rates to the given spin system.
+    This function calculates the ESR-induced transition rates between energy levels of the spin system
+    and updates the `Rates` and `Rates_Summed` attributes of the `spinsys` object. The rates are computed
+    based on the Rabi rate, coherence time (T2), and the frequency of the driving field.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object to which the ESR rates will be added. Must have attributes such as
+        `eigVectors`, `Sx`, `ReadoutSpin`, `E_All_inGHz`, `dimensionOfMatrix`, and `Rates`.
+    T2 : float, optional
+        The coherence time (default is 10).
+    RabiRate : float, optional
+        The Rabi frequency (in MHz or appropriate units) of the driving field. Default is 0.1.
+    freq : float, optional
+        The frequency (in GHz) of the driving field (default is 14).
+        
+    Notes
+    -----
+    - If the `Rates` attribute of `spinsys` is not present or is `None`, the function calls `bath.calcRates(spinsys)`
+      to initialize it.
+    - The ESR rates are stored in the 5th index (index 4) of the `Rates` array.
+    - The total rates are summed and stored in `spinsys.Rates_Summed`.
+    """
+    
+    if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
+        bath.calcRates(spinsys)
+
+    # Calculate the matrix element for the ESR rate
+    TransitionMatrixElement = np.conjugate(np.transpose(spinsys.eigVectors)) @ spinsys.Sx[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors
+
+    # Calculate each entry individually
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            if i != j:
+                spinsys.Rates[4, i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+    
+    # Sum the rates again
+    spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
+                        spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] + 
+                        spinsys.Rates[4, :, :])
+    
