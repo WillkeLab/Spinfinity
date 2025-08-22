@@ -228,13 +228,12 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     -----
     - The function assumes that the `spinsys` object has the necessary attributes and methods for rate calculations.
     """
+    
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
             bath.calcPopulations(spinsys,AllowPumping=AllowPumping, Approach=Approach)
     if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
             hamil.calcEigStates(spinsys)
     
-    import matplotlib.ticker as ticker
-
     x = np.arange(len(spinsys.Populations))
     width = 0.35
 
@@ -339,7 +338,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
 # region ESR
 
-def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True):
+def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True):
     """
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
     This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
@@ -369,7 +368,7 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     """
     
     # calculate the ESR spectrum
-    freq_array, ESRsignal = ESR.calcESR_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=True)
+    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=True)
 
     # Make the plot
     color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
@@ -395,7 +394,7 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
 
     return
 
-def plotESR_FreqSweep_ESRRate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, AllowPumping: bool = True, T2: float = 10, RabiRate: float = 1, norm: bool = True):
+def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, T2: float = 10, RabiRate: float = 1, norm: bool = True):
     """
     This function computes the ESR spectrum based on an ESR driving rate for a given spin system over a specified frequency range
     and plots the resulting ESR signal. It also marks the resonance frequencies corresponding to allowed transitions in the spin
@@ -409,8 +408,6 @@ def plotESR_FreqSweep_ESRRate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
         The frequency range [start, stop] in GHz over which to perform the sweep (default is [10, 20]).
     N : int, optional
         Number of frequency points in the sweep (default is 1000).
-    AllowPumping : bool, optional
-        Whether to allow optical pumping in the simulation (default is True).
     T2 : float, optional
         Spin coherence time (default is 10).
     RabiRate : float, optional
@@ -431,7 +428,7 @@ def plotESR_FreqSweep_ESRRate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
     """
 
     # Calculate the ESR spectrum using the specified parameters
-    freq_array, ESRsignal = ESR.calcESR_FrequencySweep(spinsys, FreqRange=FreqRange, N=N, AllowPumping=AllowPumping, T2=T2, RabiRate=RabiRate, norm=norm)
+    freq_array, ESRsignal = ESR.calcESR_FreqSweep_ESRrate(spinsys, FreqRange=FreqRange, N=N, T2=T2, RabiRate=RabiRate, norm=norm)
     
     # Record the transitions
     spinsys.RecordedTransitions = ESR.calcRecordedTransitions(spinsys,freq_array[0],freq_array[-1])
@@ -464,8 +461,7 @@ def plotESR_FreqSweep_ESRRate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
 
     return
 
-def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):
-    
+def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):  
     """
     Plot ESR spectra as a function of tip magnetic field for a given spin system.
     
@@ -500,6 +496,8 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     The function visualizes the ESR signal as a 2D color plot with frequency on the x-axis
     and tip field on the y-axis. A secondary y-axis shows the corresponding detuning in GHz.
     """
+    # Save previous BTip value
+    BTip_initial = spinsys.BTip.copy()
 
     # Predefine Arrays
     BTip_array = np.linspace(BTipRange[0],BTipRange[1],N_B,dtype=float)
@@ -547,6 +545,61 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     
     plt.show()
 
+    # Restore the initial BTip value
+    spinsys.BTip = BTip_initial
+    hamil.calcEigEnergies(spinsys)
+
     return
 
+def plotPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, freq: float = 14):
+    """
+    Plot the populations of spin states for a given spin system under ESR conditions.
+    This function calculates and visualizes the populations of spin states, including Boltzmann, tunneling, 
+    and ESR-driven populations, for a provided spin system. The populations are displayed as horizontal bar plots 
+    for easy comparison.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the relevant state and population information.
+    T2 : float, optional
+        The transverse relaxation time (in the same units as used in the simulation), by default 200.
+    RabiRate : float, optional
+        The Rabi rate (default is 1).
+    freq : float, optional
+        The frequency of the ESR field (in the same units as used in the simulation), by default 14.
+
+    Returns
+    -------
+    None
+        This function does not return any value. It displays a matplotlib plot of the populations.
+
+    Notes
+    -----
+    - The function assumes that the `spinsys` object has attributes `pop_0`, `Populations`, `Populations_ESR`, and `basisStates`.
+    - If the eigenstates are not already calculated, the function will compute them.
+    - Requires matplotlib and numpy for plotting and array operations.
+    """
+
+    ESR.calcPopulations_ESR(spinsys, T2=T2, RabiRate=RabiRate, freq=freq)
+    if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
+            hamil.calcEigStates(spinsys)
+    
+    x = np.arange(len(spinsys.Populations))
+    width = 0.2
+
+    fig, ax = plt.subplots()
+    ax.barh(x, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
+    ax.barh(x + width, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
+    ax.barh(x - width, spinsys.Populations_ESR, height=width, color='green', alpha=0.5, label='ESR Populations')
+    ax.set_yticks(x)
+    ax.set_yticklabels(spinsys.basisStates)
+    ax.set_xlabel('Population')
+    ax.set_ylabel('Basis States')
+    ax.set_title('Population of Spin States')
+    ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return
 # endregion ESR

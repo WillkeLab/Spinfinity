@@ -8,7 +8,7 @@ import spinsimulation.SpinHamiltonian as hamil
 import spinsimulation.calcBath as bath
 
 
-def calcESR_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
+def calcESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
     """
     Calculates the Electron Spin Resonance (ESR) spectrum for a given spin system.
 
@@ -148,13 +148,12 @@ def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
 
     return RecordedTransitions 
 
-def calcESR_FrequencySweep(
+def calcESR_FreqSweep_ESRrate(
         spinsys: SpinSys, 
         FreqRange: list = [10, 20], 
         N: int = 200, 
         T2: float = 10, 
         RabiRate: float = 1, 
-        AllowPumping: bool = True,
         norm: bool = True):
     """
     Simulates a continuous-wave ESR (Electron Spin Resonance) frequency sweep for a given spin system.
@@ -174,8 +173,6 @@ def calcESR_FrequencySweep(
         coherence time (default is 10).
     RabiRate : float, optional
         Rabi frequency (default is 1).
-    AllowPumping : bool, optional
-        If True, allows for spin pumping through bath electrons (default is True).
     norm : bool, optional
         If True, normalizes the ESR signal to its maximum value (default is True).
 
@@ -204,7 +201,7 @@ def calcESR_FrequencySweep(
     # Calculate the RF off tunnel current via the rates
 
     #if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-    bath.calcPopulations(spinsys, AllowPumping = AllowPumping) # Here we do not care about the approach yet
+    bath.calcPopulations(spinsys, AllowPumping = True) # Here we do not care about the approach yet
     
     I_off = 0
     for i in range(spinsys.dimensionOfMatrix):
@@ -212,6 +209,9 @@ def calcESR_FrequencySweep(
             I_temp = const.e * spinsys.Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
             I_off += I_temp
     
+    # Initialize the ESR Rates
+    spinsys.ESRRates = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+
     # Calculate the ESR Transition Matrix Elements
     TransitionMatrixElement = np.conjugate(np.transpose(spinsys.eigVectors)) @ spinsys.Sx[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors
     
@@ -221,13 +221,13 @@ def calcESR_FrequencySweep(
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
                 if i != j:
-                    spinsys.Rates[4, i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+                    spinsys.ESRRates[i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
 
-        # Sum the rates
+        # Sum the rates including the ESR rates
         Rates_Summed = (
             spinsys.Rates[0, :, :] + spinsys.Rates[1, :, :] +
             spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] +
-            spinsys.Rates[4, :, :]
+            spinsys.ESRRates[:, :]
         )
 
         # Build the Rate-Equation matrix
@@ -240,29 +240,80 @@ def calcESR_FrequencySweep(
 
 
         # Solve the Rate-Equation if non-thermal population is desired
-        if AllowPumping:
-            p = null_space(K)
-            if p.size == 0:  # If no valid solution, use thermal distribution
-                Populations = spinsys.p0
-            else:
-                Populations = p[:, 0] / np.sum(p[:, 0])
+        
+        p = null_space(K)
+        if p.size == 0:  # If no valid solution, use thermal distribution
+            Populations_ESR = spinsys.pop_0
+            print("Rate equation has no solution, using thermal distribution")
         else:
-            Populations = spinsys.pop_0
+            Populations_ESR = p[:, 0] / np.sum(p[:, 0])
 
         # Deriving the tunneling current 
         I_cw = 0
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
-                I_temp = const.e * Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
+                I_temp = const.e * Populations_ESR[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
                 I_cw += I_temp
 
-        ESRsignal[freq_index] = I_cw - I_off 
+        ESRsignal[freq_index] = (I_cw - I_off) / I_off  # Calculate the ESR signal as the relative change in current 
 
     # Normalization
     if norm:
-        ESRsignal = ESRsignal / ESRsignal.max()
+        ESRsignal = abs(ESRsignal) / abs(ESRsignal).max()
 
     return freq, ESRsignal
+
+
+def calcPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, freq: float = 14):
+    """
+    Calculate the steady-state populations of a spin system under ESR (Electron Spin Resonance) conditions.
+    This function updates the populations of the given spin system by including ESR-induced transitions,
+    solving the rate equations for the steady-state populations. If the rate equation has no solution,
+    the thermal distribution is used as a fallback.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the system's states, rates, and populations.
+    T2 : float, optional
+        The coherence time (default is 200).
+    RabiRate : float, optional
+        The Rabi rate for the ESR transition (default is 1).
+    freq : float, optional
+        The frequency (in GHz) of the ESR driving field (default is 14).
+
+    Returns
+    -------
+    np.ndarray
+        The steady-state populations of the spin system under ESR conditions.
+
+    Notes
+    -----
+    - The function modifies the `spinsys` object in-place, updating its `Populations_ESR` attribute.
+    - If the rate matrix has no null space (i.e., no steady-state solution), the thermal population (`spinsys.pop_0`) is used.
+    """
+
+    bath.calcPopulations(spinsys, AllowPumping=True)
+    addESRrate(spinsys, T2=T2, RabiRate=RabiRate, freq=freq)
+
+    K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    Rates_Summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    Rates_Summed = spinsys.Rates_Summed + spinsys.ESRRates
+    
+    for i in range(spinsys.dimensionOfMatrix):
+        for j in range(spinsys.dimensionOfMatrix):
+            if i != j:
+                K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
+                K[i, j] = Rates_Summed[j, i]  # Rates leading to state i
+    # Solve the Rate equation to get the steady-state populations
+    p = null_space(K)
+    if p.size == 0:  # If no valid solution, use thermal distribution
+        spinsys.Populations_ESR = spinsys.pop_0
+        print("Rate equation has no solution, using thermal distribution")
+    else:
+        spinsys.Populations_ESR = p[:, 0] / np.sum(p[:, 0])
+
+    return spinsys.Populations_ESR
 
 def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: float = 14):
     """
@@ -294,6 +345,9 @@ def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: floa
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
         bath.calcRates(spinsys)
 
+    # Initialize the ESR rates if not already present
+    spinsys.ESRRates = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+
     # Calculate the matrix element for the ESR rate
     TransitionMatrixElement = np.conjugate(np.transpose(spinsys.eigVectors)) @ spinsys.Sx[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors
 
@@ -301,10 +355,7 @@ def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: floa
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
             if i != j:
-                spinsys.Rates[4, i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+                spinsys.ESRRates[i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
     
-    # Sum the rates again
-    spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
-                        spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] + 
-                        spinsys.Rates[4, :, :])
+
     
