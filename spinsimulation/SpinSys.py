@@ -169,6 +169,9 @@ class SpinSys:
         self.Stevens = [{} for _ in range(self.NSpins)]
         self.use_Stevens = False  # Flag to indicate if Stevens operators are used
 
+        # ESR parameters
+        self.RabiRate = 1  # Rabi rate for ESR
+        self.T2 = 200 # coherence time
     ## Print the parameters of the Spin System ##
     def print_parameters(self):
         """
