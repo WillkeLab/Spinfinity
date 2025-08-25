@@ -143,7 +143,7 @@ def calcIETS_2ndR(
     V_array = np.linspace(Vrange[0], Vrange[1], N)
     I = np.zeros((N), dtype=float)
     P = np.zeros((spinsys.dimensionOfMatrix, N), dtype=float)
-    Rates = np.zeros((5, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    Rates = np.zeros((4, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
      # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
@@ -196,8 +196,7 @@ def calcIETS_2ndR(
         # Sum the rates
         Rates_Summed = (
             Rates[0, :, :] + Rates[1, :, :] +
-            Rates[2, :, :] + Rates[3, :, :] +
-            Rates[4, :, :]
+            Rates[2, :, :] + Rates[3, :, :] 
         )
 
         # Build the Rate-Equation matrix
