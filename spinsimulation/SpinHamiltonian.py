@@ -530,7 +530,7 @@ def addDipolarCoupling(spinsys: SpinSys):
 
 # endregion Hamiltonian
 
-
+# region StevensOperators
 
 def anticommutator(A, B):
     return A @ B + B @ A
@@ -701,3 +701,5 @@ def setStevens(spinsys, i_spin, a, b, value):
         raise TypeError(f"spinsys.Stevens[{i_spin}] must be a dictionary.")
 
     spinsys.Stevens[i_spin][(a, b)] = value
+
+# endregion StevensOperators

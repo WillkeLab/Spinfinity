@@ -249,6 +249,57 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     plt.tight_layout()
     plt.show()
 
+    return
+
+def plotRateContributions(spinsys: SpinSys):
+    """
+    Plot the contributions of transition rates between spin states.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the states, rates, and matrix dimension.
+        It is expected to have the following attributes:
+            - dimensionOfMatrix: int, the number of spin states.
+            - statesWithoutE: list of str, labels for the spin states.
+            - Rates: list of 2D numpy arrays, each representing the rate matrix for a process.
+
+    Returns
+    -------
+    None
+        This function displays a matplotlib plot and does not return any value.
+
+    Notes
+    -----
+    The function assumes that `bath.calcRates(spinsys)` populates the `spinsys.Rates`
+    attribute with the required rate matrices. The plot shows stacked bars for each
+    transition, with each color representing a different rate contribution.
+    """
+
+    bath.calcRates(spinsys)
+
+    labels = ['ts', 'st', 'ss','tt']
+    colors = ['blue', 'orange', 'green', 'red']
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    for i in range(spinsys.dimensionOfMatrix):
+        for f in range(spinsys.dimensionOfMatrix):
+            if i != f:
+                bottom=0
+                for idx in range(4):
+                    ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][i, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
+                    bottom += spinsys.Rates[idx][i, f]
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
+    ax.set_xlabel('Transitions')
+    ax.set_ylabel('Rate')
+    ax.set_title('Rate Contributions')
+    # Only show legend for the first bar (Rate_exc)
+    handles, _ = ax.get_legend_handles_labels()
+    ax.legend(handles, labels)
+    plt.show()
+    
+    return
+
 # endregion Bath
 
 # region dIdV
@@ -603,3 +654,206 @@ def plotPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, 
 
     return
 # endregion ESR
+
+# region Magnetization over Voltage 
+
+def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100, type: str='z', spins: list=[0], norm: bool=True, total: bool=True):
+    """
+    Plots the magnetization of specified spins and the total magnetization as a function of voltage.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the spin configuration and state.
+    Vrange : list of float, optional
+        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+    N : int, optional
+        Number of voltage points in the sweep. Default is 100.
+    type : str, optional
+        The type of magnetization component to calculate ('x', 'y', or 'z'). Default is 'z'.
+    spins : list of int, optional
+        List of spin indices to plot. Default is [0].
+    norm : bool, optional
+        If True, normalize the magnetization values. Default is True.
+    total : bool, optional
+        If True, plot the total magnetization. Default is True.
+
+    Returns
+    -------
+    None
+        This function displays a plot and does not return any value.
+
+    Notes
+    -----
+    The function temporarily modifies the `V_DC` attribute of `spinsys` during the voltage sweep,
+    and restores its original value after plotting. The calculations rely on external `bath` functions
+    for rates, populations, and magnetization.
+    """
+    
+    # Save the old voltage value
+    V_initial = spinsys.V_DC
+
+    if len(spins) > spinsys.NSpins:
+        print("Error: Too many spins specified in the 'spin' argument.")
+        return
+    
+    # Initialize arrays to store voltage and magnetization data
+    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    M_array = np.zeros((N, spinsys.NSpins+1)) 
+
+    for idx, V in enumerate(V_array):
+        spinsys.V_DC = V
+        bath.calcRates(spinsys)
+        bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+        bath.calcMagnetization(spinsys, type=type, AllowPumping=True, Approach= "Loth")
+        for i in range(spinsys.NSpins):
+            if norm:
+                M_array[idx, i] = spinsys.Mag[i]/spinsys.Mag_max[i]
+            else:
+                M_array[idx, i] = spinsys.Mag[i]
+        
+        if norm:
+            M_array[idx, -1] = spinsys.Mag_tot/spinsys.Mag_tot_max
+        else:
+            M_array[idx, -1] = spinsys.Mag_tot
+
+    # Plotting
+    plt.figure(figsize=(8, 5))
+    for idx, spin in enumerate(spins):
+        plt.plot(V_array, M_array[:, spin], label=f'Spin {spin} Magnetization')
+    if total:
+        plt.plot(V_array, M_array[:, -1], label='Total Magnetization', linestyle='--', color='k')
+    plt.xlabel('Voltage (mV)')
+    plt.ylabel('Magnetization')
+    plt.title('Magnetization vs Voltage')
+    plt.legend()
+    plt.show()
+
+    # Restore the initial voltage value
+    spinsys.V_DC = V_initial
+    bath.calcRates(spinsys)
+    bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+    bath.calcMagnetization(spinsys, type=type, AllowPumping=True, Approach= "Loth")
+    
+    return 
+
+def plotPopulations_Voltage(
+        spinsys: SpinSys,
+        Vrange: list = [-200, 200],
+        N: int = 200):
+    """
+    Plots the populations of spin states as a function of applied voltage.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the current state and parameters.
+    Vrange : list, optional
+        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+    N : int, optional
+        The number of voltage points to evaluate. Default is 200.
+
+    Returns
+    -------
+    None
+        This function does not return a value; it displays a plot of populations vs voltage.
+
+    Notes
+    -----
+    - The function temporarily modifies `spinsys.V_DC` during the sweep and restores its original value at the end.
+    - The bath object and its methods `calcRates` and `calcPopulations` must be accessible in the current scope.
+    """
+
+    # Save the old voltage value
+    V_initial = spinsys.V_DC
+
+    # Initialize arrays to store voltage and population data
+    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    P_array = np.zeros((N, spinsys.dimensionOfMatrix))
+    for idx, V in enumerate(V_array):
+        spinsys.V_DC = V
+        bath.calcRates(spinsys)
+        bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+        P_array[idx, :] = spinsys.Populations
+
+    # Plotting
+    plt.figure(figsize=(8, 5))
+    for idx in range(spinsys.dimensionOfMatrix):
+        plt.plot(V_array, P_array[:, idx], label=f'State {idx}')
+    plt.xlabel('Voltage (mV)')
+    plt.ylabel('Populations')
+    plt.title('Populations vs Voltage')
+    plt.legend()
+    plt.yscale('log')
+    plt.show()
+
+    # Restore the initial voltage value
+    spinsys.V_DC = V_initial
+    bath.calcRates(spinsys)
+    bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+
+    return
+
+def plotRates_Voltages(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
+    """
+    Plots the transition rates between spin states as a function of applied voltage.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the current state and parameters, including the
+        voltage (`V_DC`) and the rates matrix (`Rates_Summed`).
+    Vrange : list of float, optional
+        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+    N : int, optional
+        The number of voltage points to evaluate. Default is 100.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It displays a plot of the transition rates.
+        
+    Notes
+    -----
+    - The function temporarily modifies `spinsys.V_DC` during the sweep and restores its original
+      value at the end.
+    - The function assumes that `bath.calcRates(spinsys)` updates `spinsys.Rates_Summed` in-place.
+    - Only off-diagonal transition rates (i ≠ f) are plotted.
+    """
+
+    # Save the old voltage value
+    V_initial = spinsys.V_DC
+
+    # Initialize arrays to store voltage and rate data
+    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    R_array = np.zeros((N, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    
+    for idx, V in enumerate(V_array):
+        spinsys.V_DC = V
+        bath.calcRates(spinsys)
+        for i in range(spinsys.dimensionOfMatrix):
+            for f in range(spinsys.dimensionOfMatrix):
+                if i != f:
+                    R_array[idx, i, f] = spinsys.Rates_Summed[i,f]
+
+    # Plotting
+    plt.figure(figsize=(10, 6))
+    for i in range(spinsys.dimensionOfMatrix):
+        for f in range(spinsys.dimensionOfMatrix):
+            if i != f:
+                plt.plot(V_array, R_array[:, i, f], label=f'Rate {i}→{f}')
+    
+    plt.xlabel('Voltage (mV)')
+    plt.ylabel('Transition Rates')
+    plt.title('Transition Rates vs Voltage')
+    plt.yscale('log')
+    plt.legend()
+    plt.show()
+
+    # Restore the initial voltage value
+    spinsys.V_DC = V_initial
+    bath.calcRates(spinsys)
+
+    return
+
+# endregion Magnetization over Voltage
