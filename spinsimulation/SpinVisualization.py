@@ -357,7 +357,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         fig, ax = plt.subplots()
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
-            print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
             if order == '2nd':
                 x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '2ndR':
@@ -385,7 +385,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         plt.show()
             
         
-    return x,y 
+    return
 
 # endregion dIdV
 
