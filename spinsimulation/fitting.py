@@ -48,14 +48,19 @@ def fit_Kondo(x_exp:np.ndarray,
 
     Returns
     -------
-    dict
+    x_sim : np.ndarray
+        The x-values of the fitted simulation (bias in mV).
+    y_sim : np.ndarray
+        The y-values of the fitted simulation (dI/dV in a.u. (normalized)).
+    params : dict
         A dictionary containing the fitted parameters:
-        {'g': fitted g factor, 'J': fitted Kondo coupling, 'T': fitted effective temperature, 'sigma_0': fitted vertical offset, 'V_offset': fitted horizontal offset}.
-    float
-        The loss value of the fit.
-    SpinSys
-        A SpinSys object with the fitted parameters.
-        The SpinSys object is a copy of the original spinsys with the fitted parameters applied.
+        - 'g': g factor
+        - 'J': Kondo coupling
+        - 'T': effective temperature
+        - 'sigma_0': vertical offset
+        - 'V_offset': horizontal offset
+    return_spin_sys : SpinSys
+        A SpinSys object with the fitted parameters applied.
 
     Notes
     -----
@@ -144,16 +149,12 @@ def fit_Kondo(x_exp:np.ndarray,
     # use the params to plot fit and exp data together
     if plot:
         # another disposable spinsys to recalculate everything
-        disposable_spinsys = SpinSys(Spins=[0.5])
-        disposable_spinsys.B = spinsys.B
-        # print(disposable_spinsys.B)
-        # disposable_spinsys.BTip = spinsys.BTip
-        # print(disposable_spinsys.BTip)
-        disposable_spinsys.J = params[1]
-        disposable_spinsys.T = params[2]
-        disposable_spinsys.gfactorvector = [params[0]]
+        return_spin_sys = copy.deepcopy(spinsys)
+        return_spin_sys.gfactorvector = [params[0]]
+        return_spin_sys.J = params[1]
+        return_spin_sys.T = params[2]
 
-        x_sim, y_sim = calcIETS_3rd(disposable_spinsys, Vrange=[x_exp.min(), x_exp.max()], N=1000, norm=False, plot=False)
+        x_sim, y_sim = calcIETS_3rd(return_spin_sys, Vrange=[x_exp.min(), x_exp.max()], N=1000, norm=False, plot=False)
         # same but fewer points 
         # x_100, y_100 = calcIETS_3rd(disposable_spinsys, Vrange=[x_exp.min(), x_exp.max()], N=100, norm=False, plot=False)
         # hacky normalization
@@ -169,13 +170,9 @@ def fit_Kondo(x_exp:np.ndarray,
         fig.update_xaxes(title='Bias (mV)')
         fig.update_yaxes(title='dI/dV (a.u.)')
         fig.show()
-    # return spin system 
-    return_spin_sys = copy.deepcopy(spinsys)
-    return_spin_sys.gfactorvector = [params[0]]
-    return_spin_sys.J = params[1]
-    return_spin_sys.T = params[2]
+    
 
-    return {'g': params[0],'J':params[1], 'T':params[2],'sigma_0':params[3],'V_offset':params[4]}, loss, return_spin_sys
+    return  x_sim + params[4], y_sim + params[3], {'g': params[0],'J':params[1], 'T':params[2],'sigma_0':params[3],'V_offset':params[4]},return_spin_sys
 
     
 
