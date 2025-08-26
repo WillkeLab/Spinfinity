@@ -1,6 +1,9 @@
 import numpy as np
 import scipy as sp
 import scipy.constants as const
+import pickle
+import os
+from pprint import pformat
 
 class SpinSys:
     """
@@ -172,53 +175,236 @@ class SpinSys:
         # ESR parameters
         self.RabiRate = 1  # Rabi rate for ESR
         self.T2 = 200 # coherence time
-    ## Print the parameters of the Spin System ##
-    def print_parameters(self):
+
+    def _round_to_significant_figures(self, value, sig_figs=4):
         """
-        Prints the parameters of the spin system and tunneling setup.
+        Round a value or array to specified number of significant figures.
         
         Parameters
         ----------
-        None
-
+        value : float, int, np.ndarray, list, tuple
+            Value to round
+        sig_figs : int
+            Number of significant figures (default: 4)
+            
         Returns
         -------
-        None
-            This method prints information to the standard output and does not return a value.
+        Rounded value in same format as input
+        """
+        if isinstance(value, (list, tuple)):
+            return type(value)([self._round_to_significant_figures(v, sig_figs) for v in value])
+        elif isinstance(value, np.ndarray):
+            if np.issubdtype(value.dtype, np.number):
+                # Only round if it's a numeric array
+                rounded = np.array([self._round_to_significant_figures(v, sig_figs) for v in value.flat])
+                return rounded.reshape(value.shape)
+            else:
+                return value
+        elif isinstance(value, (int, float, complex)):
+            if value == 0:
+                return 0
+            try:
+                if isinstance(value, complex):
+                    real_part = self._round_to_significant_figures(value.real, sig_figs)
+                    imag_part = self._round_to_significant_figures(value.imag, sig_figs)
+                    return complex(real_part, imag_part)
+                else:
+                    # For real numbers
+                    from math import log10, floor
+                    return round(value, -int(floor(log10(abs(value)))) + (sig_figs - 1))
+            except (ValueError, OverflowError):
+                return value
+        else:
+            return value
 
-        Notes
-        -----
-        The method assumes that all relevant attributes (such as NSpins, AtomPositions,
-        B, Dvector, Jvector, etc.) are already initialized in the class instance.
+    def print_parameters(self):
+        """
+        Print all parameters in a detailed format with values rounded to 4 significant figures.
+        """
+        params = self.get_parameters_dict()
+        
+        for category, param_dict in params.items():
+            print(f"\n{category.upper()}")
+            print("=" * len(category))
+            for key, value in param_dict.items():
+                if isinstance(value, np.ndarray):
+                    rounded_value = self._round_to_significant_figures(value)
+                    print(f"  {key}:")
+                    if rounded_value.ndim == 1:
+                        # 1D array - display as simple array
+                        print(f"    {rounded_value}")
+                    elif rounded_value.ndim == 2:
+                        # 2D array - display as matrix
+                        print(f"    {rounded_value}")
+                    else:
+                        # Higher dimensional arrays - show shape and summary
+                        print(f"    Shape: {rounded_value.shape}")
+                        print(f"    Type: {rounded_value.dtype}")
+                elif isinstance(value, (list, tuple)):
+                    rounded_value = self._round_to_significant_figures(value)
+                    print(f"  {key:<25}: {rounded_value}")
+                elif isinstance(value, (int, float, complex)):
+                    rounded_value = self._round_to_significant_figures(value)
+                    print(f"  {key:<25}: {rounded_value}")
+                else:
+                    print(f"  {key:<25}: {value}")
+    
+    def get_parameters_dict(self):
+        """
+        Return parameters organized in a dictionary by category.
+        
+        Returns
+        -------
+        dict
+            Dictionary with parameter categories as keys and parameter dicts as values.
+        """
+        params_dict = {
+            'System': {
+                'Spins': self.Spins,
+                'NSpins': self.NSpins,
+                'dimensionOfMatrix': self.dimensionOfMatrix,
+                'ReadoutSpin': getattr(self, 'ReadoutSpin', 'Not set'),
+                'Temperature': f"{self.T} K"
+            },
+            'Magnetic Fields': {
+                'B_external': np.array(self.B) if hasattr(self, 'B') else 'Not set',
+                'BTip': np.array(getattr(self, 'BTip', [0,0,0])),
+                'BTipGradient': np.array(getattr(self, 'BTipGradient', [0,0,0])),
+                'g_factors': np.array(getattr(self, 'gfactorvector', [])) if getattr(self, 'gfactorvector', None) is not None else 'Not set'
+            },
+            'Interactions': {},
+            'Tunneling': {}
+        }
+        
+        # Add interaction matrices if they exist
+        if hasattr(self, 'Jvector') and self.Jvector is not None:
+            params_dict['Interactions']['Exchange_J_meV'] = self.Jvector
+            params_dict['Interactions']['Exchange_J_GHz'] = self.Jvector * self.meVtoGHzConversion
+        
+        if hasattr(self, 'Dvector') and self.Dvector is not None:
+            params_dict['Interactions']['Anisotropy_D_meV'] = np.array(self.Dvector)
+            
+        if hasattr(self, 'Evector') and self.Evector is not None:
+            params_dict['Interactions']['Anisotropy_E_meV'] = np.array(self.Evector)
+            
+        if hasattr(self, 'D0') and self.D0 is not None:
+            params_dict['Interactions']['Dipole_matrix_GHz'] = self.D0 * self.meVtoGHzConversion
+            
+        if hasattr(self, 'DipoleBool') and self.DipoleBool is not None:
+            params_dict['Interactions']['DipoleBool'] = np.array(self.DipoleBool)
+        
+        if hasattr(self, 'AtomPositions') and self.AtomPositions is not None:
+            params_dict['System']['AtomPositions'] = self.AtomPositions
+        
+        # Add tunneling parameters if they exist
+        if hasattr(self, 'V_DC'):
+            params_dict['Tunneling']['V_DC_mV'] = self.V_DC
+        if hasattr(self, 'TipPolarization'):
+            params_dict['Tunneling']['TipPolarization'] = np.array(self.TipPolarization)
+        if hasattr(self, 'SamplePolarization'):
+            params_dict['Tunneling']['SamplePolarization'] = np.array(getattr(self, 'SamplePolarization', [0,0,0]))
+        if hasattr(self, 'G'):
+            params_dict['Tunneling']['Conductance_G_A_per_V'] = self.G
+        if hasattr(self, 'G_ss'):
+            params_dict['Tunneling']['G_ss'] = np.array(self.G_ss) if isinstance(self.G_ss, (list, tuple)) else self.G_ss
+        if hasattr(self, 'G_tt'):
+            params_dict['Tunneling']['G_tt'] = self.G_tt
+        if hasattr(self, 'U'):
+            params_dict['Tunneling']['U'] = self.U
+        if hasattr(self, 'b0'):
+            params_dict['Tunneling']['b0'] = self.b0
+            
+        # Add ESR parameters if they exist
+        params_dict['ESR'] = {}
+        if hasattr(self, 'RabiRate'):
+            params_dict['ESR']['RabiRate'] = self.RabiRate
+        if hasattr(self, 'T2'):
+            params_dict['ESR']['T2_coherence_time'] = self.T2
+        if hasattr(self, 'ReadoutSpin'):
+            params_dict['ESR']['ReadoutSpin'] = getattr(self, 'ReadoutSpin', 'Not set')
+        
+        # Remove ESR section if it's empty
+        if not params_dict['ESR']:
+            del params_dict['ESR']
+            
+        return params_dict
+    
+    def save(self, filename=None, filepath=None):
+        """
+        Save the SpinSys object to a pickle file.
+        
+        Parameters
+        ----------
+        filename : str, optional
+            Name of the file to save. If None, generates a default name based on system parameters.
+        filepath : str, optional
+            Directory path where to save the file. If None, saves in current directory.
+            
+        Returns
+        -------
+        str
+            Full path to the saved file.
+            
+        Examples
+        --------
+        >>> spinsys = SpinSys([1, 0.5])
+        >>> spinsys.save('my_spinsystem.pkl')
+        >>> spinsys.save(filename='experiment1.pkl', filepath='./data/')
+        """
+        # Generate default filename if not provided
+        if filename is None:
+            spin_str = '_'.join([f"S{s}" for s in self.Spins])
+            filename = f"SpinSys_{spin_str}_B{self.B[2]:.2f}T.pkl"
+        
+        # Set default filepath if not provided
+        if filepath is None:
+            filepath = "."
+        
+        # Ensure filepath exists
+        os.makedirs(filepath, exist_ok=True)
+        
+        # Create full file path
+        full_path = os.path.join(filepath, filename)
+        
+        # Save the object using pickle
+        try:
+            with open(full_path, 'wb') as f:
+                pickle.dump(self, f)
+            print(f"SpinSys object successfully saved to: {full_path}")
+            return full_path
+        except Exception as e:
+            print(f"Error saving SpinSys object: {e}")
+            raise
+    
+    @staticmethod
+    def load(filename: str, filepath: str):
+        """
+        Load a SpinSys object from a pickle file.
+        
+        Parameters
+        ----------
+        filepath : str
+            Full path to the pickle file containing the SpinSys object.
+            
+        Returns
+        -------
+        SpinSys
+            The loaded SpinSys object.
+            
         """
 
-        print("Spin System Parameters:")
-        print(f"Number of Spins: {self.NSpins}")
-        print(f"Dimension of Matrix: {self.dimensionOfMatrix}")
-        print(f"Readout Spin: {self.ReadoutSpin}")
-        print(f"Atom Positions: \n{self.AtomPositions}")
-        # print(f"Lattice Length XY: {self.latticeLengthXY}")
-        print(f"Temperature (T): {self.T} K")
-        print(f"External Magnetic Field (B): {self.B} T")
-        print(f"Tip Magnetic Field (BTip): {self.BTip} T")
-        print(f"Tip Field Gradient (BTipGradient): {self.BTipGradient} T")
-        print(f"Tip Type: {self.tip}")
-        print(f"g-factor Vector: {self.gfactorvector}")
-        print(f"Out of Plane Anisotropy (Dvector): {self.Dvector} meV")
-        print(f"In Plane Anisotropy (Evector): {self.Evector} meV")
-        print(f"Dipole Interaction Matrix (D0): \n{self.D0*self.meVtoGHzConversion} GHz")
-        print(f"Dipole Interaction Bool Array (DipoleBool): {self.DipoleBool}")
-        print(f"Exchange Interaction Vector (Jvector): \n{self.Jvector} meV")
-        print(f"Exchange Interaction Vector (Jvector): \n{self.Jvector*self.meVtoGHzConversion} GHz")
-        print()
-        print("Tunneling Parameters:")
-        print(f"DC Voltage (V_DC): {self.V_DC} mV")
-        print(f"Tip Polarization: {self.TipPolarization}")
-        print(f"Sample Polarization: {self.SamplePolarization}")
-        print(f"U: {self.U}")
-        print(f"b0: {self.b0}")
-        print(f"Conductance (G): {self.G} A/V")
-        print(f"Sample-Sample Conductance (G_ss): {self.G_ss} A/V")
-        print(f"Tip-Tip Scattering Contribution (G_tt): {self.G_tt}")
-        
-        return
+        full_path = os.path.join(filepath, filename)
+
+        try:
+            with open(full_path, 'rb') as f:
+                spinsys = pickle.load(f)
+            print(f"SpinSys object successfully loaded from: {full_path}")
+            return spinsys
+        except FileNotFoundError:
+            print(f"Error: File '{full_path}' not found.")
+            raise
+        except Exception as e:
+            print(f"Error loading SpinSys object: {e}")
+            raise
+    
+    # endregion SaveFunctions
