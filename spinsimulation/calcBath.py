@@ -273,7 +273,7 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
     """
     
     # Initialize the Rates matrix
-    spinsys.Rates = np.zeros((5,spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    spinsys.Rates = np.zeros((4,spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
      # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
@@ -323,8 +323,7 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
 
     # Sum the rates
     spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
-                        spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :] + 
-                        spinsys.Rates[4, :, :])
+                        spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :])
 
     return 
 

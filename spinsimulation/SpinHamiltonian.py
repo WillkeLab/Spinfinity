@@ -327,33 +327,75 @@ def addTipField(spinsys: SpinSys):
 
     return
 
+# def addZeroField(spinsys: SpinSys):
+#     """
+#     Adds zero-field splitting (out-of-plane anisotropy) to the spin Hamiltonian.
+#     This function modifies the Hamiltonian of the given spin system by adding
+#     an out-of-plane anisotropy term for each spin. The anisotropy is determined
+#     by the Dvector attribute of the spin system and is applied as a quadratic
+#     term in the Sz operator for each spin.
+
+#     Parameters
+#     ----------
+#     spinsys : SpinSys
+#         The spin system object to which the zero-field splitting term will be added.
+#         It must have the attributes:
+#             - NSpins: int, number of spins in the system.
+#             - Dvector: array-like, anisotropy constants for each spin.
+#             - Sz: array-like, spin-z operators for each spin.
+#             - H: array-like, the Hamiltonian matrix to be modified.
+
+#     Returns
+#     -------
+#     None
+#         The function modifies the Hamiltonian in-place.
+#     """
+#     for i_spin in range(spinsys.NSpins):
+#         spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])
+
+#     return
+
 def addZeroField(spinsys: SpinSys):
     """
-    Adds zero-field splitting (out-of-plane anisotropy) to the spin Hamiltonian.
-    This function modifies the Hamiltonian of the given spin system by adding
-    an out-of-plane anisotropy term for each spin. The anisotropy is determined
-    by the Dvector attribute of the spin system and is applied as a quadratic
-    term in the Sz operator for each spin.
+    Build and add the anisotropy Hamiltonian for the spin system.
+    Supports either standard parameters (D, E, DD, G) or Stevens operators.
 
-    Parameters
-    ----------
-    spinsys : SpinSys
-        The spin system object to which the zero-field splitting term will be added.
-        It must have the attributes:
-            - NSpins: int, number of spins in the system.
-            - Dvector: array-like, anisotropy constants for each spin.
-            - Sz: array-like, spin-z operators for each spin.
-            - H: array-like, the Hamiltonian matrix to be modified.
-
-    Returns
-    -------
-    None
-        The function modifies the Hamiltonian in-place.
+    This function modifies self.H in-place.
     """
-    for i_spin in range(spinsys.NSpins):
-        spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])
 
-    return
+    # Check if Stevens operators are used
+    # If not, use standard D, E parameters
+    use_stevens = getattr(spinsys, "use_Stevens", False)
+    if not use_stevens:
+        # D * Sz^2 + E(Sx^2 - Sy^2)
+        for i_spin in range(spinsys.NSpins):
+            spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])+ spinsys.Evector[i_spin]*(spinsys.Sx[i_spin,:,:] @ spinsys.Sx[i_spin,:,:] - spinsys.Sy[i_spin,:,:] @ spinsys.Sy[i_spin,:,:])
+
+    else:
+        for i_spin in range(spinsys.NSpins):
+                stevens_dict = spinsys.Stevens[i_spin]  # Dict for this spin, e.g., {(2,0): value, (4,2): value}
+                S = spinsys.Spins[i_spin]
+                
+                for (a, b), coeff in stevens_dict.items():
+                    if coeff == 0:
+                        continue  # skip zero terms
+
+                    # Generate the Stevens operator O_a^b for this spin
+                    # Get the base operator for spin i
+                    Oab_local = stevens_operator(spinsys.Spins[i_spin], a, b)
+
+                    # Embed into the full Hilbert space via Kronecker products
+                    Oab_full = 1
+                    for j in range(spinsys.NSpins):
+                        dim = int(2 * spinsys.Spins[j] + 1)
+                        if j == i_spin:
+                            Oab_full = np.kron(Oab_full, Oab_local)
+                        else:
+                            Oab_full = np.kron(Oab_full, np.eye(dim))
+                    # Add to the Hamiltonian
+                    spinsys.H += coeff * Oab_full
+
+
 
 def addExchangeInteraction(spinsys: SpinSys):
     """
@@ -457,34 +499,207 @@ def addDipolarCoupling(spinsys: SpinSys):
     where D0 is the dipolar coupling constant, S1 and S2 are spin operators, and r̂ is the
     normalized vector connecting the two spins.
     """
-    
-    # Loop over spins
-    for i_spin in range(spinsys.NSpins):
-        for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
-            if i_spin != j_spin:
-                # Calculate the normalized connection vector (rhat)
-                diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
-                rhat = diff_vec / np.linalg.norm(diff_vec)
+    if np.any(spinsys.DipoleBool):
+        for i_spin in range(spinsys.NSpins):
+            for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
+                if i_spin != j_spin:
+                    # Calculate the normalized connection vector (rhat)
+                    diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
+                    rhat = diff_vec / np.linalg.norm(diff_vec)
 
-                # Add the dipolar interaction to the Hamiltonian
-                spinsys.H += (
-                    spinsys.D0[j_spin, i_spin]
-                    * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
-                        + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
-                        + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
-                )
+                    # Add the dipolar interaction to the Hamiltonian
+                    spinsys.H += (
+                        spinsys.D0[j_spin, i_spin]
+                        * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
+                            + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
+                            + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
+                    )
 
-                # Subtract the 3*(D0) term with the projection of spin operators along rhat
-                spinsys.H -= (
-                    3 * spinsys.D0[j_spin, i_spin]
-                    * ((spinsys.Sx[j_spin, :, :] * rhat[0]
-                        + spinsys.Sy[j_spin, :, :] * rhat[1]
-                        + spinsys.Sz[j_spin, :, :] * rhat[2])
-                    @ (spinsys.Sx[i_spin, :, :] * rhat[0]
-                        + spinsys.Sy[i_spin, :, :] * rhat[1]
-                        + spinsys.Sz[i_spin, :, :] * rhat[2]))
-                )
+                    # #Subtract the 3*(D0) term with the projection of spin operators along rhat
+                    spinsys.H -= (
+                        3 * spinsys.D0[j_spin, i_spin]
+                        * ((spinsys.Sx[j_spin, :, :] * rhat[0]
+                            + spinsys.Sy[j_spin, :, :] * rhat[1]
+                            + spinsys.Sz[j_spin, :, :] * rhat[2])
+                        @ (spinsys.Sx[i_spin, :, :] * rhat[0]
+                            + spinsys.Sy[i_spin, :, :] * rhat[1]
+                            + spinsys.Sz[i_spin, :, :] * rhat[2]))
+                    )
     
     return
 
 # endregion Hamiltonian
+
+# region StevensOperators
+
+def anticommutator(A, B):
+    return A @ B + B @ A
+
+def stevens_operator(S, a, b, return_latex=False):
+    """
+    Generate Stevens operator O_a^b for spin S.
+
+    Parameters
+    ----------
+    S : float
+        Spin quantum number (e.g. 1, 3/2, 2, etc.)
+    a : int
+        Rank of the Stevens operator (2, 4, 6)
+    b : int
+        Component index (from -a to +a)
+    return_latex : bool
+        Whether to return a LaTeX string for display purposes
+
+    Returns
+    -------
+    Oab : ndarray
+        Matrix representation of the Stevens operator
+    latex_str : str (optional)
+        LaTeX representation
+    """
+
+    from numpy import eye
+    from scipy.linalg import fractional_matrix_power
+
+    # Get angular momentum matrices
+    Sx_, Sy_, Sz_ = calcAngMomMatrices(S)
+    I = np.eye(Sx_.shape[0])
+    ss = S * (S + 1)
+
+    # Define ladder operators
+    Sp = Sx_ + 1j * Sy_
+    Sm = Sx_ - 1j * Sy_
+
+    e = None
+    latex = "$\\rm invalid$"
+
+    if a == 2:
+        if abs(b) == 0:
+            e = 3 * Sz_ @ Sz_ - ss * I
+            latex = "$3\\hat{S}_z^2$"
+        elif abs(b) == 1:
+            if b > 0:
+                e = 0.5 * anticommutator(Sx_, Sz_)
+                latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
+            else:
+                e = 0.5 * anticommutator(Sy_, Sz_)
+                latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
+        elif abs(b) == 2:
+            if b > 0:
+                e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
+                latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
+            else:
+                e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
+                latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
+
+    elif a == 4:
+        z2 = Sz_ @ Sz_
+        z3 = z2 @ Sz_
+        z4 = z2 @ z2
+        ss2 = ss ** 2
+        if abs(b) == 0:
+            e = 35 * z4 - (30 * ss - 25) * z2 + (3 * ss2 - 6 * ss) * I
+            latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
+        elif abs(b) == 1:
+            pm = Sp + Sm if b > 0 else Sp - Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(7 * z3 - (3 * ss + 1) * Sz_, pm)
+        elif abs(b) == 2:
+            pm = np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2) if b > 0 else \
+                 np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2)
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(7 * z2 - (ss + 5) * I, pm)
+        elif abs(b) == 3:
+            pm = np.linalg.matrix_power(Sp, 3) + np.linalg.matrix_power(Sm, 3) if b > 0 else \
+                 np.linalg.matrix_power(Sp, 3) - np.linalg.matrix_power(Sm, 3)
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(Sz_, pm)
+        elif abs(b) == 4:
+            if b > 0:
+                e = 0.5 * (np.linalg.matrix_power(Sp, 4) + np.linalg.matrix_power(Sm, 4))
+            else:
+                e = -0.5j * (np.linalg.matrix_power(Sp, 4) - np.linalg.matrix_power(Sm, 4))
+
+    elif a == 6:
+        if abs(b) > 6:
+            return None
+        if b == 0:
+            e = (
+                231 * Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_
+                - (315 * ss - 735) * Sz_ @ Sz_ @ Sz_ @ Sz_
+                + (105 * ss ** 2 - 525 * ss + 294) * Sz_ @ Sz_
+                - (5 * ss ** 3 - 40 * ss ** 2 + 60 * ss) * I
+            )
+        elif abs(b) == 1:
+            pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(Sz_, pm)
+        elif abs(b) == 2:
+            pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+        elif abs(b) == 3:
+            pm = Sp @ Sp @ Sp + Sm @ Sm @ Sm
+            pm = pm if b > 0 else Sp @ Sp @ Sp - Sm @ Sm @ Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ @ Sz_ - (3 * ss + 59) * Sz_, pm)
+        elif abs(b) == 4:
+            pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+            if b < 0:
+                pm = Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+                c = -1j
+            else:
+                c = 1
+            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+        elif abs(b) == 5:
+            pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * anticommutator(Sz_, pm)
+        elif abs(b) == 6:
+            pm = Sp @ Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+            c = 1 if b > 0 else -1j
+            e = 0.5 * c * pm
+        
+
+    else:
+        raise ValueError("Invalid a value. Allowed: 2, 4, 6")
+
+    if return_latex:
+        return e, latex
+    return e
+
+def setStevens(spinsys, i_spin, a, b, value):
+    """
+    Set a Stevens operator coefficient for a given spin.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object.
+    i_spin : int
+        Index of the spin in the spin system.
+    a : int
+        Degree of the Stevens operator (e.g., 2, 4, 6).
+    b : int
+        Order of the Stevens operator (−a ≤ b ≤ a).
+    value : float or complex
+        Coefficient for the Stevens operator.
+    """
+    spinsys.use_Stevens = True  # Ensure Stevens operators are used
+    if i_spin >= spinsys.NSpins:
+        raise IndexError(f"Spin index {i_spin} out of range for system with {spinsys.NSpins} spins.")
+    
+    if not hasattr(spinsys, "Stevens") or spinsys.Stevens is None:
+        # Initialize empty dictionaries if not already done
+        spinsys.Stevens = [{} for _ in range(spinsys.NSpins)]
+
+    if not isinstance(spinsys.Stevens[i_spin], dict):
+        raise TypeError(f"spinsys.Stevens[{i_spin}] must be a dictionary.")
+
+    spinsys.Stevens[i_spin][(a, b)] = value
+
+# endregion StevensOperators
