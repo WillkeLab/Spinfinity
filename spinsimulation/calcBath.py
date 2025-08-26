@@ -515,5 +515,68 @@ def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
 
 # endregion Rate Calculations
 
+# region SpinPumping 
+
+def split_Populations(spinsys: SpinSys, subspin: SpinSys):
+    """
+    Splits the populations of a spin system into two subpopulations based on overlaps with subspin eigenvectors.
+    This function first calculates the rates and populations for the full spin system. It then projects the populations
+    onto the eigenvectors of a subspin system using overlap calculations, resulting in two sets of subpopulations
+    (A and B) according to the specified overlap order.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The full spin system object, containing eigenvectors and populations.
+    subspin : SpinSys
+        The subspin system object, whose eigenvectors are used for projection.
+
+    Returns
+    -------
+    Populations_A : np.ndarray
+        Array of projected populations using overlap order 'BA'.
+    Populations_B : np.ndarray
+        Array of projected populations using overlap order 'AB'.
+
+    Notes
+    -----
+    This function assumes that `calcRates`, `calcPopulations`, and `hamil.calcOverlap` are defined elsewhere.
+    The function modifies the populations of `spinsys` in-place before projection.
+    """
+    
+    # First we calculate the Rates and Populations of the whole system
+    calcRates(spinsys)
+    calcPopulations(spinsys, AllowPumping=True)
+
+    # Initialize 
+    Populations_A=np.zeros(subspin.dimensionOfMatrix)
+    Populations_B=np.zeros(subspin.dimensionOfMatrix)
+
+    for idx in range(subspin.dimensionOfMatrix):
+        overlap_A = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='BA')
+        overlap_B = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='AB')
+        Populations_A[idx] = sum(overlap_A * spinsys.Populations)
+        Populations_B[idx] = sum(overlap_B * spinsys.Populations)
+
+    return Populations_A, Populations_B
+
+def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str='z'):
+    
+    # Calculate first the sub populations
+    pA, pB = split_Populations(spinsys=spinsys, subspin=subspin)
+
+    # A
+    subspin.Populations = pA
+    calcMagnetization(subspin, type=type, AllowPumping=True)
+    Mag_A = subspin.Mag_tot
+
+    # B
+    subspin.Populations = pB
+    calcMagnetization(subspin, type=type, AllowPumping=True)
+    Mag_B = subspin.Mag_tot
+
+    return Mag_A, Mag_B
+
+# endregion SpinPumping
 
 
