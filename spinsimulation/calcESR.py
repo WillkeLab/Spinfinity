@@ -152,8 +152,6 @@ def calcESR_FreqSweep_ESRrate(
         spinsys: SpinSys, 
         FreqRange: list = [10, 20], 
         N: int = 200, 
-        T2: float = 10, 
-        RabiRate: float = 1, 
         norm: bool = True):
     """
     Simulates a continuous-wave ESR (Electron Spin Resonance) frequency sweep for a given spin system.
@@ -169,10 +167,6 @@ def calcESR_FreqSweep_ESRrate(
         The frequency range [start, stop] in GHz over which to perform the sweep (default is [10, 20]).
     N : int, optional
         Number of frequency points in the sweep (default is 200).
-    T2 : float, optional
-        coherence time (default is 10).
-    RabiRate : float, optional
-        Rabi frequency (default is 1).
     norm : bool, optional
         If True, normalizes the ESR signal to its maximum value (default is True).
 
@@ -221,7 +215,7 @@ def calcESR_FreqSweep_ESRrate(
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
                 if i != j:
-                    spinsys.ESRRates[i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+                    spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
 
         # Sum the rates including the ESR rates
         Rates_Summed = (
@@ -263,8 +257,7 @@ def calcESR_FreqSweep_ESRrate(
 
     return freq, ESRsignal
 
-
-def calcPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, freq: float = 14):
+def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
     """
     Calculate the steady-state populations of a spin system under ESR (Electron Spin Resonance) conditions.
     This function updates the populations of the given spin system by including ESR-induced transitions,
@@ -275,10 +268,6 @@ def calcPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, 
     ----------
     spinsys : SpinSys
         The spin system object containing the system's states, rates, and populations.
-    T2 : float, optional
-        The coherence time (default is 200).
-    RabiRate : float, optional
-        The Rabi rate for the ESR transition (default is 1).
     freq : float, optional
         The frequency (in GHz) of the ESR driving field (default is 14).
 
@@ -294,7 +283,7 @@ def calcPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, 
     """
 
     bath.calcPopulations(spinsys, AllowPumping=True)
-    addESRrate(spinsys, T2=T2, RabiRate=RabiRate, freq=freq)
+    addESRrate(spinsys, freq=freq)
 
     K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
     Rates_Summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
@@ -315,7 +304,7 @@ def calcPopulations_ESR(spinsys: SpinSys, T2: float = 200, RabiRate: float = 1, 
 
     return spinsys.Populations_ESR
 
-def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: float = 14):
+def addESRrate(spinsys: SpinSys, freq: float = 14):
     """
     Adds the ESR (Electron Spin Resonance) transition rates to the given spin system.
     This function calculates the ESR-induced transition rates between energy levels of the spin system
@@ -327,10 +316,6 @@ def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: floa
     spinsys : SpinSys
         The spin system object to which the ESR rates will be added. Must have attributes such as
         `eigVectors`, `Sx`, `ReadoutSpin`, `E_All_inGHz`, `dimensionOfMatrix`, and `Rates`.
-    T2 : float, optional
-        The coherence time (default is 10).
-    RabiRate : float, optional
-        The Rabi frequency (in MHz or appropriate units) of the driving field. Default is 0.1.
     freq : float, optional
         The frequency (in GHz) of the driving field (default is 14).
         
@@ -355,7 +340,7 @@ def addESRrate(spinsys: SpinSys, T2: float = 10, RabiRate: float = 1, freq: floa
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
             if i != j:
-                spinsys.ESRRates[i, j] = 0.5 * RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * T2**2 + 1)
+                spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
     
 
     
