@@ -34,7 +34,7 @@ def e_epsilon(SpinSys: SpinSys):
     -----
     - The tensors are computed by contracting spin operator matrices with spin-½ basis vectors.
     - The function assumes the presence of an `e_transport` function and that `SpinSys`
-      has attributes `ptip` and `psample`.
+      has attributes `TipPolarization` and `SamplePolarization`.
     - All tensors are complex-valued and represent different physical tunneling processes.
     
     Compute third-order spin ε-tensors for all tunneling directions.
@@ -45,7 +45,7 @@ def e_epsilon(SpinSys: SpinSys):
     # Transport operators for tip → sample
     [x,y,z,u] = bath.calcTunnelingElectronMatrixElements(SpinSys,scattertype='ss')
     tempSpinSys=SpinSys
-    tempSpinSys.ptip=tempSpinSys.psample
+    tempSpinSys.TipPolarization=tempSpinSys.SamplePolarization
     [xs,ys,zs,us] = bath.calcTunnelingElectronMatrixElements(tempSpinSys,scattertype='ss')
 
     # so1 = tip, so2 = sample, so3 = conjugate of tip

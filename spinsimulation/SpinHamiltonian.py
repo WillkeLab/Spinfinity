@@ -185,7 +185,7 @@ def calcEigStates(spinsys: SpinSys):
         for j in range(spinsys.dimensionOfMatrix):
             if np.abs(SortedEigenvectors[j, i]) > 1e-4:  # Threshold for relevance
                 sign = "+" if np.real(SortedEigenvectors[j, i]) >= 0 else ""
-                states[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
+                states[i] += f"{sign}{SortedEigenvectors[j, i]:.3f}{basisStates[SortedIndices[j, i]]}"
 
                 if j < 2:  # Only include the top two contributions in statesOnlyRHS
                     statesOnlyRHS[i] += f"{sign}{SortedEigenvectors[j, i]}{basisStates[SortedIndices[j, i]]}"
@@ -499,39 +499,38 @@ def addDipolarCoupling(spinsys: SpinSys):
     where D0 is the dipolar coupling constant, S1 and S2 are spin operators, and r̂ is the
     normalized vector connecting the two spins.
     """
-    
-    # Loop over spins
-    for i_spin in range(spinsys.NSpins):
-        for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
-            if i_spin != j_spin:
-                # Calculate the normalized connection vector (rhat)
-                diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
-                rhat = diff_vec / np.linalg.norm(diff_vec)
+    if np.any(spinsys.DipoleBool):
+        for i_spin in range(spinsys.NSpins):
+            for j_spin in range(i_spin + 1):  # Only consider j_spin <= i_spin to avoid double counting
+                if i_spin != j_spin:
+                    # Calculate the normalized connection vector (rhat)
+                    diff_vec = spinsys.AtomPositions[i_spin, :] - spinsys.AtomPositions[j_spin, :]
+                    rhat = diff_vec / np.linalg.norm(diff_vec)
 
-                # Add the dipolar interaction to the Hamiltonian
-                spinsys.H += (
-                    spinsys.D0[j_spin, i_spin]
-                    * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
-                        + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
-                        + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
-                )
+                    # Add the dipolar interaction to the Hamiltonian
+                    spinsys.H += (
+                        spinsys.D0[j_spin, i_spin]
+                        * (spinsys.Sx[j_spin, :, :] @ spinsys.Sx[i_spin, :, :]
+                            + spinsys.Sy[j_spin, :, :] @ spinsys.Sy[i_spin, :, :]
+                            + spinsys.Sz[j_spin, :, :] @ spinsys.Sz[i_spin, :, :])
+                    )
 
-                # Subtract the 3*(D0) term with the projection of spin operators along rhat
-                spinsys.H -= (
-                    3 * spinsys.D0[j_spin, i_spin]
-                    * ((spinsys.Sx[j_spin, :, :] * rhat[0]
-                        + spinsys.Sy[j_spin, :, :] * rhat[1]
-                        + spinsys.Sz[j_spin, :, :] * rhat[2])
-                    @ (spinsys.Sx[i_spin, :, :] * rhat[0]
-                        + spinsys.Sy[i_spin, :, :] * rhat[1]
-                        + spinsys.Sz[i_spin, :, :] * rhat[2]))
-                )
+                    # #Subtract the 3*(D0) term with the projection of spin operators along rhat
+                    spinsys.H -= (
+                        3 * spinsys.D0[j_spin, i_spin]
+                        * ((spinsys.Sx[j_spin, :, :] * rhat[0]
+                            + spinsys.Sy[j_spin, :, :] * rhat[1]
+                            + spinsys.Sz[j_spin, :, :] * rhat[2])
+                        @ (spinsys.Sx[i_spin, :, :] * rhat[0]
+                            + spinsys.Sy[i_spin, :, :] * rhat[1]
+                            + spinsys.Sz[i_spin, :, :] * rhat[2]))
+                    )
     
     return
 
 # endregion Hamiltonian
 
-
+# region StevensOperators
 
 def anticommutator(A, B):
     return A @ B + B @ A
@@ -702,3 +701,52 @@ def setStevens(spinsys, i_spin, a, b, value):
         raise TypeError(f"spinsys.Stevens[{i_spin}] must be a dictionary.")
 
     spinsys.Stevens[i_spin][(a, b)] = value
+
+# endregion StevensOperators
+
+# region OverlapFunctions
+
+def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
+    """
+    Calculate the overlap between a given state and the eigenvectors of a spin system.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing eigenvectors as an attribute `eigVectors`.
+    nA : int
+        Dimension of subsystem A.
+    nB : int
+        Dimension of subsystem B.
+    stateB : list or array-like
+        State vector for subsystem B.
+    order : {'AB', 'BA'}, optional
+        Specifies the ordering of the subsystems in the eigenvector reshaping.
+        If 'AB', eigenvectors are reshaped as (nA, nB, -1).
+        If 'BA', eigenvectors are reshaped as (nB, nA, -1).
+        Default is 'AB'.
+
+    Returns
+    -------
+    O : numpy.ndarray
+        Array of overlaps between the projected state and the eigenvectors, shape (n,).
+
+    Notes
+    -----
+    This function projects the eigenvectors of the composite system onto a given state
+    of subsystem B and computes the overlap for each eigenvector.
+    """
+
+    EV = np.asarray(spinsys.eigVectors)
+    stateB  = np.asarray(stateB).reshape(-1)
+    if order.upper() == 'AB':
+        V = EV.reshape(nA, nB, -1)               # (dA, dB, n)
+        PhiA = np.tensordot(V, np.conj(stateB), axes=([1],[0]))  # (dA, n)
+    else:
+        V = EV.reshape(nB, nA, -1)               # (dB, dA, n)
+        PhiA = np.tensordot(V.transpose(1,0,2), np.conj(stateB), axes=([1],[0]))  # (dA, n)
+    O = np.einsum('in,in->n', np.conj(PhiA), PhiA).real
+    
+    return O
+
+# endregion OverlapFunctions
