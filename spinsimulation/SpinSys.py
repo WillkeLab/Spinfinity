@@ -168,6 +168,16 @@ class SpinSys:
         # and %precission^2 the minimal matrix element to be evaluated
         # the calculation speed drastically depends on that value
         
+
+        # Tunneling Parameters for Frota function
+        self.AmpFrota = 0.1  # Amplitude of the Frota function
+        self.theta_rFrota = 0.0  # Phase angle of the Frota function
+        self.GammaFrota = 0.01  # Lifetime broadening for the Frota function, in meV
+        self.epsilonFrota = 0.0  # Energy offset for the Frota function, in meV
+        self.BkgndLinFrota = 0.0  # Background linear term for the Frota function
+        self.OffsetFrota = 0.0  # Offset for the Frota function 
+        self.use_Frota = False  # Flag to indicate if Frota function is used
+
         # Stevens Operators
         self.Stevens = [{} for _ in range(self.NSpins)]
         self.use_Stevens = False  # Flag to indicate if Stevens operators are used
