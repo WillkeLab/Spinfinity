@@ -531,7 +531,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
 # region ESR
 
-def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True):
+def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = False):
     """
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
     This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
@@ -561,7 +561,7 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     """
     
     # calculate the ESR spectrum
-    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=True)
+    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
     color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
@@ -573,10 +573,11 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
         index = np.argmin(np.abs(freq_array - freq_res))
         amp = ESRsignal[index]
-        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                            f"f = {np.round(freq_res,4)} GHz")
-        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                label=transition_str, linewidth=2)
+        if amp > 0.01*np.max(ESRsignal): # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
+                                f"f = {np.round(freq_res,4)} GHz")
+            plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
+                    label=transition_str, linewidth=2)
 
     plt.xlabel('Freq (GHz)')
     plt.ylabel('ΔI (a.u.)')
@@ -1061,6 +1062,9 @@ def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: lis
 
     # Save the old voltage value
     V_initial = spinsys.V_DC
+
+    hamil.calcEigEnergies(subspin)
+    hamil.calcEigStates(subspin)
 
     # Initialize arrays to store voltage and rate data
     V_array = np.linspace(Vrange[0], Vrange[1], N)

@@ -545,6 +545,10 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
     """
     
     # First we calculate the Rates and Populations of the whole system
+    hamil.calcEigEnergies(subspin)
+    hamil.calcEigEnergies(spinsys)
+    hamil.calcEigStates(spinsys)
+    hamil.calcEigStates(subspin)
     calcRates(spinsys)
     calcPopulations(spinsys, AllowPumping=True)
 
