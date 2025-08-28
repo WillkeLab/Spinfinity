@@ -241,7 +241,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     ax.barh(x + width/2, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
     ax.barh(x - width/2, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
     ax.set_yticks(x)
-    ax.set_yticklabels(spinsys.basisStates)
+    ax.set_yticklabels(spinsys.statesWithoutE)
     ax.set_xlabel('Population')
     ax.set_ylabel('Basis States')
     ax.set_title('Population of Spin States')
@@ -251,7 +251,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
 
     return
 
-def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
+def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: list=None):
     """
     Plot the contributions of transition rates between spin states.
 
@@ -267,7 +267,9 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         The scale for the y-axis ('linear' or 'log'). Default is 'linear'.
     N : int, optional
         The number of highest rate transitions to display. If None, all transitions are shown (default is None).
-
+    ylim : list of float, optional
+        The limits for the y-axis as [ymin, ymax]. If None, no limits are set (default is None).
+        
     Returns
     -------
     None
@@ -279,7 +281,7 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
     attribute with the required rate matrices. The plot shows stacked bars for each
     transition, with each color representing a different rate contribution.
     """
-
+    hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
 
     labels = ['ts', 'st', 'ss','tt']
@@ -299,6 +301,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         ax.set_ylabel('Rate')
         ax.set_title('Rate Contributions')
         ax.set_yscale(yscale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
         plt.grid(True, which="both", ls="--", linewidth=0.5)
         # Only show legend for the first bar (Rate_exc)
         handles, _ = ax.get_legend_handles_labels()
@@ -330,6 +334,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         ax.set_ylabel('Rate')
         ax.set_title(f'Top {N} Rate Contributions')
         ax.set_yscale(yscale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
         plt.grid(True, which="both", ls="--", linewidth=0.5)
         handles, _ = ax.get_legend_handles_labels()
         ax.legend(handles, labels)

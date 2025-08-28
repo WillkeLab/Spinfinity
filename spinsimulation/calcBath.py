@@ -44,8 +44,13 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
     """
 
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-        calcPopulations(spinsys, AllowPumping=AllowPumping, Approach=Approach)
+        calcPopulations(spinsys, AllowPumping=True, Approach=Approach)
     
+    if AllowPumping:
+        Populations=spinsys.Populations
+    else:
+        Populations=spinsys.pop_0
+
     # Choose the Operator based on the type of magnetization
     if type == 'z':
         S = spinsys.Sz
@@ -67,10 +72,10 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
     # Itterate through every eigenstate and each spin 
     for i in range(spinsys.dimensionOfMatrix):
             S_elements_tot[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S_Operator @ spinsys.eigVectors[:, i])
-            Mag_tot += S_elements_tot[i] * spinsys.Populations[i]
+            Mag_tot += S_elements_tot[i] * Populations[i]
             for j in range(spinsys.NSpins):
                 S_elements[j, i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S[j, :, :] @ spinsys.eigVectors[:, i])
-                Mag[j] += S_elements[j,i] * spinsys.Populations[i]
+                Mag[j] += S_elements[j,i] * Populations[i]
     
     # Remember the maximum value for each spin to have the opportunity to normalize
     Mag_tot_max = S_elements_tot.max()
@@ -83,7 +88,7 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
     spinsys.Mag_max = Mag_max  # Store the maximum magnetization for each spin in
     spinsys.Magtype = type  # Store the type of magnetization calculated
 
-    return
+    return Mag
 
 def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
     """
