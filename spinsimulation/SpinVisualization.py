@@ -241,7 +241,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     ax.barh(x + width/2, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
     ax.barh(x - width/2, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
     ax.set_yticks(x)
-    ax.set_yticklabels(spinsys.basisStates)
+    ax.set_yticklabels(spinsys.statesWithoutE)
     ax.set_xlabel('Population')
     ax.set_ylabel('Basis States')
     ax.set_title('Population of Spin States')
@@ -251,7 +251,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
 
     return
 
-def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
+def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: list=None):
     """
     Plot the contributions of transition rates between spin states.
 
@@ -267,6 +267,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         The scale for the y-axis ('linear' or 'log'). Default is 'linear'.
     N : int, optional
         The number of highest rate transitions to display. If None, all transitions are shown (default is None).
+    ylim : list of float, optional
+        The limits for the y-axis as [ymin, ymax]. If None, no limits are set (default is None).
 
     Returns
     -------
@@ -279,7 +281,7 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
     attribute with the required rate matrices. The plot shows stacked bars for each
     transition, with each color representing a different rate contribution.
     """
-
+    hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
 
     labels = ['ts', 'st', 'ss','tt']
@@ -299,6 +301,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         ax.set_ylabel('Rate')
         ax.set_title('Rate Contributions')
         ax.set_yscale(yscale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
         plt.grid(True, which="both", ls="--", linewidth=0.5)
         # Only show legend for the first bar (Rate_exc)
         handles, _ = ax.get_legend_handles_labels()
@@ -330,6 +334,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
         ax.set_ylabel('Rate')
         ax.set_title(f'Top {N} Rate Contributions')
         ax.set_yscale(yscale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
         plt.grid(True, which="both", ls="--", linewidth=0.5)
         handles, _ = ax.get_legend_handles_labels()
         ax.legend(handles, labels)
@@ -338,7 +344,7 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None):
 
     return
 
-def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear'):
+def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
     Plots the rate contributions to a specified state in a spin system.
     This function calculates and visualizes the transition rates from all other states to a given target state
@@ -353,6 +359,8 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear'):
         The index of the target state to which rates are plotted.
     yscale : str, optional
         The scale for the y-axis of the plot. Can be 'linear', 'log', etc. Default is 'linear'.
+    N : int, optional
+        The number of highest rate transitions to display. If None, all transitions are shown (default is None).
 
     Returns
     -------
@@ -365,32 +373,63 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear'):
     - The function also assumes the existence of a global `bath` object with a `calcRates` method.
     - The legend shows the labels for the different rate contributions.
     """
-    
-    bath.calcRates(spinsys)
-    
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
-    fig, ax = plt.subplots(figsize=(8, 5))
-    for i in range(spinsys.dimensionOfMatrix):
-        if i != state:
-            bottom=0
+
+    hamil.calcEigStates(spinsys)
+    if N is not None:
+        # Collect all transitions and their total rates to the target state
+        transitions = []
+        for i in range(spinsys.dimensionOfMatrix):
+            if i != state:
+                total_rate = sum([spinsys.Rates[idx][i, state] for idx in range(4)])
+                if not np.isnan(total_rate):
+                    transitions.append(((i, state), total_rate))
+        # Sort by total_rate descending and take top N
+        transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
+        selected = set([t[0][0] for t in transitions])
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for (i, _), _ in transitions:
+            bottom = 0
             for idx in range(4):
                 ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
                 bottom += spinsys.Rates[idx][i, state]
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-    ax.set_xlabel('Transitions')
-    ax.set_ylabel('Rate')
-    ax.set_title(f'Rate Contributions to {spinsys.statesWithoutE[state]}')
-    ax.set_yscale(yscale)
-    plt.grid(True, which="both", ls="--", linewidth=0.5)
-    # Only show legend for the first bar (Rate_exc)
-    handles, _ = ax.get_legend_handles_labels()
-    ax.legend(handles, labels)
-    plt.show()
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
+        ax.set_xlabel('Transitions')
+        ax.set_ylabel('Rate')
+        ax.set_title(f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]}')
+        ax.set_yscale(yscale)
+        plt.grid(True, which="both", ls="--", linewidth=0.5)
+        handles, _ = ax.get_legend_handles_labels()
+        ax.legend(handles, labels)
+        plt.show()
+        return
+    else:
+        hamil.calcEigStates(spinsys)
+        bath.calcRates(spinsys)
+        
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        for i in range(spinsys.dimensionOfMatrix):
+            if i != state:
+                bottom=0
+                for idx in range(4):
+                    ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
+                    bottom += spinsys.Rates[idx][i, state]
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
+        ax.set_xlabel('Transitions')
+        ax.set_ylabel('Rate')
+        ax.set_title(f'Rate Contributions to {spinsys.statesWithoutE[state]}')
+        ax.set_yscale(yscale)
+        plt.grid(True, which="both", ls="--", linewidth=0.5)
+        # Only show legend for the first bar (Rate_exc)
+        handles, _ = ax.get_legend_handles_labels()
+        ax.legend(handles, labels)
+        plt.show()
 
     return
 
-def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear'):
+def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
     Plots all transition rates originating from a specified initial state.
 
@@ -406,6 +445,8 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear'):
         The index of the initial state from which transitions originate.
     yscale : str, optional
         The scale for the y-axis ('linear' or 'log'). Default is 'linear'.
+    N : int, optional
+        The number of highest rate transitions to display. If None, all transitions are shown (default
 
     Returns
     -------
@@ -424,22 +465,50 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear'):
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
     fig, ax = plt.subplots(figsize=(8, 5))
-    for f in range(spinsys.dimensionOfMatrix):
-        if f != state:
-            bottom=0
+
+    if N is not None:
+        # Collect all transitions and their total rates from the given state
+        transitions = []
+        for f in range(spinsys.dimensionOfMatrix):
+            if f != state:
+                total_rate = sum([spinsys.Rates[idx][state, f] for idx in range(4)])
+                if not np.isnan(total_rate):
+                    transitions.append(((state, f), total_rate))
+        # Sort by total_rate descending and take top N
+        transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
+        for (s, f), _ in transitions:
+            bottom = 0
             for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][state, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][state, f]
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-    ax.set_xlabel('Transitions')
-    ax.set_ylabel('Rate')
-    ax.set_title(f'Rate Contributions from {spinsys.statesWithoutE[state]}')
-    ax.set_yscale(yscale)
-    plt.grid(True, which="both", ls="--", linewidth=0.5)
-    # Only show legend for the first bar (Rate_exc)
-    handles, _ = ax.get_legend_handles_labels()
-    ax.legend(handles, labels)
-    plt.show()
+                ax.bar(f'{spinsys.statesWithoutE[s]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][s, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
+                bottom += spinsys.Rates[idx][s, f]
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
+        ax.set_xlabel('Transitions')
+        ax.set_ylabel('Rate')
+        ax.set_title(f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]}')
+        ax.set_yscale(yscale)
+        plt.grid(True, which="both", ls="--", linewidth=0.5)
+        handles, _ = ax.get_legend_handles_labels()
+        ax.legend(handles, labels)
+        plt.show()
+        
+    else:
+
+        for f in range(spinsys.dimensionOfMatrix):
+            if f != state:
+                bottom=0
+                for idx in range(4):
+                    ax.bar(f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][state, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
+                    bottom += spinsys.Rates[idx][state, f]
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
+        ax.set_xlabel('Transitions')
+        ax.set_ylabel('Rate')
+        ax.set_title(f'Rate Contributions from {spinsys.statesWithoutE[state]}')
+        ax.set_yscale(yscale)
+        plt.grid(True, which="both", ls="--", linewidth=0.5)
+        # Only show legend for the first bar (Rate_exc)
+        handles, _ = ax.get_legend_handles_labels()
+        ax.legend(handles, labels)
+        plt.show()
 
     return
 # endregion Bath
@@ -531,7 +600,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
 # region ESR
 
-def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True):
+def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = False):
     """
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
     This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
@@ -561,7 +630,7 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     """
     
     # calculate the ESR spectrum
-    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=True)
+    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
     color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
@@ -573,10 +642,11 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
         index = np.argmin(np.abs(freq_array - freq_res))
         amp = ESRsignal[index]
-        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                            f"f = {np.round(freq_res,4)} GHz")
-        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                label=transition_str, linewidth=2)
+        if amp > 0.01*np.max(ESRsignal): # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
+                                f"f = {np.round(freq_res,4)} GHz")
+            plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
+                    label=transition_str, linewidth=2)
 
     plt.xlabel('Freq (GHz)')
     plt.ylabel('ΔI (a.u.)')
@@ -1061,6 +1131,9 @@ def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: lis
 
     # Save the old voltage value
     V_initial = spinsys.V_DC
+
+    hamil.calcEigEnergies(subspin)
+    hamil.calcEigStates(subspin)
 
     # Initialize arrays to store voltage and rate data
     V_array = np.linspace(Vrange[0], Vrange[1], N)
