@@ -78,8 +78,13 @@ def fermi_box_function(energy_diff, temperature):
     """
     Calculate the Fermi-Dirac box function for electron transitions.
     
-    This function computes the probability for electronic transitions with
-    energy difference `energy_diff` at temperature `temperature`.
+    This function computes the integral:
+    
+         +∞
+    y = ∫ f(e') * [1 - f(e' + x)] de'
+        -∞
+    
+    where f(e,T) is the Fermi-Dirac distribution and x is the energy difference.
     
     Parameters
     ----------
@@ -91,22 +96,46 @@ def fermi_box_function(energy_diff, temperature):
     Returns
     -------
     np.ndarray
-        Fermi-Dirac probabilities for the transitions
+        Fermi-Dirac box function values
         
     Notes
     -----
+    This is the exact implementation of the Scilab fbox function.
     The box function accounts for the availability of electronic states
     and Pauli exclusion principle in the leads.
     """
-    # Convert temperature to meV (kB = 0.08617 meV/K)
-    kB_meV = 0.08617
-    beta = 1.0 / (kB_meV * temperature)
+    # Convert temperature to meV (kB = 0.08617333262145178 meV/K)
+    kB_meV = 0.08617333262145178
     
-    # Fermi-Dirac distribution: f(E) = 1/(1 + exp(βE))
-    # Box function: f(E_initial) * (1 - f(E_final))
-    # For transition with energy difference ΔE: f(-ΔE/2) * (1 - f(ΔE/2))
+    # Normalize energy difference by thermal energy: x = E/(kB*T)
+    x = energy_diff / (kB_meV * temperature)
     
-    return 1.0 / (2.0 + 2.0 * np.cosh(beta * energy_diff / 2.0))
+    # Clean small values (set values < ±1e-8 to zero)
+    x = np.where(np.abs(x) < 1e-8, 0.0, x)
+    
+    # Calculate y = x / (1 - exp(-x))
+    # Handle the case where x = 0 separately to avoid division by zero
+    y = np.zeros_like(x, dtype=float)
+    
+    # For non-zero x
+    nonzero_mask = (x != 0)
+    x_nz = x[nonzero_mask]
+    
+    # Avoid overflow in exp(-x) for large negative x
+    exp_neg_x = np.exp(-x_nz)
+    denominator = 1.0 - exp_neg_x
+    
+    # Calculate y = x / (1 - exp(-x))
+    y[nonzero_mask] = x_nz / denominator
+    
+    # Handle NaN values (when denominator = 0, i.e., exp(-x) = 1, i.e., x = 0)
+    # In Scilab: y(isnan(y)) = 1
+    y[np.isnan(y)] = 1.0
+    
+    # For x = 0, the limit of x/(1-exp(-x)) as x->0 is 1 (L'Hôpital's rule)
+    y[x == 0] = 1.0
+    
+    return y
 
 
 def calculate_secular_matrix(energy_diff, secular_type="none", window=0.001):
@@ -217,6 +246,7 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
     The secular approximation is crucial for the validity of the master equation.
     Without it, the equation may not preserve positivity of the density matrix.
     """
+
     # Ensure eigenstates are calculated
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
@@ -226,10 +256,10 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
     eigenvalues = spinsys.E_All  # Already referenced to ground state
     
     # Calculate energy differences between states
-    energy_diff = eigenvalues[:, np.newaxis] - eigenvalues[np.newaxis, :]
+    energy_diff = eigenvalues[np.newaxis, :] - eigenvalues[:, np.newaxis]
     
     # Calculate Fermi-Dirac probabilities for substrate transitions
-    proba = fermi_box_function(energy_diff, spinsys.T)
+    proba = fermi_box_function(energy_diff, spinsys.T)*spinsys.kB
     
     # Initialize Redfield tensor
     redfield_tensor = np.zeros((n_states, n_states, n_states, n_states), dtype=complex)
@@ -244,18 +274,9 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
     # Use sample polarization for substrate (thermal bath)
     temp_spinsys = spinsys  # Could modify this for different bath parameters
     
-    # Get rate matrices (these represent coupling to substrate)
-    # For substrate, we use symmetric rates (no bias voltage)
-    try:
-        M_matrices = bath.calcTunnelingMatrixElements(spinsys, "ss")
-        if M_matrices.ndim == 3:  # Shape: (NSpins, n_states, n_states)
-            # Use first spin as template for all matrix elements
-            M1 = M2 = M3 = M4 = M_matrices[0, :, :]
-        else:  # Shape: (n_states, n_states)
-            M1 = M2 = M3 = M4 = M_matrices
-    except Exception as e:
-        print(f"Warning: Could not calculate matrix elements, using identity: {e}")
-        M1 = M2 = M3 = M4 = np.eye(n_states, dtype=complex)
+    # Get rate matrices using the proper Rate2nd function
+    
+    M1, M2, M3, M4 = Rate2nd(temp_spinsys, amp=-0.04) 
     
     # Sum over all relevant spins
     for i_spin in spin_indices:
@@ -270,6 +291,8 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
                 secular_matrix = calculate_secular_matrix(
                     energy_diff, secular_type, secular_window
                 )
+
+                secular_matrix = np.ones((n_states,n_states))
                 
                 # Calculate diagonal correction terms (Cohen-Tannoudji IV.B.43)
                 o1 = np.zeros(n_states, dtype=complex)
@@ -289,21 +312,18 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
                                   M4[n, b] * np.conj(M4[n, :]))
                     o2 += rate_terms_b * proba[n, :]
                 
+                
                 # Construct diagonal correction matrices
                 o11 = np.zeros((n_states, n_states), dtype=complex)
                 o22 = np.zeros((n_states, n_states), dtype=complex)
                 o11[:, b] = o1
                 o22[a, :] = o2
+
+                redfield_tensor[:,:,a,b]=((np.outer(M1[:,a], np.conj(M1[:,b]))+
+                                        np.outer(M2[:,a], np.conj(M2[:,b]))+
+                                        np.outer(M3[:,a], np.conj(M3[:,b]))+ 
+                                        np.outer(M4[:,a], np.conj(M4[:,b])))*(np.outer(proba[:,a], np.conj(np.ones((n_states)))) + np.outer(np.ones((n_states)), np.conj(proba[:,b]))) - o11 - o22)*secular_matrix
                 
-                # Main Redfield term
-                main_term = ((M1[:, a:a+1] @ np.conj(M1[b:b+1, :]) + 
-                             M2[:, a:a+1] @ np.conj(M2[b:b+1, :]) + 
-                             M3[:, a:a+1] @ np.conj(M3[b:b+1, :]) + 
-                             M4[:, a:a+1] @ np.conj(M4[b:b+1, :]))
-                            * (proba[:, a:a+1] + proba[:, b:b+1].T)
-                            - o11 - o22) * secular_matrix
-                
-                redfield_tensor[:, :, a, b] += main_term
     
     return redfield_tensor
 
@@ -347,43 +367,47 @@ def redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type="none",
     eigenvalues = spinsys.E_All
     
     # Calculate energy differences
-    energy_diff = eigenvalues[:, np.newaxis] - eigenvalues[np.newaxis, :]
+    energy_diff = eigenvalues[np.newaxis, :] - eigenvalues[:, np.newaxis]
     
     # Calculate probabilities for tip-sample and sample-tip processes
-    proba_ts = fermi_box_function(energy_diff + bias_voltage, spinsys.T)
-    proba_st = fermi_box_function(energy_diff - bias_voltage, spinsys.T)
-    
+    proba_ts = fermi_box_function(energy_diff + bias_voltage, spinsys.T)*spinsys.kB
+    proba_st = fermi_box_function(energy_diff - bias_voltage, spinsys.T)*spinsys.kB
+
     # Initialize tensors
     R_ts = np.zeros((n_states, n_states, n_states, n_states), dtype=complex)
     R_st = np.zeros((n_states, n_states, n_states, n_states), dtype=complex)
     
     # Get tunneling matrix elements for tip-sample configuration
-    try:
-        M_ts = bath.calcTunnelingMatrixElements(spinsys, "ts")
-        if M_ts.ndim == 3:
-            M1_ts = M2_ts = M3_ts = M4_ts = M_ts[0, :, :]
-        else:
-            M1_ts = M2_ts = M3_ts = M4_ts = M_ts
-    except:
-        # Fallback if "ts" type doesn't exist
-        try:
-            M_ts = bath.calcTunnelingMatrixElements(spinsys, "st")
-            if M_ts.ndim == 3:
-                M1_ts = M2_ts = M3_ts = M4_ts = M_ts[0, :, :]
-            else:
-                M1_ts = M2_ts = M3_ts = M4_ts = M_ts
-        except:
-            M1_ts = M2_ts = M3_ts = M4_ts = np.eye(n_states, dtype=complex)
+    # Use Rate2nd function for proper matrix element calculation
+    M1_ts, M2_ts, M3_ts, M4_ts = Rate2nd(spinsys, amp=-1.0)
+    # print('----------')
+    # print(M1_ts)
+    # print(M2_ts)
+    # print(M3_ts)
+    # print(M4_ts)
+
     
     # Get matrix elements for sample-tip (flip polarizations)
-    try:
-        M_st = bath.calcTunnelingMatrixElements(spinsys, "st")
-        if M_st.ndim == 3:
-            M1_st = M2_st = M3_st = M4_st = M_st[0, :, :]
-        else:
-            M1_st = M2_st = M3_st = M4_st = M_st
-    except:
-        M1_st = M2_st = M3_st = M4_st = np.eye(n_states, dtype=complex)
+    # Create a copy with flipped polarizations
+   
+    spinsys_flipped = spinsys
+    # Temporarily swap tip and sample polarizations
+    
+    original_ptip = spinsys.TipPolarization.copy()
+    original_psample = spinsys.SamplePolarization.copy()
+    spinsys_flipped.TipPolarization = original_psample
+    spinsys_flipped.SamplePolarization = original_ptip
+    
+    M1_st, M2_st, M3_st, M4_st = Rate2nd(spinsys_flipped, amp=-1.0)
+    # print('----------')
+    # print(M1_st)
+    # print(M2_st)
+    # print(M3_st)
+    # print(M4_st)
+    
+    spinsys.TipPolarization = original_ptip
+    spinsys.SamplePolarization = original_psample
+            
     
     # Calculate Redfield tensors for both processes
     for a in range(n_states):
@@ -391,64 +415,79 @@ def redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type="none",
             secular_matrix = calculate_secular_matrix(
                 energy_diff, secular_type, secular_window
             )
+            secular_matrix = np.ones((n_states,n_states))
             
-            # Tip-to-sample process
-            o1_ts = o2_ts = np.zeros(n_states, dtype=complex)
+            # Initialize correction terms to match Scilab variables o1, o2, o3, o4
+            o1 = np.zeros(n_states, dtype=complex)  # TS process with index a
+            o2 = np.zeros(n_states, dtype=complex)  # TS process with index b
+            o3 = np.zeros(n_states, dtype=complex)  # ST process with index a
+            o4 = np.zeros(n_states, dtype=complex)  # ST process with index b
+            
             for n in range(n_states):
-                rate_terms = (M1_ts[n, a] * np.conj(M1_ts[n, :]) + 
-                             M2_ts[n, a] * np.conj(M2_ts[n, :]) + 
-                             M3_ts[n, a] * np.conj(M3_ts[n, :]) + 
-                             M4_ts[n, a] * np.conj(M4_ts[n, :]))
-                o1_ts += rate_terms * proba_ts[n, :]
+                # Tip-to-sample processes (o1 and o2)
+                o1 += (M1_ts[n, a] * np.conj(M1_ts[n, :]) + 
+                       M2_ts[n, a] * np.conj(M2_ts[n, :]) + 
+                       M3_ts[n, a] * np.conj(M3_ts[n, :]) + 
+                       M4_ts[n, a] * np.conj(M4_ts[n, :])) * proba_ts[n, :]
                 
-                rate_terms_b = (M1_ts[n, b] * np.conj(M1_ts[n, :]) + 
-                               M2_ts[n, b] * np.conj(M2_ts[n, :]) + 
-                               M3_ts[n, b] * np.conj(M3_ts[n, :]) + 
-                               M4_ts[n, b] * np.conj(M4_ts[n, :]))
-                o2_ts += rate_terms_b * proba_ts[n, :]
-            
-            # Sample-to-tip process
-            o1_st = o2_st = np.zeros(n_states, dtype=complex)
-            for n in range(n_states):
-                rate_terms = (M1_st[n, a] * np.conj(M1_st[n, :]) + 
-                             M2_st[n, a] * np.conj(M2_st[n, :]) + 
-                             M3_st[n, a] * np.conj(M3_st[n, :]) + 
-                             M4_st[n, a] * np.conj(M4_st[n, :]))
-                o1_st += rate_terms * proba_st[n, :]
+                o2 += (M1_ts[n, b] * np.conj(M1_ts[n, :]) + 
+                       M2_ts[n, b] * np.conj(M2_ts[n, :]) + 
+                       M3_ts[n, b] * np.conj(M3_ts[n, :]) + 
+                       M4_ts[n, b] * np.conj(M4_ts[n, :])) * proba_ts[n, :]
                 
-                rate_terms_b = (M1_st[n, b] * np.conj(M1_st[n, :]) + 
-                               M2_st[n, b] * np.conj(M2_st[n, :]) + 
-                               M3_st[n, b] * np.conj(M3_st[n, :]) + 
-                               M4_st[n, b] * np.conj(M4_st[n, :]))
-                o2_st += rate_terms_b * proba_st[n, :]
+                # Sample-to-tip processes (o3 and o4)
+                o3 += (M1_st[n, a] * np.conj(M1_st[n, :]) + 
+                       M2_st[n, a] * np.conj(M2_st[n, :]) + 
+                       M3_st[n, a] * np.conj(M3_st[n, :]) + 
+                       M4_st[n, a] * np.conj(M4_st[n, :])) * proba_st[n, :]
+                
+                o4 += (M1_st[n, b] * np.conj(M1_st[n, :]) + 
+                       M2_st[n, b] * np.conj(M2_st[n, :]) + 
+                       M3_st[n, b] * np.conj(M3_st[n, :]) + 
+                       M4_st[n, b] * np.conj(M4_st[n, :])) * proba_st[n, :]
             
-            # Construct correction matrices
-            o11_ts = o22_ts = np.zeros((n_states, n_states), dtype=complex)
-            o11_st = o22_st = np.zeros((n_states, n_states), dtype=complex)
+           
+            # Construct correction matrices exactly matching Scilab implementation
+            # mmzero equivalent - zero matrix
+            mmzero = np.zeros((n_states, n_states), dtype=complex)
+            # mone equivalent - ones vector
+            mone = np.ones(n_states, dtype=complex)
             
-            o11_ts[:, b] = o1_ts
-            o22_ts[a, :] = o2_ts
-            o11_st[:, b] = o1_st
-            o22_st[a, :] = o2_st
+            # Build correction matrices as in Scilab
+            o11 = mmzero.copy()
+            o11[:, b] = o1
             
-            # Main terms for both processes
-            main_ts = ((M1_ts[:, a:a+1] @ np.conj(M1_ts[b:b+1, :]) + 
-                       M2_ts[:, a:a+1] @ np.conj(M2_ts[b:b+1, :]) + 
-                       M3_ts[:, a:a+1] @ np.conj(M3_ts[b:b+1, :]) + 
-                       M4_ts[:, a:a+1] @ np.conj(M4_ts[b:b+1, :]))
-                      * (proba_ts[:, a:a+1] + proba_ts[:, b:b+1].T)
-                      - o11_ts - o22_ts) * secular_matrix
+            o22 = mmzero.copy()
+            o22[a, :] = np.conj(o2)  # o2' in Scilab (transpose/conjugate)
             
-            main_st = ((M1_st[:, a:a+1] @ np.conj(M1_st[b:b+1, :]) + 
-                       M2_st[:, a:a+1] @ np.conj(M2_st[b:b+1, :]) + 
-                       M3_st[:, a:a+1] @ np.conj(M3_st[b:b+1, :]) + 
-                       M4_st[:, a:a+1] @ np.conj(M4_st[b:b+1, :]))
-                      * (proba_st[:, a:a+1] + proba_st[:, b:b+1].T)
-                      - o11_st - o22_st) * secular_matrix
+            o33 = mmzero.copy()
+            o33[:, b] = o3
             
-            R_ts[:, :, a, b] = main_ts
-            R_st[:, :, a, b] = main_st
-    
+            o44 = mmzero.copy()
+            o44[a, :] = np.conj(o4)  # o4' in Scilab (transpose/conjugate)
+            
+            # Main matrix terms - exactly matching Scilab structure
+            main_ts = (np.outer(M1_ts[:,a], np.conj(M1_ts[:,b])) +
+                      np.outer(M2_ts[:,a], np.conj(M2_ts[:,b])) +
+                      np.outer(M3_ts[:,a], np.conj(M3_ts[:,b])) + 
+                      np.outer(M4_ts[:,a], np.conj(M4_ts[:,b])))
+            
+            main_st = (np.outer(M1_st[:,a], np.conj(M1_st[:,b])) +
+                      np.outer(M2_st[:,a], np.conj(M2_st[:,b])) +
+                      np.outer(M3_st[:,a], np.conj(M3_st[:,b])) + 
+                      np.outer(M4_st[:,a], np.conj(M4_st[:,b])))
+            
+            # Probability terms - matching Scilab: proba(:,a)*mone' + mone*proba(:,b)'
+            prob_ts = (np.outer(proba_ts[:,a], mone) + 
+                      np.outer(mone, np.conj(proba_ts[:,b])))
+            
+            prob_st = (np.outer(proba_st[:,a], mone) + 
+                      np.outer(mone, np.conj(proba_st[:,b])))
+            
+            # Final Redfield tensor elements - exactly as in Scilab
+            R_ts[:,:,a,b] = (main_ts * prob_ts - o11 - o22) * secular_matrix
+            R_st[:,:,a,b] = (main_st * prob_st - o33 - o44) * secular_matrix
+            
     return R_ts, R_st
 
 
@@ -835,16 +874,219 @@ def analyze_relaxation_rates(spinsys, secular_type="none", secular_window=0.001)
     }
 
 
-def SagHallo():
-    """Legacy function for compatibility."""
-    print("Hallo from BlochRedfield module!")
-    print("Bloch-Redfield theory implementation loaded successfully.")
-    print("Available functions:")
-    print("  - redfield_coefficients_substrate()")
-    print("  - redfield_coefficients_tunneling()")
-    print("  - redfield_dynamics()")
-    print("  - redfield_steady_state()")
-    print("  - analyze_relaxation_rates()")
-    print("  - plot_redfield_dynamics()")
-    return
+def etransport(spinsys):
+    """
+    Calculate electron transport matrix elements for tip-sample tunneling.
+    
+    This function computes the matrix elements for electron tunneling between
+    tip and sample electrodes, considering their spin polarizations.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system object containing tip and sample polarizations
+        
+    Returns
+    -------
+    tuple of np.ndarray
+        (x, y, z, u) - Arrays containing matrix elements for different 
+        spin channels and tunneling processes:
+        - x[0]: <u',u> (up-up)
+        - x[1]: <u',d> (up-down) 
+        - x[2]: <d',u> (down-up)
+        - x[3]: <d',d> (down-down)
+        Similar for y, z (spin components) and u (charge)
+        
+    Notes
+    -----
+    The matrix elements account for the spin polarizations of tip and sample
+    electrodes and represent all possible tunneling channels.
+    """
+    # Get tip and sample polarizations
+    ptip = getattr(spinsys, 'ptip', np.array([0.0, 0.0, 1.0]))  # Default: z-polarized
+    psample = getattr(spinsys, 'psample', np.array([0.0, 0.0, 1.0]))
+    
+    # Normalize polarizations
+    if np.linalg.norm(ptip) > 1e-10:
+        ptip = ptip / np.linalg.norm(ptip)
+    if np.linalg.norm(psample) > 1e-10:
+        psample = psample / np.linalg.norm(psample)
+    
+    # Pauli matrices for spin-1/2 electrons
+    sigma_x = np.array([[0, 1], [1, 0]], dtype=complex)
+    sigma_y = np.array([[0, -1j], [1j, 0]], dtype=complex)
+    sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
+    sigma_0 = np.eye(2, dtype=complex)
+    
+    # Tip and sample density matrices (spin-1/2 electrons)
+    rho_tip = 0.5 * (sigma_0 + ptip[0]*sigma_x + ptip[1]*sigma_y + ptip[2]*sigma_z)
+    rho_sample = 0.5 * (sigma_0 + psample[0]*sigma_x + psample[1]*sigma_y + psample[2]*sigma_z)
+    
+    # Calculate matrix elements for all tunneling channels
+    # The indices correspond to: [up-up, up-down, down-up, down-down]
+    
+    # X-component (Sx coupling)
+    x = np.zeros(4, dtype=complex)
+    x[0] = sigma_x[0,0] * rho_tip[0,0] * rho_sample[0,0]  # <u',u> with Sx
+    x[1] = sigma_x[0,1] * rho_tip[0,0] * rho_sample[1,1]  # <u',d> with Sx  
+    x[2] = sigma_x[1,0] * rho_tip[1,1] * rho_sample[0,0]  # <d',u> with Sx
+    x[3] = sigma_x[1,1] * rho_tip[1,1] * rho_sample[1,1]  # <d',d> with Sx
+    
+    # Y-component (Sy coupling)  
+    y = np.zeros(4, dtype=complex)
+    y[0] = sigma_y[0,0] * rho_tip[0,0] * rho_sample[0,0]
+    y[1] = sigma_y[0,1] * rho_tip[0,0] * rho_sample[1,1] 
+    y[2] = sigma_y[1,0] * rho_tip[1,1] * rho_sample[0,0]
+    y[3] = sigma_y[1,1] * rho_tip[1,1] * rho_sample[1,1]
+    
+    # Z-component (Sz coupling)
+    z = np.zeros(4, dtype=complex)
+    z[0] = sigma_z[0,0] * rho_tip[0,0] * rho_sample[0,0]
+    z[1] = sigma_z[0,1] * rho_tip[0,0] * rho_sample[1,1]
+    z[2] = sigma_z[1,0] * rho_tip[1,1] * rho_sample[0,0] 
+    z[3] = sigma_z[1,1] * rho_tip[1,1] * rho_sample[1,1]
+    
+    # Charge component (identity coupling)
+    u = np.zeros(4, dtype=complex)
+    u[0] = sigma_0[0,0] * rho_tip[0,0] * rho_sample[0,0]
+    u[1] = sigma_0[0,1] * rho_tip[0,0] * rho_sample[1,1]
+    u[2] = sigma_0[1,0] * rho_tip[1,1] * rho_sample[0,0]
+    u[3] = sigma_0[1,1] * rho_tip[1,1] * rho_sample[1,1]
+    
+    return x, y, z, u
+
+
+def Rate2nd(spinsys, amp: float):
+    """
+    Calculate second-order tunneling matrix elements for all possible pathways.
+    
+    This function computes the tunneling matrix elements up to 2nd order
+    via all possible tunneling pathes:
+    - out1: <f,u'|Sx+Sy+Sz+U|i,u> (initial up, final up)
+    - out2: <f,u'|Sx+Sy+Sz+U|i,d> (initial down, final up)  
+    - out3: <f,d'|Sx+Sy+Sz+U|i,u> (initial up, final down)
+    - out4: <f,d'|Sx+Sy+Sz+U|i,d> (initial down, final down)
+    
+    where u/d and u'/d' are the two eigenstates in tip and sample, respectively.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system object containing:
+        - ptip: spin polarization of the tip
+        - psample: spin polarization of the sample  
+        - eigVectors: matrix of eigenvectors of the spin ensemble
+        - Sx, Sy, Sz: spin operator matrices
+        - U: coupling strength array
+        - J: exchange coupling array (optional)
+        - ReadoutSpin: position of the spin being measured
+        
+    Returns
+    -------
+    tuple of np.ndarray
+        (out1, out2, out3, out4) - Matrix elements for the four tunneling channels
+        Each is a complex matrix of size (n_states, n_states)
+        
+    Notes
+    -----
+    This function is essential for calculating tunneling rates in STM/ESR
+    experiments where electron spin and orbital degrees of freedom are coupled.
+    """
+    # Ensure eigenstates are calculated
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        hamil.calcEigEnergies(spinsys)
+    
+    # Get electron transport matrix elements
+    x, y, z, u = bath.calcTunnelingElectronMatrixElements(spinsys, scattertype='st')
+    
+    # Get eigenvector matrix
+    E = spinsys.eigVectors
+    E_dag = np.conj(E.T)  # Hermitian conjugate
+    
+    # Determine if we have a single spin or multiple spins
+    if spinsys.NSpins == 1:
+        # Single spin system - direct calculation
+        nr = 0  # Position of the single spin
+        
+        # Get spin matrices for the single spin
+        matrx_x = spinsys.Sx[nr, :, :]
+        matrx_y = spinsys.Sy[nr, :, :]  
+        matrx_z = spinsys.Sz[nr, :, :]
+        matrx_u = np.eye(spinsys.dimensionOfMatrix, dtype=complex)  # Identity for charge
+        
+    else:
+        # Multi-spin system - construct tensor products
+        nr = spinsys.ReadoutSpin
+        n_atoms = spinsys.NSpins
+        
+        # Start with identity for spins before the readout spin
+        matrx_x = np.eye(1, dtype=complex)
+        for i in range(nr):
+            # Get dimension of spin i
+            dim_i = int(2 * spinsys.S[i] + 1)
+            identity_i = np.eye(dim_i, dtype=complex)
+            matrx_x = np.kron(matrx_x, identity_i)
+        
+        # Copy for other components
+        matrx_y = matrx_x.copy()
+        matrx_z = matrx_x.copy() 
+        matrx_u = matrx_x.copy()
+        
+        # Add the readout spin operators
+        matrx_x = np.kron(matrx_x, spinsys.Sx[nr, :, :])
+        matrx_y = np.kron(matrx_y, spinsys.Sy[nr, :, :])
+        matrx_z = np.kron(matrx_z, spinsys.Sz[nr, :, :])
+        matrx_u = np.kron(matrx_u, np.eye(int(2 * spinsys.S[nr] + 1), dtype=complex))
+        
+        # Add identity for spins after the readout spin
+        for i in range(nr + 1, n_atoms):
+            dim_i = int(2 * spinsys.S[i] + 1)
+            identity_i = np.eye(dim_i, dtype=complex)
+            matrx_x = np.kron(matrx_x, identity_i)
+            matrx_y = np.kron(matrx_y, identity_i)
+            matrx_z = np.kron(matrx_z, identity_i)
+            matrx_u = np.kron(matrx_u, identity_i)
+    
+    # # Apply exchange coupling J if available
+    # if hasattr(spinsys, 'J') and spinsys.J is not None:
+    #     J_coupling = spinsys.J
+    #     if np.isscalar(J_coupling):
+    #         # If J is scalar, apply to all components
+    #         J_x = J_y = J_z = J_coupling
+    #     elif len(J_coupling) == 1:
+    #         # Single value for all components (version 1.6 compatibility)
+    #         J_x = J_y = J_z = J_coupling[0]
+    #     elif len(J_coupling) >= 3:
+    #         # Separate values for each component
+    #         J_x, J_y, J_z = J_coupling[0], J_coupling[1], J_coupling[2]
+    #     else:
+    #         J_x = J_y = J_z = 1.0
+    # else:
+    #     J_x = J_y = J_z = 1.0
+    #     print('No J')
+    J_x = J_y = J_z = amp  # Default to 1.0 if no J provided
+    
+    # Apply coupling strength U
+    if hasattr(spinsys, 'U') and spinsys.U is not None:
+        if np.isscalar(spinsys.U):
+            U_coupling = spinsys.U
+        else:
+            U_coupling = spinsys.U[nr] if nr < len(spinsys.U) else spinsys.U[0]
+    else:
+        U_coupling = 1.0
+    
+    # Transform to eigenstate basis and apply couplings
+    matrx_x = J_x * E_dag @ matrx_x @ E
+    matrx_y = J_y * E_dag @ matrx_y @ E  
+    matrx_z = J_z * E_dag @ matrx_z @ E
+    matrx_u = U_coupling * E_dag @ matrx_u @ E
+    
+    # Calculate matrix elements for all four tunneling channels
+    out1 = (matrx_x * x[0, 0] + matrx_y * y[0, 0] + matrx_z * z[0, 0] + matrx_u * u[0, 0])
+    out2 = (matrx_x * x[1, 0] + matrx_y * y[1 ,0] + matrx_z * z[1, 0] + matrx_u * u[1 ,0])
+    out3 = (matrx_x * x[0, 1] + matrx_y * y[0, 1] + matrx_z * z[0, 1] + matrx_u * u[0 ,1])
+    out4 = (matrx_x * x[1, 1] + matrx_y * y[1, 1] + matrx_z * z[1, 1] + matrx_u * u[1, 1])
+    
+    return out1, out2, out3, out4
+
 
