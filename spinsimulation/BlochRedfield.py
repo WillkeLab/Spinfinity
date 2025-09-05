@@ -781,8 +781,8 @@ def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0,
         'time_points': time_points
     }
 
-def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=True, 
-                         secular_window=0.001):
+def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=None, 
+                         secular_window=1e-16):
     """
     Calculate the steady-state density matrix using Bloch-Redfield theory.
     
@@ -819,52 +819,17 @@ def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=True,
     
     # Calculate total Redfield tensor
     R_substrate = redfield_coefficients_substrate(spinsys, secular_type, secular_window)
+    R_ts, R_st = redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type, secular_window)
     
-    if bias_voltage != 0:
-        R_ts, R_st = redfield_coefficients_tunneling(spinsys, bias_voltage, 
-                                                    secular_type, secular_window)
-        R_total = R_substrate + R_ts + R_st
-    else:
-        R_total = R_substrate
+    R_total = R_substrate + R_ts + R_st
+    RF2 = np.reshape(R_total, (len(spinsys.E_All)**2, len(spinsys.E_All)**2))
     
-    # Convert to matrix form
-    R_matrix = R_total.reshape(n_states**2, n_states**2)
-    
-    # For steady state: R[ρ] = 0
-    # Modify matrix to include trace constraint
-    R_modified = R_matrix.copy()
-    
-    # Replace last equation with trace constraint
-    R_modified[-1, :] = 1.0
-    
-    # Right-hand side (all zeros except trace = 1)
-    rhs = np.zeros(n_states**2)
-    rhs[-1] = 1.0
-    
-    # Solve linear system
-    try:
-        steady_state_vec = la.solve(R_modified, rhs)
-        steady_state_dm = steady_state_vec.reshape(n_states, n_states)
-        
-        # Ensure Hermiticity and proper normalization
-        steady_state_dm = (steady_state_dm + steady_state_dm.conj().T) / 2
-        steady_state_dm = steady_state_dm / np.trace(steady_state_dm)
-        
-    except la.LinAlgError:
-        # Fallback: use kernel of R_matrix
-        from scipy.linalg import null_space
-        kernel = null_space(R_matrix)
-        if kernel.size > 0:
-            steady_state_vec = kernel[:, 0]
-            steady_state_dm = steady_state_vec.reshape(n_states, n_states)
-            steady_state_dm = steady_state_dm / np.trace(steady_state_dm)
-        else:
-            # Ultimate fallback: thermal state
-            beta = 1.0 / (0.08617 * spinsys.T)  # 1/(kB*T) in meV^-1
-            steady_state_dm = np.diag(np.exp(-beta * spinsys.E_All))
-            steady_state_dm = steady_state_dm / np.trace(steady_state_dm)
-    
-    return steady_state_dm
+    from scipy.linalg import null_space
+    out = null_space(RF2)
+    out = out[:, 0].reshape(len(spinsys.E_All), len(spinsys.E_All))
+    out = out / np.trace(out)
+
+    return out
 
 
 # Utility functions for visualization and analysis
@@ -904,7 +869,7 @@ def plot_redfield_dynamics(results, spinsys, save_path=None):
     
     # Final density matrix (real part)
     im1 = ax3.imshow(np.real(results['density_matrices'][-1]), 
-                     cmap='RdBu', aspect='equal')
+                     cmap='Reds', aspect='equal')
     ax3.set_title('Final Density Matrix (Real)')
     ax3.set_xlabel('State index')
     ax3.set_ylabel('State index')
@@ -972,89 +937,6 @@ def analyze_relaxation_rates(spinsys, secular_type="none", secular_window=0.001)
         'dominant_pathways': dominant_pathways,
         'total_rates': total_rates
     }
-
-
-def etransport(spinsys):
-    """
-    Calculate electron transport matrix elements for tip-sample tunneling.
-    
-    This function computes the matrix elements for electron tunneling between
-    tip and sample electrodes, considering their spin polarizations.
-    
-    Parameters
-    ----------
-    spinsys : SpinSys
-        Spin system object containing tip and sample polarizations
-        
-    Returns
-    -------
-    tuple of np.ndarray
-        (x, y, z, u) - Arrays containing matrix elements for different 
-        spin channels and tunneling processes:
-        - x[0]: <u',u> (up-up)
-        - x[1]: <u',d> (up-down) 
-        - x[2]: <d',u> (down-up)
-        - x[3]: <d',d> (down-down)
-        Similar for y, z (spin components) and u (charge)
-        
-    Notes
-    -----
-    The matrix elements account for the spin polarizations of tip and sample
-    electrodes and represent all possible tunneling channels.
-    """
-    # Get tip and sample polarizations
-    ptip = getattr(spinsys, 'ptip', np.array([0.0, 0.0, 1.0]))  # Default: z-polarized
-    psample = getattr(spinsys, 'psample', np.array([0.0, 0.0, 1.0]))
-    
-    # Normalize polarizations
-    if np.linalg.norm(ptip) > 1e-10:
-        ptip = ptip / np.linalg.norm(ptip)
-    if np.linalg.norm(psample) > 1e-10:
-        psample = psample / np.linalg.norm(psample)
-    
-    # Pauli matrices for spin-1/2 electrons
-    sigma_x = np.array([[0, 1], [1, 0]], dtype=complex)
-    sigma_y = np.array([[0, -1j], [1j, 0]], dtype=complex)
-    sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
-    sigma_0 = np.eye(2, dtype=complex)
-    
-    # Tip and sample density matrices (spin-1/2 electrons)
-    rho_tip = 0.5 * (sigma_0 + ptip[0]*sigma_x + ptip[1]*sigma_y + ptip[2]*sigma_z)
-    rho_sample = 0.5 * (sigma_0 + psample[0]*sigma_x + psample[1]*sigma_y + psample[2]*sigma_z)
-    
-    # Calculate matrix elements for all tunneling channels
-    # The indices correspond to: [up-up, up-down, down-up, down-down]
-    
-    # X-component (Sx coupling)
-    x = np.zeros(4, dtype=complex)
-    x[0] = sigma_x[0,0] * rho_tip[0,0] * rho_sample[0,0]  # <u',u> with Sx
-    x[1] = sigma_x[0,1] * rho_tip[0,0] * rho_sample[1,1]  # <u',d> with Sx  
-    x[2] = sigma_x[1,0] * rho_tip[1,1] * rho_sample[0,0]  # <d',u> with Sx
-    x[3] = sigma_x[1,1] * rho_tip[1,1] * rho_sample[1,1]  # <d',d> with Sx
-    
-    # Y-component (Sy coupling)  
-    y = np.zeros(4, dtype=complex)
-    y[0] = sigma_y[0,0] * rho_tip[0,0] * rho_sample[0,0]
-    y[1] = sigma_y[0,1] * rho_tip[0,0] * rho_sample[1,1] 
-    y[2] = sigma_y[1,0] * rho_tip[1,1] * rho_sample[0,0]
-    y[3] = sigma_y[1,1] * rho_tip[1,1] * rho_sample[1,1]
-    
-    # Z-component (Sz coupling)
-    z = np.zeros(4, dtype=complex)
-    z[0] = sigma_z[0,0] * rho_tip[0,0] * rho_sample[0,0]
-    z[1] = sigma_z[0,1] * rho_tip[0,0] * rho_sample[1,1]
-    z[2] = sigma_z[1,0] * rho_tip[1,1] * rho_sample[0,0] 
-    z[3] = sigma_z[1,1] * rho_tip[1,1] * rho_sample[1,1]
-    
-    # Charge component (identity coupling)
-    u = np.zeros(4, dtype=complex)
-    u[0] = sigma_0[0,0] * rho_tip[0,0] * rho_sample[0,0]
-    u[1] = sigma_0[0,1] * rho_tip[0,0] * rho_sample[1,1]
-    u[2] = sigma_0[1,0] * rho_tip[1,1] * rho_sample[0,0]
-    u[3] = sigma_0[1,1] * rho_tip[1,1] * rho_sample[1,1]
-    
-    return x, y, z, u
-
 
 def Rate2nd(spinsys, amp: float):
     """
@@ -1220,7 +1102,7 @@ def Rate2nd2(spinsys: SpinSys):
         matrxy = spinsys.Sy[0]
         matrxz = spinsys.Sz[0]
         matrxu = np.identity(int(spinsys.Spins[0]*2 + 1))
-        print('Only one spin')
+        
     else:
         natoms = spinsys.NSpins
         # Start with identity (sparse(1) equivalent)
@@ -1266,3 +1148,39 @@ def Rate2nd2(spinsys: SpinSys):
     return out
 
 
+"""# Convert to matrix form
+    R_matrix = R_total.reshape(n_states**2, n_states**2)
+    
+    # For steady state: R[ρ] = 0
+    # Modify matrix to include trace constraint
+    R_modified = R_matrix.copy()
+    
+    # Replace last equation with trace constraint
+    R_modified[-1, :] = 1.0
+    
+    # Right-hand side (all zeros except trace = 1)
+    rhs = np.zeros(n_states**2)
+    rhs[-1] = 1.0
+    
+    # Solve linear system
+    try:
+        steady_state_vec = la.solve(R_modified, rhs)
+        steady_state_dm = steady_state_vec.reshape(n_states, n_states)
+        
+        # Ensure Hermiticity and proper normalization
+        steady_state_dm = (steady_state_dm + steady_state_dm.conj().T) / 2
+        steady_state_dm = steady_state_dm / np.trace(steady_state_dm)
+        
+    except la.LinAlgError:
+        # Fallback: use kernel of R_matrix
+        from scipy.linalg import null_space
+        kernel = null_space(R_matrix)
+        if kernel.size > 0:
+            steady_state_vec = kernel[:, 0]
+            steady_state_dm = steady_state_vec.reshape(n_states, n_states)
+            steady_state_dm = steady_state_dm / np.trace(steady_state_dm)
+        else:
+            # Ultimate fallback: thermal state
+            beta = 1.0 / (0.08617 * spinsys.T)  # 1/(kB*T) in meV^-1
+            steady_state_dm = np.diag(np.exp(-beta * spinsys.E_All))
+            steady_state_dm = steady_state_dm / np.trace(steady_state_dm)"""
