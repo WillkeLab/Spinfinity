@@ -260,7 +260,7 @@ def redfield_coefficients_substrate(spinsys, secular_type="none", secular_window
     energy_diff = eigenvalues[np.newaxis, :] - eigenvalues[:, np.newaxis]
     
     # Calculate Fermi-Dirac probabilities for substrate transitions
-    proba = fermi_box_function(energy_diff, spinsys.T)*spinsys.kB
+    proba = fermi_box_function(energy_diff, spinsys.T)*spinsys.T*spinsys.kB
     
     # Initialize Redfield tensor
     redfield_tensor = np.zeros((n_states, n_states, n_states, n_states), dtype=complex)
@@ -371,8 +371,8 @@ def redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type="none",
     energy_diff = eigenvalues[np.newaxis, :] - eigenvalues[:, np.newaxis]
     
     # Calculate probabilities for tip-sample and sample-tip processes
-    proba_ts = fermi_box_function(energy_diff + bias_voltage, spinsys.T)*spinsys.kB
-    proba_st = fermi_box_function(energy_diff - bias_voltage, spinsys.T)*spinsys.kB
+    proba_ts = fermi_box_function(energy_diff + bias_voltage, spinsys.T)*spinsys.T*spinsys.kB
+    proba_st = fermi_box_function(energy_diff - bias_voltage, spinsys.T)*spinsys.T*spinsys.kB
 
     # Initialize tensors
     R_ts = np.zeros((n_states, n_states, n_states, n_states), dtype=complex)
@@ -744,17 +744,15 @@ def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0,
     J2_ts = spinsys.Jt**2
     ediff2 = np.subtract.outer(eigenvalues, eigenvalues)
     T = spinsys.T
-    U = bias_voltage
-    def fbox(x):
-        return 1.0 / (np.exp(x) + 1)
+    
     # Use Rate2nd2 if available, else fallback
     try:
         rate_ts = Rate2nd2(spinsys)
     except Exception:
         rate_ts = np.ones_like(ediff2)
     rate_st = rate_ts.T
-    rate2_ts = J2_ts * fbox((ediff2 + U) / T) * T * spinsys.kB * rate_ts
-    rate2_st = J2_ts * fbox((ediff2 - U) / T) * T * spinsys.kB rate_st
+    rate2_ts = J2_ts * fermi_box_function(ediff2 + bias_voltage, spinsys.T) * T * spinsys.kB * rate_ts
+    rate2_st = J2_ts * fermi_box_function(ediff2 + bias_voltage, spinsys.T) * T * spinsys.kB * rate_st
 
     trans_matrix = RF_mat + ediff_diag
 
@@ -780,7 +778,7 @@ def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0,
         'populations': populations,
         'lifetimes': ltime,
         'trans_matrix': trans_matrix,
-        'rnk': rnk
+        'time_points': time_points
     }
 
 def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=True, 
@@ -832,7 +830,6 @@ def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=True,
     # Convert to matrix form
     R_matrix = R_total.reshape(n_states**2, n_states**2)
     
-    spinsys.R_matrix = R_matrix  # Store for reference
     # For steady state: R[ρ] = 0
     # Modify matrix to include trace constraint
     R_modified = R_matrix.copy()
@@ -885,12 +882,7 @@ def plot_redfield_dynamics(results, spinsys, save_path=None):
     save_path : str, optional
         Path to save the plot
     """
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError:
-        print("Matplotlib not available. Cannot plot results.")
-        return
-    
+    import matplotlib.pyplot as plt
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
     
     # Population dynamics
@@ -1214,59 +1206,63 @@ def Rate2nd2(spinsys: SpinSys):
     use_T_ts = False
 
     # Get transition vectors (x, y, z, u)
-    x, y, z, u = etransport(experiment)
+    x, y, z, u = bath.calcTunnelingElectronMatrixElements(spinsys, scattertype='st')
 
-    E = experiment.Eigenvec
-    # Handle single spin-system or multi-atom system
-    if not isinstance(experiment.atom, (list, tuple, np.ndarray)):
+    # Eigenvectors
+    E = spinsys.eigVectors
+
+    # Readout spin position
+    nr = spinsys.ReadoutSpin
+
+    if spinsys.NSpins == 1:
         # Only one spin-system
-        S = experiment.atom
-        matrxx = Sx(S)
-        matrxy = Sy(S)
-        matrxz = Sz(S)
-        matrxu = S1(S)
+        matrxx = spinsys.Sx[0]
+        matrxy = spinsys.Sy[0]
+        matrxz = spinsys.Sz[0]
+        matrxu = np.identity(int(spinsys.Spins[0]*2 + 1))
+        print('Only one spin')
     else:
-        nr = experiment.position
-        natoms = len(experiment.atom)
+        natoms = spinsys.NSpins
         # Start with identity (sparse(1) equivalent)
         matrxx = np.eye(E.shape[0], dtype=complex)
         matrxy = np.eye(E.shape[0], dtype=complex)
         matrxz = np.eye(E.shape[0], dtype=complex)
         matrxu = np.eye(E.shape[0], dtype=complex)
-        for i in range(nr-1):
-            mm = S1(experiment.atom[i])
+        for i in range(nr):
+            mm = np.identity(int(spinsys.Spins[i]*2 + 1))
             matrxx = matrxx @ mm
             matrxy = matrxy @ mm
             matrxz = matrxz @ mm
             matrxu = matrxu @ mm
-        S = experiment.atom[nr-1]
-        matrxx = matrxx @ Sx(S)
-        matrxy = matrxy @ Sy(S)
-        matrxz = matrxz @ Sz(S)
-        matrxu = matrxu @ S1(S)
-        for i in range(nr, natoms):
-            mm = S1(experiment.atom[i])
+        S = spinsys.Spins[nr]
+        matrxx = matrxx @ spinsys.Sx[nr]
+        matrxy = matrxy @ spinsys.Sy[nr]
+        matrxz = matrxz @ spinsys.Sz[nr]
+        matrxu = matrxu @ np.identity(int(spinsys.Spins[nr]*2 + 1))
+        for i in range(nr+1, natoms):
+            mm = np.identity(int(spinsys.Spins[i]*2 + 1))
             matrxx = matrxx @ mm
             matrxy = matrxy @ mm
             matrxz = matrxz @ mm
             matrxu = matrxu @ mm
 
     # J vector
-    if use_T_ts:
-        J = experiment.T_ts
-    else:
-        J = [1, 1, 1]
+    J = [1 ,1, 1]
 
     # Matrix multiplications
     matrxx = J[0] * (E.conj().T @ matrxx @ E)
     matrxy = J[1] * (E.conj().T @ matrxy @ E)
     matrxz = J[2] * (E.conj().T @ matrxz @ E)
     # matrxu: S.U * E'*matrxu*E
-    matrxu = getattr(S, 'U', 1.0) * (E.conj().T @ matrxu @ E)
+    Uval = spinsys.U[nr]
+    matrxu = Uval * (E.conj().T @ matrxu @ E)
 
     out = 0
-    for i in range(4):
-        out = out + np.abs(matrxx * x[i] + matrxy * y[i] + matrxz * z[i] + matrxu * u[i]) ** 2
+    out = out + np.abs(matrxx * x[0][0] + matrxy * y[0][0] + matrxz * z[0][0] + matrxu * u[0][0]) ** 2
+    out = out + np.abs(matrxx * x[1][0] + matrxy * y[1][0] + matrxz * z[1][0] + matrxu * u[1][0]) ** 2
+    out = out + np.abs(matrxx * x[0][1] + matrxy * y[0][1] + matrxz * z[0][1] + matrxu * u[0][1]) ** 2
+    out = out + np.abs(matrxx * x[1][1] + matrxy * y[1][1] + matrxz * z[1][1] + matrxu * u[1][1]) ** 2
+    
     return out
 
 
