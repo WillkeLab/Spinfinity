@@ -381,13 +381,8 @@ def redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type="none",
     # Get tunneling matrix elements for tip-sample configuration
     # Use Rate2nd function for proper matrix element calculation
     M1_ts, M2_ts, M3_ts, M4_ts = Rate2nd(spinsys, amp=spinsys.Jt)
-    # print('----------')
-    # print(M1_ts)
-    # print(M2_ts)
-    # print(M3_ts)
-    # print(M4_ts)
-
     
+
     # Get matrix elements for sample-tip (flip polarizations)
     # Create a copy with flipped polarizations
    
@@ -400,11 +395,6 @@ def redfield_coefficients_tunneling(spinsys, bias_voltage, secular_type="none",
     spinsys_flipped.SamplePolarization = original_ptip
     
     M1_st, M2_st, M3_st, M4_st = Rate2nd(spinsys_flipped, amp=spinsys.Jt)
-    # print('----------')
-    # print(M1_st)
-    # print(M2_st)
-    # print(M3_st)
-    # print(M4_st)
     
     spinsys.TipPolarization = original_ptip
     spinsys.SamplePolarization = original_psample
@@ -552,132 +542,7 @@ def redfield_energy_shift(spinsys, include_entanglement=True):
     return energy_shifts
 
 
-def redfield_dynamics(spinsys, density_matrix, time_points, bias_voltage=0.0,
-                     secular_type="none", secular_window=0.001):
-    """
-    Solve the Bloch-Redfield master equation for time evolution.
-    
-    This function integrates the master equation:
-    dρ/dt = -i[H, ρ] + R[ρ]
-    where R is the Redfield relaxation superoperator.
-    
-    Parameters
-    ----------
-    spinsys : SpinSys
-        Spin system object
-    density_matrix : np.ndarray
-        Initial density matrix in eigenstate basis
-    time_points : np.ndarray
-        Time points for evolution (in ps)
-    bias_voltage : float
-        Bias voltage in mV
-    secular_type : str
-        Type of secular approximation
-    secular_window : float
-        Energy window for secular approximation
-        
-    Returns
-    -------
-    dict
-        Dictionary containing:
-        - 'density_matrices': Time evolution of density matrix
-        - 'populations': Diagonal elements (populations) vs time
-        - 'current': Tunneling current vs time
-        - 'lifetimes': Relaxation lifetimes for each state
-        
-    Notes
-    -----
-    Time is in picoseconds, energies in meV, and current in units of e*Γ
-    where Γ is the tunneling rate.
-    """
-    # Ensure eigenstates are calculated
-    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        hamil.calcEigEnergies(spinsys)
-    
-    n_states = spinsys.dimensionOfMatrix
-    eigenvalues = spinsys.E_All
-    
-    # Calculate Redfield tensors
-    R_substrate = redfield_coefficients_substrate(spinsys, secular_type, secular_window)
-    
-    if bias_voltage != 0:
-        R_ts, R_st = redfield_coefficients_tunneling(spinsys, bias_voltage, 
-                                                    secular_type, secular_window)
-        R_total = R_substrate + R_ts + R_st
-    else:
-        R_total = R_substrate
-    
-    spinsys.R_total = R_total  # Store for reference
-    # Convert to Liouville space (vectorized density matrix)
-    # Reshape 4D tensor to 2D matrix for master equation
-    R_matrix = R_total.reshape(n_states**2, n_states**2)
-    
-    # Add coherent evolution (Hamiltonian term)
-    # Create Liouvillian: L = -i[H, •] + R[•]
-    energy_diff = eigenvalues[:, np.newaxis] - eigenvalues[np.newaxis, :]
-
-    print(energy_diff)
-    coherent_matrix = np.zeros((n_states**2, n_states**2), dtype=complex)
-    
-    for i in range(n_states):
-        for j in range(n_states):
-            idx = i * n_states + j
-            coherent_matrix[idx, idx] = -1j * energy_diff[i, j]
-    
-    # Full Liouvillian
-    # Convert energy differences to frequency (meV to THz: 1 meV = 0.24179905 THz)
-    freq_conversion = 0.24179905 * 2 * np.pi  # meV to rad/ps
-    liouvillian = freq_conversion * coherent_matrix + R_matrix
-    
-    # Time evolution
-    dm_initial = density_matrix.flatten()
-    density_matrices = np.zeros((len(time_points), n_states, n_states), dtype=complex)
-    populations = np.zeros((len(time_points), n_states))
-    current = np.zeros(len(time_points))
-    
-    # Calculate rate matrices for current calculation
-    if bias_voltage != 0:
-        try:
-            rate_ts = bath.calcRateIntegrals(spinsys, 'ts')
-            rate_st = bath.calcRateIntegrals(spinsys, 'st')
-        except:
-            # Fallback: use simple approximation
-            rate_ts = np.ones(n_states)
-            rate_st = np.ones(n_states)
-    
-    for i, t in enumerate(time_points):
-        # Matrix exponential for time evolution
-        evolved_dm = la.expm(liouvillian * t) @ dm_initial
-        evolved_dm = evolved_dm.reshape(n_states, n_states)
-        
-        # Remove small imaginary parts from diagonal (numerical errors)
-        evolved_dm = evolved_dm - 1j * np.diag(np.imag(np.diag(evolved_dm)))
-        
-        density_matrices[i] = evolved_dm
-        populations[i] = np.real(np.diag(evolved_dm))
-        
-        # Calculate tunneling current
-        if bias_voltage != 0:
-            current[i] = np.real(np.sum(rate_ts * populations[i]) - 
-                               np.sum(rate_st * populations[i]))
-    
-    # Calculate lifetimes from rate matrix
-    rate_diagonal = np.zeros((n_states, n_states))
-    for i in range(n_states):
-        rate_diagonal[:, i] = np.diag(R_total[:, :, i, i])
-    
-    lifetimes = np.sum(rate_diagonal - np.diag(np.diag(rate_diagonal)), axis=0)
-    lifetimes = 1.0 / (lifetimes + 1e-12)  # Avoid division by zero
-    
-    return {
-        'density_matrices': density_matrices,
-        'populations': populations,
-        'current': current,
-        'lifetimes': lifetimes,
-        'time_points': time_points
-    }
-
-def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0, secular_type="none", secular_window=0.001):
+def redfield_dynamics(spinsys, density_matrix, time_points, bias_voltage=0.0, secular_type="none", secular_window=0.001):
     """
     Alternative version of Redfield dynamics based on the provided Scilab code logic.
     Parameters
@@ -731,8 +596,10 @@ def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0,
     rate2 = np.zeros((n_states, n_states))
     for i in range(n_states):
         rate2[:, i] = np.diag(RF[:, :, i, i])
+
+    # Calculate lifetimes
     ltime = np.sum(rate2 - np.diag(np.diag(rate2)), axis=0)
-    ltime = 1.0 / (ltime + 1e-12)  # Avoid division by zero
+    ltime = 1.0 / (ltime + 1e-16)  # Avoid division by zero
 
     # Rescale RF for t in [ps]
     RF_mat = 0.48359788 * RF.reshape(n_states**2, n_states**2)
@@ -751,9 +618,10 @@ def redfield_dynamics_v2(spinsys, density_matrix, time_points, bias_voltage=0.0,
     except Exception:
         rate_ts = np.ones_like(ediff2)
     rate_st = rate_ts.T
+    
     rate2_ts = J2_ts * fermi_box_function(ediff2 + bias_voltage, spinsys.T) * T * spinsys.kB * rate_ts
-    rate2_st = J2_ts * fermi_box_function(ediff2 + bias_voltage, spinsys.T) * T * spinsys.kB * rate_st
-
+    rate2_st = J2_ts * fermi_box_function(ediff2 - bias_voltage, spinsys.T) * T * spinsys.kB * rate_st
+    
     trans_matrix = RF_mat + ediff_diag
 
     density_matrices = np.zeros((len(time_points), n_states, n_states), dtype=complex)
@@ -823,7 +691,6 @@ def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=None,
     
     R_total = R_substrate + R_ts + R_st
     RF2 = np.reshape(R_total, (len(spinsys.E_All)**2, len(spinsys.E_All)**2))
-    
     from scipy.linalg import null_space
     out = null_space(RF2)
     out = out[:, 0].reshape(len(spinsys.E_All), len(spinsys.E_All))
@@ -978,96 +845,67 @@ def Rate2nd(spinsys, amp: float):
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
     
-    # Get electron transport matrix elements
+   # Get transition vectors (x, y, z, u)
     x, y, z, u = bath.calcTunnelingElectronMatrixElements(spinsys, scattertype='st')
-    
-    # Get eigenvector matrix
+
+    # Eigenvectors
     E = spinsys.eigVectors
-    E_dag = np.conj(E.T)  # Hermitian conjugate
-    
-    # Determine if we have a single spin or multiple spins
+
+    # Readout spin position
+    nr = spinsys.ReadoutSpin
+
     if spinsys.NSpins == 1:
-        # Single spin system - direct calculation
-        nr = 0  # Position of the single spin
-        
-        # Get spin matrices for the single spin
-        matrx_x = spinsys.Sx[nr, :, :]
-        matrx_y = spinsys.Sy[nr, :, :]  
-        matrx_z = spinsys.Sz[nr, :, :]
-        matrx_u = np.eye(spinsys.dimensionOfMatrix, dtype=complex)  # Identity for charge
+        # Only one spin-system
+        matrxx = spinsys.Sx[0]
+        matrxy = spinsys.Sy[0]
+        matrxz = spinsys.Sz[0]
+        matrxu = np.identity(int(spinsys.Spins[0]*2 + 1))
         
     else:
-        # Multi-spin system - construct tensor products
-        nr = spinsys.ReadoutSpin
-        n_atoms = spinsys.NSpins
+        natoms = spinsys.NSpins
+        # Start with identity (sparse(1) equivalent)
+        matrxx = np.array(1.0)
         
-        # Start with identity for spins before the readout spin
-        matrx_x = np.eye(1, dtype=complex)
         for i in range(nr):
-            # Get dimension of spin i
-            dim_i = int(2 * spinsys.S[i] + 1)
-            identity_i = np.eye(dim_i, dtype=complex)
-            matrx_x = np.kron(matrx_x, identity_i)
+            
+            mm = np.identity(int(spinsys.Spins[i]*2 + 1))
+            matrxx = np.kron(matrxx, mm)
+
+        matrxy = matrxx.copy()
+        matrxz = matrxx.copy()
+        matrxu = matrxx.copy()   
+        Sx, Sy, Sz = hamil.calcAngMomMatrices(spinsys.Spins[nr])
         
-        # Copy for other components
-        matrx_y = matrx_x.copy()
-        matrx_z = matrx_x.copy() 
-        matrx_u = matrx_x.copy()
+        matrxx = np.kron(matrxx, Sx)
+        matrxy = np.kron(matrxy, Sy)
+        matrxz = np.kron(matrxz, Sz)
+        matrxu = np.kron(matrxu, np.identity(int(spinsys.Spins[nr]*2 + 1)))
         
-        # Add the readout spin operators
-        matrx_x = np.kron(matrx_x, spinsys.Sx[nr, :, :])
-        matrx_y = np.kron(matrx_y, spinsys.Sy[nr, :, :])
-        matrx_z = np.kron(matrx_z, spinsys.Sz[nr, :, :])
-        matrx_u = np.kron(matrx_u, np.eye(int(2 * spinsys.S[nr] + 1), dtype=complex))
-        
-        # Add identity for spins after the readout spin
-        for i in range(nr + 1, n_atoms):
-            dim_i = int(2 * spinsys.S[i] + 1)
-            identity_i = np.eye(dim_i, dtype=complex)
-            matrx_x = np.kron(matrx_x, identity_i)
-            matrx_y = np.kron(matrx_y, identity_i)
-            matrx_z = np.kron(matrx_z, identity_i)
-            matrx_u = np.kron(matrx_u, identity_i)
+        for i in range(nr+1, natoms):
+            mm = np.identity(int(spinsys.Spins[i]*2 + 1))
+            matrxx = np.kron(matrxx, mm)
+            matrxy = np.kron(matrxy, mm)
+            matrxz = np.kron(matrxz, mm)
+            matrxu = np.kron(matrxu, mm)
+            
     
-    # # Apply exchange coupling J if available
-    # if hasattr(spinsys, 'J') and spinsys.J is not None:
-    #     J_coupling = spinsys.J
-    #     if np.isscalar(J_coupling):
-    #         # If J is scalar, apply to all components
-    #         J_x = J_y = J_z = J_coupling
-    #     elif len(J_coupling) == 1:
-    #         # Single value for all components (version 1.6 compatibility)
-    #         J_x = J_y = J_z = J_coupling[0]
-    #     elif len(J_coupling) >= 3:
-    #         # Separate values for each component
-    #         J_x, J_y, J_z = J_coupling[0], J_coupling[1], J_coupling[2]
-    #     else:
-    #         J_x = J_y = J_z = 1.0
-    # else:
-    #     J_x = J_y = J_z = 1.0
-    #     print('No J')
+   
     J_x = J_y = J_z = amp  # Default to 1.0 if no J provided
     
-    # Apply coupling strength U
-    if hasattr(spinsys, 'U') and spinsys.U is not None:
-        if np.isscalar(spinsys.U):
-            U_coupling = spinsys.U
-        else:
-            U_coupling = spinsys.U[nr] if nr < len(spinsys.U) else spinsys.U[0]
-    else:
-        U_coupling = 1.0
+
+    U_coupling = spinsys.U[spinsys.ReadoutSpin]
     
     # Transform to eigenstate basis and apply couplings
-    matrx_x = J_x * E_dag @ matrx_x @ E
-    matrx_y = J_y * E_dag @ matrx_y @ E  
-    matrx_z = J_z * E_dag @ matrx_z @ E
-    matrx_u = U_coupling * E_dag @ matrx_u @ E
+    matrxx = J_x * (E.conj().T @ matrxx @ E)
+    matrxy = J_y * (E.conj().T @ matrxy @ E)  
+    matrxz = J_z * (E.conj().T @ matrxz @ E)
+    matrxu = U_coupling * (E.conj().T @ matrxu @ E)
     
     # Calculate matrix elements for all four tunneling channels
-    out1 = (matrx_x * x[0, 0] + matrx_y * y[0, 0] + matrx_z * z[0, 0] + matrx_u * u[0, 0])
-    out2 = (matrx_x * x[1, 0] + matrx_y * y[1 ,0] + matrx_z * z[1, 0] + matrx_u * u[1 ,0])
-    out3 = (matrx_x * x[0, 1] + matrx_y * y[0, 1] + matrx_z * z[0, 1] + matrx_u * u[0 ,1])
-    out4 = (matrx_x * x[1, 1] + matrx_y * y[1, 1] + matrx_z * z[1, 1] + matrx_u * u[1, 1])
+    out1 = (matrxx * x[0, 0] + matrxy * y[0, 0] + matrxz * z[0, 0] + matrxu * u[0, 0])
+    out2 = (matrxx * x[1, 0] + matrxy * y[1 ,0] + matrxz * z[1, 0] + matrxu * u[1 ,0])
+    out3 = (matrxx * x[0, 1] + matrxy * y[0, 1] + matrxz * z[0, 1] + matrxu * u[0 ,1])
+    out4 = (matrxx * x[1, 1] + matrxy * y[1, 1] + matrxz * z[1, 1] + matrxu * u[1, 1])
     
     return out1, out2, out3, out4
 
@@ -1084,8 +922,7 @@ def Rate2nd2(spinsys: SpinSys):
         - atom: a list with the atoms of the system
         - position: position in the atom list at which the rate is calculated
     """
-    # Check for use_T_ts flag
-    use_T_ts = False
+
 
     # Get transition vectors (x, y, z, u)
     x, y, z, u = bath.calcTunnelingElectronMatrixElements(spinsys, scattertype='st')
@@ -1106,39 +943,43 @@ def Rate2nd2(spinsys: SpinSys):
     else:
         natoms = spinsys.NSpins
         # Start with identity (sparse(1) equivalent)
-        matrxx = np.eye(E.shape[0], dtype=complex)
-        matrxy = np.eye(E.shape[0], dtype=complex)
-        matrxz = np.eye(E.shape[0], dtype=complex)
-        matrxu = np.eye(E.shape[0], dtype=complex)
+        matrxx = np.array(1.0)
+        
         for i in range(nr):
+            
             mm = np.identity(int(spinsys.Spins[i]*2 + 1))
-            matrxx = matrxx @ mm
-            matrxy = matrxy @ mm
-            matrxz = matrxz @ mm
-            matrxu = matrxu @ mm
-        S = spinsys.Spins[nr]
-        matrxx = matrxx @ spinsys.Sx[nr]
-        matrxy = matrxy @ spinsys.Sy[nr]
-        matrxz = matrxz @ spinsys.Sz[nr]
-        matrxu = matrxu @ np.identity(int(spinsys.Spins[nr]*2 + 1))
+            matrxx = np.kron(matrxx, mm)
+
+        matrxy = matrxx.copy()
+        matrxz = matrxx.copy()
+        matrxu = matrxx.copy()   
+        Sx, Sy, Sz = hamil.calcAngMomMatrices(spinsys.Spins[nr])
+        
+        matrxx = np.kron(matrxx, Sx)
+        matrxy = np.kron(matrxy, Sy)
+        matrxz = np.kron(matrxz, Sz)
+        matrxu = np.kron(matrxu, np.identity(int(spinsys.Spins[nr]*2 + 1)))
+        
         for i in range(nr+1, natoms):
+            
             mm = np.identity(int(spinsys.Spins[i]*2 + 1))
-            matrxx = matrxx @ mm
-            matrxy = matrxy @ mm
-            matrxz = matrxz @ mm
-            matrxu = matrxu @ mm
+            matrxx = np.kron(matrxx, mm)
+            matrxy = np.kron(matrxy, mm)
+            matrxz = np.kron(matrxz, mm)
+            matrxu = np.kron(matrxu, mm)
+            
 
     # J vector
     J = [1 ,1, 1]
-
+    
     # Matrix multiplications
     matrxx = J[0] * (E.conj().T @ matrxx @ E)
     matrxy = J[1] * (E.conj().T @ matrxy @ E)
     matrxz = J[2] * (E.conj().T @ matrxz @ E)
-    # matrxu: S.U * E'*matrxu*E
+    
     Uval = spinsys.U[nr]
     matrxu = Uval * (E.conj().T @ matrxu @ E)
-
+    
     out = 0
     out = out + np.abs(matrxx * x[0][0] + matrxy * y[0][0] + matrxz * z[0][0] + matrxu * u[0][0]) ** 2
     out = out + np.abs(matrxx * x[1][0] + matrxy * y[1][0] + matrxz * z[1][0] + matrxu * u[1][0]) ** 2
