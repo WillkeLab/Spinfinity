@@ -59,21 +59,25 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
             raise ValueError("Invalid plot_type. Use 'p' for probability or 'a' for amplitude.")
 
         
-        # Generate the figure
-        plt.figure(110)
-        plt.imshow(np.flipud(m), cmap=colormap, aspect='auto') #We have to flip the projection matrix in order to have the first entry on the lower left corner
-        c = plt.colorbar()
-        plt.xlabel('Basis States')
-        plt.ylabel('Eigenstates')
-        plt.title(f"System Eigenstates, B_Ext = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]")
+        # Generate the figure and axes
+        fig, ax = plt.subplots(figsize=(16, 6), num=110)
+        im = ax.imshow(np.flipud(m), cmap=colormap, aspect='auto')
+        c = fig.colorbar(im, ax=ax)
+        ax.set_xlabel('Basis States')
+        ax.set_ylabel('Eigenstates')
+        ax.set_title(f"System Eigenstates, B_Ext = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]")
         c.set_label(name0)
-        plt.xticks(np.arange(spinsys.dimensionOfMatrix), spinsys.basisStates)
-        plt.yticks(np.arange(spinsys.dimensionOfMatrix), spinsys.statesOnlyLHS[::-1])
-
+        ax.set_xticks(np.arange(spinsys.dimensionOfMatrix))
+        ax.set_xticklabels(spinsys.basisStates)
+        ax.set_yticks(np.arange(spinsys.dimensionOfMatrix))
+        ax.set_yticklabels(spinsys.statesOnlyLHS[::-1])
         # Set color limits
-        plt.clim(0, 1) if plot_type == 'p' else plt.clim(-1, 1)
-
-        return
+        if plot_type == 'p':
+            im.set_clim(0, 1)
+        else:
+            im.set_clim(-1, 1)
+        # Do not call plt.show() here
+        return fig, ax, im, c
     
 def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energyscale: str='meV'):
     """
@@ -113,19 +117,17 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
     hamil.calcEigEnergies(spinsys)
         
     fig, ax = plt.subplots()
-    for i in range(spinsys.dimensionOfMatrix): 
-        ax.plot(B,E[:,i],label=f"E_{i}")
+    for i in range(spinsys.dimensionOfMatrix):
         if energyscale == 'GHz':
-            ax.plot(B,E[:,i]*spinsys.meVtoGHzConversion,label=f"E_{i}")           
-        elif energyscale == 'meV':
-            ax.plot(B,E[:,i],label=f"E_{i}")          
+            ax.plot(B, E[:, i] * spinsys.meVtoGHzConversion, label=f"E_{i}")
+        else:
+            ax.plot(B, E[:, i], label=f"E_{i}")
     ax.set_xlabel('Magnetic Field (T)')
     ax.set_ylabel(f'Energy ({energyscale})')
     ax.set_title('Zeeman Diagramm')
     ax.legend()
-    plt.show()
-
-    return fig
+    # Do not call plt.show() here
+    return fig, ax
 
 def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     """
@@ -161,22 +163,26 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
 
     # Calculate the Sz matrix elements for each state
     S_elements = np.zeros(spinsys.dimensionOfMatrix)
-
     for i in range(spinsys.dimensionOfMatrix):
         S_elements[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S_Operator @ spinsys.eigVectors[:, i])
 
-    # Plot the energy vs Sz matrix elements
-    plt.figure()
+    # Prepare the energy values
     if energyscale == 'GHz':
-        plt.scatter(S_elements, spinsys.E_All_inGHz, c='k', marker='_', s=1000, linewidths=5)
+        energies = spinsys.E_All_inGHz
     elif energyscale == 'meV':
-        plt.scatter(S_elements, spinsys.E_All, c='k', marker='_', s=1000, linewidths=5)
-    #plt.xlabel(r'$\langle \psi | S_z | \psi \rangle$')
-    plt.xlabel('m_'+type)
-    plt.ylabel(f'Energy ({energyscale})')   
-    plt.title('Energy vs S_' + type +  ' Matrix Elements')
-    plt.grid(True)
-    plt.show()
+        energies = spinsys.E_All
+    else:
+        raise ValueError("energyscale must be 'meV' or 'GHz'")
+
+    # Create the figure and axes
+    fig, ax = plt.subplots()
+    ax.scatter(S_elements, energies, c='k', marker='_', s=1000, linewidths=5)
+    ax.set_xlabel('m_' + type)
+    ax.set_ylabel(f'Energy ({energyscale})')
+    ax.set_title('Energy vs S_' + type + ' Matrix Elements')
+    ax.grid(True)
+    # Do not call plt.show() here
+    return fig, ax
 
     return plt
 
