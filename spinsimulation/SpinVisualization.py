@@ -2,6 +2,9 @@ import numpy as np
 import scipy as sp
 import scipy.constants as const
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.colors
+
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcBath as bath
@@ -611,6 +614,7 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
     This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
     It also marks the resonance frequencies corresponding to recorded transitions in the spin system.
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -625,10 +629,12 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
         Linewidth for the ESR calculation (default is 0.02).
     norm : bool, optional
         Whether to normalize the ESR signal (default is True).
+
     Returns
     -------
-    None
-        The function generates a plot and does not return any value.
+    fig : plotly.graph_objects.Figure
+        The plotly figure object containing the ESR spectrum plot.
+
     Notes
     -----
     - Resonance frequencies and transitions are marked on the plot with different colors.
@@ -639,29 +645,48 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
-    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
 
-    plt.figure()
-    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+    # Create the main ESR signal trace
+    fig = go.Figure()
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    fig.add_trace(go.Scatter(
+        x=freq_array,
+        y=ESRsignal,
+        mode='lines',
+        line=dict(color='black', width=2),
+        name='ESR Signal'
+    ))
 
     # Mark resonances
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
         index = np.argmin(np.abs(freq_array - freq_res))
         amp = ESRsignal[index]
-        if amp > 0.01*np.max(ESRsignal): # Filter very small peaks
-            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                                f"f = {np.round(freq_res,4)} GHz")
-            plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                    label=transition_str, linewidth=2)
+        if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
+                             f"f = {np.round(freq_res,4)} GHz")
+            fig.add_trace(go.Scatter(
+                x=[freq_res],
+                y=[amp],
+                mode='markers',
+                marker=dict(color=color_list[i], size=12),
+                name=transition_str
+            ))
 
-    plt.xlabel('Freq (GHz)')
-    plt.ylabel('ΔI (a.u.)')
-    plt.title('ESR-Simulation')
-    plt.legend()
-    plt.xlim([freq_array[0],freq_array[-1]])
-    plt.show()
+    fig.update_layout(
+        xaxis_title='Freq (GHz)',
+        yaxis_title='ΔI (a.u.)',
+        title='ESR-Simulation',
+        legend_title='Transitions',
+        showlegend=True
+    )
+    fig.update_xaxes(range=[freq_array[0], freq_array[-1]])
+    fig.show()
 
-    return
+    return fig
 
 def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, norm: bool = True):
     """
@@ -682,8 +707,8 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
 
     Returns
     -------
-    None
-        This function generates a plot and does not return any value.
+    fig : plotly.graph_objects.Figure
+        The plotly figure object containing the ESR spectrum plot.
         
     Notes
     -----
@@ -703,28 +728,48 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
                                         spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][0]])
 
     # Make the plot
-    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
 
-    plt.figure()
-    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+    # Create the main ESR signal trace
+    fig = go.Figure()
+    fig.update_layout(
+    plot_bgcolor='white',
+    paper_bgcolor='white'
+    )
+    fig.add_trace(go.Scatter(
+        x=freq_array,
+        y=ESRsignal,
+        mode='lines',
+        line=dict(color='black', width=2),
+        name='ESR Signal'
+    ))
 
     # Mark resonances
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
         index = np.argmin(np.abs(freq_array - freq_res))
         amp = ESRsignal[index]
-        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                            f"f = {np.round(freq_res,4)} GHz")
-        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                label=transition_str, linewidth=2)
-        
-    plt.xlabel('Freq (GHz)')
-    plt.ylabel('ΔI (a.u.)')
-    plt.title('ESR-Simulation')
-    plt.legend()
-    plt.xlim([freq_array[0],freq_array[-1]])
-    plt.show()
+        if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
+                             f"f = {np.round(freq_res,4)} GHz")
+            fig.add_trace(go.Scatter(
+                x=[freq_res],
+                y=[amp],
+                mode='markers',
+                marker=dict(color=color_list[i], size=12),
+                name=transition_str
+            ))
 
-    return
+    fig.update_layout(
+        xaxis_title='Freq (GHz)',
+        yaxis_title='ΔI (a.u.)',
+        title='ESR-Simulation',
+        legend_title='Transitions',
+        showlegend=True
+    )
+    fig.update_xaxes(range=[freq_array[0], freq_array[-1]])
+    fig.show()
+
+    return fig
 
 def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):  
     """
@@ -753,8 +798,8 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
 
     Returns
     -------
-    None
-        This function displays a plot and does not return any value.
+    fig : plotly.graph_objects.Figure
+        The plotly figure object containing the ESR spectra as a function of tip field.
         
     Notes
     -----
@@ -784,37 +829,49 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
 
 
     # Plot the ESR Signal as a color plot
-    fig, ax1 = plt.subplots()
+    fig = go.Figure(data=go.Heatmap(
+        z=ESRsignal,
+        x=Freq_array,
+        y=BTip_array * 1e3,  # Convert to mT for y-axis
+        colorscale='Blues',
+        colorbar=dict(title='ESR Signal'),
+        zsmooth=False
+    ))
 
-    #Plot the matrix using imshow
-    im = ax1.imshow(ESRsignal, cmap='Blues', interpolation='none', 
-                    extent=[Freq_array[0], Freq_array[-1], BTip_array[0]*1e3, BTipRange[-1]*1e3], origin='lower', aspect='auto')
+    # Add labels and title
+    fig.update_layout(
+        height=600,
+        width=800,
+        xaxis_title='Freq (GHz)',
+        yaxis_title='B_Tip (mT)',
+        title=f'Tipfield dependent ESR (Angle = {Angle}°)'
+    )
 
-    # Add labels and title for primary Y-axis
-    ax1.set_xlabel('Freq (GHz)')
-    ax1.set_ylabel('B_Tip (mT)')
-    ax1.set_title('Tipfield dependent ESR' + f' (Angle = {Angle}°)')
+    # Add secondary y-axis for Detuning (GHz)
+    # We'll add a custom axis on the right with detuning values
+    # Calculate detuning for each BTip value
+    detuning_labels = np.round(Detuning, 2)
+    fig.update_layout(
+        yaxis=dict(
+            title='B_Tip (mT)',
+            side='left'
+        ),
+        yaxis2=dict(
+            title='Detuning (GHz)',
+            overlaying='y',
+            side='right',
+            tickvals=BTip_array * 1e3,
+            ticktext=detuning_labels
+        )
+    )
 
-    # Create a secondary Y-axis
-    ax2 = ax1.twinx()
-    ax2.set_ylim(BTip_array[0], BTip_array[-1])
-    y_ticks = ax1.get_yticks()
-    detuning_labels = np.interp(y_ticks / 1e3, BTip_array, Detuning)
-    ax2.set_yticks(y_ticks)
-    ax2.set_yticklabels(np.round(detuning_labels, 2))
-    ax2.set_ylabel('Detuning (GHz)')
-
-    cbar = plt.colorbar(im, ax=ax1)
-    cbar.ax.set_position([0.9, 0.1, 0.03, 0.8])
-    
-    
-    plt.show()
+    fig.show()
 
     # Restore the initial BTip value
     spinsys.BTip = BTip_initial
     hamil.calcEigEnergies(spinsys)
 
-    return
+    return fig
 
 def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None):
     """
