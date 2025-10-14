@@ -14,6 +14,7 @@ or `VISUALIZATION_OPTIONS` lists below.
 """
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
@@ -31,6 +32,7 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QFileDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -218,6 +220,143 @@ def build_spin_system(params: Dict[str, Any]) -> SpinSys:
     )
 
     return spinsys
+
+
+# --------------------------------------------------------------------------- #
+# Notebook export utilities
+# --------------------------------------------------------------------------- #
+
+
+def _format_python_literal(value: Any) -> str:
+    """Return a Python literal string for simple data structures."""
+    if isinstance(value, np.ndarray):
+        return _format_python_literal(value.tolist())
+    if isinstance(value, (list, tuple)):
+        inner = ", ".join(_format_python_literal(item) for item in value)
+        bracket_open, bracket_close = ("[", "]") if isinstance(value, list) else ("(", ")")
+        if isinstance(value, tuple) and len(value) == 1:
+            return f"{bracket_open}{inner},)"
+        return f"{bracket_open}{inner}{bracket_close}"
+    if isinstance(value, dict):
+        items = ", ".join(
+            f"{_format_python_literal(key)}: {_format_python_literal(val)}" for key, val in value.items()
+        )
+        return "{" + items + "}"
+    if isinstance(value, str):
+        return repr(value)
+    if isinstance(value, bool):
+        return "True" if value else "False"
+    if value is None:
+        return "None"
+    return repr(value)
+
+
+def _array_assignment(name: str, values: List[Any], dtype: str = "float") -> str:
+    return f"{name} = np.array({_format_python_literal(values)}, dtype={dtype})"
+
+
+def generate_notebook(spinsys: SpinSys, option: VisualizationOption, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a Jupyter notebook structure that recreates the current configuration."""
+    spins = list(spinsys.Spins)
+    d_vector = spinsys.Dvector.tolist() if getattr(spinsys, "Dvector", None) is not None else []
+    e_vector = spinsys.Evector.tolist() if getattr(spinsys, "Evector", None) is not None else []
+    j_vector = None
+    if getattr(spinsys, "Jvector", None) is not None and spinsys.Jvector.size:
+        j_vector = spinsys.Jvector.tolist()
+    u_vector = spinsys.U.tolist() if getattr(spinsys, "U", None) is not None else []
+    kondo_vector = spinsys.J.tolist() if getattr(spinsys, "J", None) is not None else []
+
+    base_setup_lines = [
+        f"spins = {_format_python_literal(spins)}",
+        "spinsys = SpinSys(spins)",
+        f"spinsys.T = {float(spinsys.T)}",
+        f"spinsys.ReadoutSpin = {int(spinsys.ReadoutSpin)}",
+        f"spinsys.B = {_format_python_literal(list(spinsys.B))}",
+        f"spinsys.BTip = {_format_python_literal(list(spinsys.BTip))}",
+        f"spinsys.tip = {repr(spinsys.tip)}",
+    ]
+
+    if d_vector:
+        base_setup_lines.append(f"{_array_assignment('spinsys.Dvector', d_vector)}")
+    if e_vector:
+        base_setup_lines.append(f"{_array_assignment('spinsys.Evector', e_vector)}")
+    if j_vector is not None:
+        base_setup_lines.append(f"{_array_assignment('spinsys.Jvector', j_vector)}")
+    if u_vector:
+        base_setup_lines.append(f"{_array_assignment('spinsys.U', u_vector)}")
+    if kondo_vector:
+        base_setup_lines.append(f"{_array_assignment('spinsys.J', kondo_vector)}")
+
+    base_setup_lines.extend(
+        [
+            f"spinsys.V_DC = {float(spinsys.V_DC)}",
+            f"spinsys.TipPolarization = {_format_python_literal(list(spinsys.TipPolarization))}",
+            f"spinsys.SamplePolarization = {_format_python_literal(list(spinsys.SamplePolarization))}",
+        ]
+    )
+
+    kwargs_literal = _format_python_literal(kwargs) if kwargs else "{}"
+    viz_call_lines = [
+        f"# Generate visualization: {option.label}",
+        f"kwargs = {kwargs_literal}",
+        f"result = vis.{option.func.__name__}(spinsys, **kwargs)",
+        "plt.show()",
+    ]
+
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    "# Spin Simulation Export\n",
+                    "\n",
+                    "This notebook reproduces the spin configuration and visualization exported from the GUI.\n",
+                ],
+            },
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "execution_count": None,
+                "outputs": [],
+                "source": [
+                    "import numpy as np\n",
+                    "import matplotlib.pyplot as plt\n",
+                    "from spinsimulation.SpinSys import SpinSys\n",
+                    "import spinsimulation.SpinVisualization as vis\n",
+                ],
+            },
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "execution_count": None,
+                "outputs": [],
+                "source": [line + "\n" for line in base_setup_lines],
+            },
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "execution_count": None,
+                "outputs": [],
+                "source": [line + "\n" for line in viz_call_lines],
+            },
+        ],
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3",
+            },
+            "language_info": {
+                "name": "python",
+                "version": sys.version.split()[0],
+            },
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+
+    return notebook
 
 
 # --------------------------------------------------------------------------- #
@@ -476,6 +615,30 @@ def _build_iets_kwargs(raw: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _build_esr_freq_kwargs(raw: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "FreqRange": _parse_numeric_sequence(raw["FreqRange"], expected_len=2, default=[10.0, 20.0]),
+        "AllowPumping": bool(raw["AllowPumping"]),
+        "N": int(raw["N"]),
+        "lw": float(raw["lw"]),
+        "norm": bool(raw["norm"]),
+        "output": bool(raw["output"]),
+    }
+
+
+def _build_esr_tip_kwargs(raw: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "FreqRange": _parse_numeric_sequence(raw["FreqRange"], expected_len=2, default=[10.0, 20.0]),
+        "N_Freq": int(raw["N_Freq"]),
+        "lw": float(raw["lw"]),
+        "norm": bool(raw["norm"]),
+        "BTipRange": _parse_numeric_sequence(raw["BTipRange"], expected_len=2, default=[-0.05, 0.05]),
+        "N_B": int(raw["N_B"]),
+        "AllowPumping": bool(raw["AllowPumping"]),
+        "Angle": float(raw["Angle"]),
+    }
+
+
 VISUALIZATION_OPTIONS: List[VisualizationOption] = [
     VisualizationOption(
         key="eigen_prob",
@@ -586,6 +749,126 @@ VISUALIZATION_OPTIONS: List[VisualizationOption] = [
         arg_builder=_build_iets_kwargs,
         description="Differential conductance spectrum using SpinVisualization.plotIETS.",
     ),
+    VisualizationOption(
+        key="esr_freq",
+        label="ESR frequency sweep",
+        func=vis.plotESR_FreqSweep_Benjamin,
+        parameters=[
+            ParameterSpec(
+                name="FreqRange",
+                label="Frequency range [GHz]",
+                field_type="text",
+                default="10,20",
+                tooltip="Start, end frequency in GHz.",
+            ),
+            ParameterSpec(
+                name="AllowPumping",
+                label="Allow pumping",
+                field_type="bool",
+                default=False,
+            ),
+            ParameterSpec(
+                name="N",
+                label="Frequency points",
+                field_type="int",
+                default=1000,
+                minimum=10,
+                maximum=10000,
+            ),
+            ParameterSpec(
+                name="lw",
+                label="Linewidth",
+                field_type="float",
+                default=0.02,
+                minimum=0.0,
+                maximum=5.0,
+                step=0.01,
+            ),
+            ParameterSpec(
+                name="norm",
+                label="Normalize",
+                field_type="bool",
+                default=True,
+            ),
+            ParameterSpec(
+                name="output",
+                label="Return transitions",
+                field_type="bool",
+                default=False,
+                tooltip="Enable to see resonance table printed in the notebook.",
+            ),
+        ],
+        arg_builder=_build_esr_freq_kwargs,
+        description="Electron spin resonance frequency sweep using SpinVisualization.plotESR_FreqSweep_Benjamin.",
+    ),
+    VisualizationOption(
+        key="esr_tip",
+        label="ESR tip field sweep",
+        func=vis.plotESR_Tipfieldsweep,
+        parameters=[
+            ParameterSpec(
+                name="FreqRange",
+                label="Frequency range [GHz]",
+                field_type="text",
+                default="10,20",
+            ),
+            ParameterSpec(
+                name="N_Freq",
+                label="Frequency points",
+                field_type="int",
+                default=500,
+                minimum=10,
+                maximum=2000,
+            ),
+            ParameterSpec(
+                name="lw",
+                label="Linewidth",
+                field_type="float",
+                default=0.02,
+                minimum=0.0,
+                maximum=5.0,
+                step=0.01,
+            ),
+            ParameterSpec(
+                name="norm",
+                label="Normalize",
+                field_type="bool",
+                default=True,
+            ),
+            ParameterSpec(
+                name="BTipRange",
+                label="Tip field range [T]",
+                field_type="text",
+                default="-0.05,0.05",
+                tooltip="Start, end tip field sweep range in Tesla.",
+            ),
+            ParameterSpec(
+                name="N_B",
+                label="Tip field points",
+                field_type="int",
+                default=100,
+                minimum=10,
+                maximum=2000,
+            ),
+            ParameterSpec(
+                name="AllowPumping",
+                label="Allow pumping",
+                field_type="bool",
+                default=False,
+            ),
+            ParameterSpec(
+                name="Angle",
+                label="Tip angle [deg]",
+                field_type="float",
+                default=0.0,
+                minimum=-180.0,
+                maximum=180.0,
+                step=1.0,
+            ),
+        ],
+        arg_builder=_build_esr_tip_kwargs,
+        description="ESR intensity versus tip magnetic field using SpinVisualization.plotESR_Tipfieldsweep.",
+    ),
 ]
 
 
@@ -625,6 +908,8 @@ class SpinVisualizationWindow(QMainWindow):
         controls_row.addWidget(self.visualization_selector, stretch=1)
         self.render_button = QPushButton("Render")
         controls_row.addWidget(self.render_button)
+        self.export_button = QPushButton("Export Notebook")
+        controls_row.addWidget(self.export_button)
         controls_container = QWidget()
         controls_container.setLayout(controls_row)
         right_column.addWidget(controls_container)
@@ -652,6 +937,7 @@ class SpinVisualizationWindow(QMainWindow):
         # Signals
         self.visualization_selector.currentIndexChanged.connect(self._on_visualization_changed)
         self.render_button.clicked.connect(self._on_render_requested)
+        self.export_button.clicked.connect(self._on_export_requested)
 
     # ---- Callbacks ----------------------------------------------------- #
 
@@ -735,6 +1021,37 @@ class SpinVisualizationWindow(QMainWindow):
                 if isinstance(item, Figure):
                     return item
         return None
+
+    # ---- Export helpers ------------------------------------------------ #
+
+    def _on_export_requested(self) -> None:
+        option = self.current_option
+        try:
+            base_values = self.spin_params_panel.values()
+            spinsys = build_spin_system(base_values)
+            viz_values = self.viz_params_panel.values()
+            kwargs = option.arg_builder(viz_values) if option.arg_builder else viz_values
+            kwargs = {**kwargs, **option.fixed_kwargs}
+        except Exception as exc:  # pylint: disable=broad-except
+            QMessageBox.critical(self, "Invalid configuration", str(exc))
+            return
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Notebook",
+            "spin_simulation_export.ipynb",
+            "Jupyter Notebook (*.ipynb)",
+        )
+        if not path:
+            return
+
+        try:
+            notebook = generate_notebook(spinsys, option, kwargs)
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(notebook, handle, indent=2)
+            QMessageBox.information(self, "Export complete", f"Notebook saved to:\n{path}")
+        except Exception as exc:  # pylint: disable=broad-except
+            QMessageBox.critical(self, "Export failed", str(exc))
 
 
 # --------------------------------------------------------------------------- #
