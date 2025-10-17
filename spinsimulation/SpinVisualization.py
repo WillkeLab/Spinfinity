@@ -182,6 +182,8 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     ax.set_title('Energy vs S_' + type + ' Matrix Elements')
     ax.grid(True)
     # Do not call plt.show() here
+    spinsys.S_elements = S_elements
+    print(energies)
     return fig, ax
 
     return plt
