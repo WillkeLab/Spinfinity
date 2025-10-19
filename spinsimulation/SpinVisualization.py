@@ -871,7 +871,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     spinsys.BTip = BTip_initial
     hamil.calcEigEnergies(spinsys)
 
-    return fig
+    return fig, ESRsignal, Freq_array, BTip_array
 
 def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None):
     """
