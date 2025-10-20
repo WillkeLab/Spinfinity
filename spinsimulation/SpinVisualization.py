@@ -344,8 +344,10 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
 
     Returns
     -------
-    None
-        This function generates a plot of the populations but does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
     
     Notes
     -----
@@ -360,23 +362,51 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     x = np.arange(len(spinsys.Populations))
     width = 0.35
 
-    fig, ax = plt.subplots()
-    ax.barh(x + width/2, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
-    ax.barh(x - width/2, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
-    ax.set_yticks(x)
-    ax.set_yticklabels(spinsys.statesWithoutE)
-    ax.set_xlabel('Population')
-    ax.set_ylabel('Basis States')
-    ax.set_title('Population of Spin States')
-    ax.legend()
-    plt.tight_layout()
-    plt.show()
+    # Plot with Plotly (white background)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=spinsys.pop_0,
+        y=spinsys.statesWithoutE,
+        orientation='h',
+        name='Boltzmann Populations',
+        marker=dict(color='blue'),
+        opacity=0.5
+    ))
+    fig.add_trace(go.Bar(
+        x=spinsys.Populations,
+        y=spinsys.statesWithoutE,
+        orientation='h',
+        name='Tunneling Populations',
+        marker=dict(color='red'),
+        opacity=0.5
+    ))
 
-    return
+    fig.update_layout(
+        barmode='group',
+        title='Population of Spin States',
+        xaxis_title='Population',
+        yaxis_title='Basis States',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        height=400,
+        width=700,
+        margin=dict(l=150, r=20, t=50, b=20)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    # show first state at top (matches typical horizontal-bar plotting)
+    #fig.update_yaxes(autorange='reversed')
+
+    fig.show()
+
+    return_dict = {
+        'fig': fig}
+
+    return return_dict
 
 def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: list=None):
     """
-    Plot the contributions of transition rates between spin states.
+    Plot the contributions of the highest N transition rates between spin states.
 
     Parameters
     ----------
@@ -395,14 +425,13 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
 
     Returns
     -------
-    None
-        This function displays a matplotlib plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    The function assumes that `bath.calcRates(spinsys)` populates the `spinsys.Rates`
-    attribute with the required rate matrices. The plot shows stacked bars for each
-    transition, with each color representing a different rate contribution.
     """
     hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
@@ -410,62 +439,112 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
 
+    # Build a list of all transitions (i -> f) for i != f
+    all_transitions = [(i, f) for i in range(spinsys.dimensionOfMatrix) for f in range(spinsys.dimensionOfMatrix) if i != f]
+    transition_labels_all = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}' for (i, f) in all_transitions]
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
+
     if N is None:
-        fig, ax = plt.subplots(figsize=(12, 5))
-        for i in range(spinsys.dimensionOfMatrix):
-            for f in range(spinsys.dimensionOfMatrix):
-                if i != f:
-                    bottom=0
-                    for idx in range(4):
-                        ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][i, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                        bottom += spinsys.Rates[idx][i, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title('Rate Contributions')
-        ax.set_yscale(yscale)
+        # Prepare y-values for each rate contribution type across all transitions
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, f]) for (i, f) in all_transitions]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=transition_labels_all,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.7,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title='Rate Contributions',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type='linear' if yscale == 'linear' else yscale, autorange=True),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1200,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
         if ylim is not None:
-            ax.set_ylim(ylim)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-    
-    # Limit the number of displayed transitions to N highest entries (ignoring nan)
+            fig.update_yaxes(range=ylim)
+        fig.show()
+
     else:
-        # Collect all transitions and their total rates
+        # Collect all transitions and their total rates, ignoring NaNs
         transitions = []
         for i in range(spinsys.dimensionOfMatrix):
             for f in range(spinsys.dimensionOfMatrix):
                 if i != f:
                     total_rate = sum([spinsys.Rates[idx][i, f] for idx in range(4)])
-                    if not np.isnan(total_rate):
+                    if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                         transitions.append(((i, f), total_rate))
-        # Sort by total_rate descending and take top N
+
+        # Sort by total_rate descending and keep top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        selected = set([t[0] for t in transitions])
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(
+                title=f'Top {N} Rate Contributions (no valid transitions)',
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+            fig.update_yaxes(
+                exponentformat='e',
+                showexponent='all'
+            )
+            fig.show()
+            return
 
-        fig, ax = plt.subplots(figsize=(12, 5))
-        for (i, f), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][i, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][i, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions')
-        ax.set_yscale(yscale)
+        selected_pairs = [t[0] for t in transitions]
+        transition_labels = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}' for (i, f) in selected_pairs]
+
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, f]) for (i, f) in selected_pairs]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=transition_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.7,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type='linear' if yscale == 'linear' else yscale, autorange=True),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1200,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
         if ylim is not None:
-            ax.set_ylim(ylim)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+            fig.update_yaxes(range=ylim)
+        fig.show()
 
-
-    return
+    return_dict = {
+        'fig': fig}
+    
+    return return_dict
 
 def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
@@ -487,107 +566,154 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None)
 
     Returns
     -------
-    None
-        This function displays a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    - The function assumes that `spinsys` has attributes `dimensionOfMatrix`, `statesWithoutE`, and `Rates`.
-    - The function also assumes the existence of a global `bath` object with a `calcRates` method.
-    - The legend shows the labels for the different rate contributions.
+    - The function first calculates the eigenstates and rates for the spin system.
     """
-    labels = ['ts', 'st', 'ss','tt']
-    colors = ['blue', 'orange', 'green', 'red']
 
+    # Calculate the eigenstates and rates first
     hamil.calcEigStates(spinsys)
+    bath.calcRates(spinsys)
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
+
+    # Plotly implementation of plotRatesTo
     if N is not None:
         # Collect all transitions and their total rates to the target state
         transitions = []
         for i in range(spinsys.dimensionOfMatrix):
             if i != state:
                 total_rate = sum([spinsys.Rates[idx][i, state] for idx in range(4)])
-                if not np.isnan(total_rate):
+                if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                     transitions.append(((i, state), total_rate))
+
         # Sort by total_rate descending and take top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        selected = set([t[0][0] for t in transitions])
-        fig, ax = plt.subplots(figsize=(8, 5))
-        for (i, _), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][i, state]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-        return
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(title=f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]} (no valid transitions)')
+            fig.show()
+
+        x_labels = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}' for (i, _), _ in transitions]
+        # Build stacked traces per rate type
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, state]) for (i, _), _ in transitions]
+            data.append(go.Bar(
+                name=['ts', 'st', 'ss', 'tt'][idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=['blue', 'orange', 'green', 'red'][idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + ['ts', 'st', 'ss', 'tt'][idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
     else:
-        hamil.calcEigStates(spinsys)
-        bath.calcRates(spinsys)
-        
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
+        # All transitions to the target state
+        x_labels = []
         for i in range(spinsys.dimensionOfMatrix):
             if i != state:
-                bottom=0
-                for idx in range(4):
-                    ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                    bottom += spinsys.Rates[idx][i, state]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Rate Contributions to {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+                x_labels.append(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}')
 
-    return
+        data = []
+        for idx in range(4):
+            y_vals = []
+            for i in range(spinsys.dimensionOfMatrix):
+                if i != state:
+                    y_vals.append(safe_rate(spinsys.Rates[idx][i, state]))
+            data.append(go.Bar(
+                name=['ts', 'st', 'ss', 'tt'][idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=['blue', 'orange', 'green', 'red'][idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + ['ts', 'st', 'ss', 'tt'][idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Rate Contributions to {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
+        return_dict = { 
+            'fig': fig}
+
+        return return_dict
 
 def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
-    Plots all transition rates originating from a specified initial state.
+    Plots the rate contributions from a specified state in a spin system.
+    This function calculates and visualizes the transition rates to all other states from a given initial state
+    in the provided spin system. The rates are displayed as stacked bar plots, with each bar representing
+    the contributions from different rate components (e.g., 'ts', 'st', 'ss', 'tt').
 
     Parameters
     ----------
     spinsys : SpinSys
-        The spin system object containing the states, rates, and matrix dimension.
-        It is expected to have the following attributes:
-            - dimensionOfMatrix: int, the number of spin states.
-            - statesWithoutE: list of str, labels for the spin states.
-            - Rates: list of 2D numpy arrays, each representing the rate matrix for a process.
+        The spin system object containing state information and rate matrices.
     state : int
-        The index of the initial state from which transitions originate.
+        The index of the target state to which rates are plotted.
     yscale : str, optional
-        The scale for the y-axis ('linear' or 'log'). Default is 'linear'.
+        The scale for the y-axis of the plot. Can be 'linear', 'log', etc. Default is 'linear'.
     N : int, optional
-        The number of highest rate transitions to display. If None, all transitions are shown (default
+        The number of highest rate transitions to display. If None, all transitions are shown (default is None).
 
     Returns
     -------
-    None
-        This function displays a matplotlib plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    The function assumes that `bath.calcRates(spinsys)` populates the `spinsys.Rates`
-    attribute with the required rate matrices. The plot shows stacked bars for each
-    transition, with each color representing a different rate contribution.
+    - The function first calculates the eigenstates and rates for the spin system.
     """
-
+    hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
 
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
-    fig, ax = plt.subplots(figsize=(8, 5))
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
 
     if N is not None:
         # Collect all transitions and their total rates from the given state
@@ -595,45 +721,83 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=Non
         for f in range(spinsys.dimensionOfMatrix):
             if f != state:
                 total_rate = sum([spinsys.Rates[idx][state, f] for idx in range(4)])
-                if not np.isnan(total_rate):
+                if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                     transitions.append(((state, f), total_rate))
-        # Sort by total_rate descending and take top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        for (s, f), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[s]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][s, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][s, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-        
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(title=f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]} (no valid transitions)')
+            fig.show()
+
+        x_labels = [f'{spinsys.statesWithoutE[s]} → {spinsys.statesWithoutE[f]}' for (s, f), _ in transitions]
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][s, f]) for (s, f), _ in transitions]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
     else:
+        # All transitions from the given state
+        x_labels = [f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}' for f in range(spinsys.dimensionOfMatrix) if f != state]
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][state, f]) for f in range(spinsys.dimensionOfMatrix) if f != state]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
 
-        for f in range(spinsys.dimensionOfMatrix):
-            if f != state:
-                bottom=0
-                for idx in range(4):
-                    ax.bar(f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][state, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                    bottom += spinsys.Rates[idx][state, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Rate Contributions from {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Rate Contributions from {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
 
-    return
+    return_dict = {
+        'fig': fig}
+
+    return return_dict
+
 # endregion Bath
 
 # region dIdV
@@ -653,7 +817,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     norm : bool, optional
         If True, normalize the calculated spectrum (default is False).
     order : str, optional
-        The order of the IETS calculation. Currently, only '2nd' order is supported (default is '2nd').
+        The order of the IETS calculation. Supported orders are '2nd', '2ndR' and '3rd'.
 
     Raises
     ------
@@ -662,10 +826,24 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
     Returns
     -------
-    None
-        This function creates a plot of the IETS spectrum but does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The voltage values used in the spectrum.
+        - 'dIdVsignal': numpy.ndarray
+            The calculated dI/dV signal values.
+    Notes
+    -----
+    - the dimension of the dIdVsignal changes when plotAllSpins=True
     """
+
     if plotAllSpins==False:
+
+        # Initialize x and y arrays
+        x = np.zeros(N) # Voltage 
+        y = np.zeros(N) # dI/dV Signal
         # Calculate the IETS spectrum for the specified order
         if order == '2nd':
             x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
@@ -678,46 +856,133 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
     
-        # Plot the IETS spectrum
-        plt.figure() 
-        plt.plot(x, y, label='IETS Spectrum')
-        plt.xlabel('Bias Voltage (mV)')
-        plt.ylabel('dI/dV (a.u.)')
-        plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
-        plt.title('IETS Spectrum ' + f'({order} Order)')
+        # Plot the IETS spectrum using Plotly with white background and black border
+        y_max = np.max(y)
+        if y_max == 0:
+            y_max = 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y,
+            mode='lines',
+            name='IETS Spectrum',
+            line=dict(color='black', width=2)
+        ))
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order)',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title='dI/dV (a.u.)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        # set explicit axis ranges and add a black rectangle border around the plotting area
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
     elif plotAllSpins==True:
-        fig, ax = plt.subplots()
+
+        # Initialize x and y arrays
+        x = np.zeros(N)
+        y = np.zeros((len(spinsys.Spins),N))
+
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
             #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
             if order == '2nd':
-                x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '2ndR':
-                x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:], _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '3rd':
-                x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '3rdR':
-                x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
             else:
                 raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
             
             # Plot all IETS spectra in the same figure on top of each other
             # Only create the figure once, before the loop
             #if i == 0:
-            ax.plot(x, y, label=f'Spin {i}')
+        # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
+        color_list = plotly.colors.qualitative.Plotly
+        fig = go.Figure()
 
-        # Set labels and title for the plot
-        ax.set_xlabel('Bias Voltage (mV)')
-        ax.set_ylabel('dI/dV (a.u.)')
-        ax.set_title(f'IETS Spectrum ({order} Order) for All Spins')
-        ax.legend()
-        ax.set_ylim(bottom=0)  # start from 0
+        # Add one trace per spin (overlayed)
+        nspins = y.shape[0]
+        for i in range(nspins):
+            fig.add_trace(go.Scatter(
+            x=x,
+            y=y[i, :],
+            mode='lines',
+            line=dict(color=color_list[i % len(color_list)], width=2),
+            name=f'Spin {i}'
+            ))
 
-        plt.tight_layout()
-        plt.show()
-            
+        # Determine axis ranges similar to single-spin branch
+        y_max = np.max(y) if np.max(y) != 0 else 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order) for All Spins',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title='dI/dV (a.u.)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        # add a black rectangle border around the plotting area
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'V_array': x,
+        'dIdVsignal': y}      
         
-    return 
+    return return_dict
 
 # endregion dIdV
 
