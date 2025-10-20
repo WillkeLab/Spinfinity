@@ -186,6 +186,8 @@ class SpinSys:
         self.RabiRate = 1  # Rabi rate for ESR
         self.T2 = 200 # coherence time
 
+    # region PrintParameters
+
     def _round_to_significant_figures(self, value, sig_figs=4):
         """
         Round a value or array to specified number of significant figures.
@@ -338,6 +340,10 @@ class SpinSys:
             del params_dict['ESR']
             
         return params_dict
+    
+    # endregion PrintParameters
+
+    # region SaveFunctions
     
     def save(self, filename=None, filepath=None):
         """
