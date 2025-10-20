@@ -98,7 +98,11 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
             hoverongaps=False
             )
         )
-
+        # make sure the heatmap uses the matrix origin at the bottom-left
+        # ensure heatmap uses our explicit x/y arrays and tick labels, then flip y-axis so row 0 is at bottom
+        fig.update_traces(x=x_vals, y=y_vals, selector=dict(type='heatmap'))
+        fig.update_xaxes(tickmode='array', tickvals=x_vals, ticktext=x_ticktext)
+        fig.update_yaxes(tickmode='array', tickvals=y_vals, ticktext=y_ticktext, autorange='reversed')
         # Make cells square by anchoring y-axis scale to x-axis
         fig.update_layout(
             width=800,
