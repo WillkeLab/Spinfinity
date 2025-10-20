@@ -8,6 +8,7 @@ import spinsimulation.SpinHamiltonian as hamil
 
 
 # region Physical Quantities
+
 def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True, Approach: str = "Loth"):
     """
     Calculates the magnetization of a spin system along a specified axis.
@@ -127,8 +128,8 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "
     R1_ss = np.zeros(spinsys.dimensionOfMatrix)
 
     # Summing up all rates that leave the state
-    for i in range(spinsys.dimensionOfMatrix):
-        for j in range(spinsys.dimensionOfMatrix):
+    for i in range(spinsys.dimensionOfMatrix): # i is the initial state
+        for j in range(spinsys.dimensionOfMatrix): # j is the final state
             if i != j:
                 R1_tot[i] += spinsys.Rates_Summed[i, j]  # Summing up all the rates
                 R1_ss[i] = spinsys.Rates[2, i, j] # Just sample sample scattering
@@ -136,7 +137,62 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "
     spinsys.T1_tot = 1 / R1_tot  # Total lifetime
     spinsys.T1_ss = 1 / R1_ss  # natural lifetime
 
-    return 
+    return
+
+def calcSplitLifetimes(spinsys: SpinSys, subspin: SpinSys):
+    """
+    Compute lifetimes for subsystem eigenstates.
+    
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Full system object.
+    subspin : SpinSys
+        Subsystem object defining the eigenstates onto which rates are projected.
+    
+    Returns
+    -------
+    None
+        The function mutates `spinsys` in-place. After the call the following
+        attributes on `spinsys` will be set to 1D numpy arrays of length
+        subspin.dimensionOfMatrix:
+        - T1_A_tot : total lifetimes for overlap type A
+        - T1_B_tot : total lifetimes for overlap type B
+        - T1_A_ss  : sample-sample lifetimes for overlap type A
+        - T1_B_ss  : sample-sample lifetimes for overlap type B
+    
+    Notes
+    -----
+    - The function calls calcRates(spinsys) at the start to ensure rate arrays are
+      populated.
+    """
+    # Calculate the Rates of the SpinSystem
+    calcRates(spinsys)
+    # Initialize the Rate arrays
+    R_A_tot = np.zeros(subspin.dimensionOfMatrix)
+    R_B_tot = np.zeros(subspin.dimensionOfMatrix)
+    R_A_ss = np.zeros(subspin.dimensionOfMatrix)
+    R_B_ss = np.zeros(subspin.dimensionOfMatrix)
+
+    # Iterate over the states of the subspin system
+    for idx in range(subspin.dimensionOfMatrix):
+        overlap_A = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='BA')
+        overlap_B = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='AB')
+        # Compute the rates projected onto the overlaps
+        for i in range(spinsys.dimensionOfMatrix): # i is the initial state
+            for j in range(spinsys.dimensionOfMatrix): # j is the final state
+                if i != j:
+                    R_A_tot[idx] += overlap_A[i] * spinsys.Rates_Summed[i, j] * (1-overlap_A[j])  # Summing up all the rates
+                    R_B_tot[idx] += overlap_B[i] * spinsys.Rates_Summed[i, j] * (1-overlap_B[j])  # Summing up all the rates
+                    R_A_ss[idx] += overlap_A[i] * spinsys.Rates[2, i, j] * (1-overlap_A[j])  # Summing up sample-sample rates
+                    R_B_ss[idx] += overlap_B[i] * spinsys.Rates[2, i, j] * (1-overlap_B[j])  # Summing up sample-sample rates
+
+    spinsys.T1_A_tot = 1 / R_A_tot  # Total lifetime
+    spinsys.T1_B_tot = 1 / R_B_tot  # Total lifetime
+    spinsys.T1_A_ss = 1 / R_A_ss  # Substrate lifetime
+    spinsys.T1_B_ss = 1 / R_B_ss  # Substrate lifetime
+
+    return
 
 def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
     """
