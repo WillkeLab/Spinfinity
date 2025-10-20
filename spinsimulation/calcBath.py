@@ -224,7 +224,6 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
         # Calculate the rates if not already done
         if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
             calcRates(spinsys, Approach=Approach)
-
         spinsys.K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
         for i in range(spinsys.dimensionOfMatrix):
@@ -325,7 +324,7 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
     spinsys.Rates[1, :, :] = RateFactor_st * spinsys.MatrixST *  RateIntegrals_st
     spinsys.Rates[2, :, :] = RateFactor_ss * MatrixSS_summed *  RateIntegrals_ss
     spinsys.Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT *  RateIntegrals_ss
-
+    
     # Sum the rates
     spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
                         spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :])

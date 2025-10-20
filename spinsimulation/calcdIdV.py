@@ -166,14 +166,14 @@ def calcIETS_2ndR(
         RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
         RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
         RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-        RateFactor_tt = 1 / (const.e * Rate_0) / 1e3 #Before 05.08.2024: 0, PW
+        RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
 
     # Rate-Factors using Ternes 2010 (not default)
     if Approach == "Ternes":
         RateFactor_ts = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
         RateFactor_st = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
         RateFactor_ss = 2 * np.pi / spinsys.hbar_meV * spinsys.Jrs**2
-        RateFactor_tt = 2 * np.pi / spinsys.hbar_meV * spinsys.T02**2 / (spinsys.Jrs**2) * spinsys.G_tt
+        RateFactor_tt = 2 * np.pi / spinsys.hbar_meV * spinsys.T02**2 / (spinsys.Jrs**2)
 
     # Calculate the rates that stem from Tip tip and sample sample scattering, since they are not affected by the voltage
     RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
@@ -186,19 +186,21 @@ def calcIETS_2ndR(
         V_DC = V_array[I_index]
         spinsys.V_DC = V_DC
 
+        # Calculate rate integrals for the current voltage (These are the only changing parts)
         RateIntegrals_ts = bath.calcRateIntegrals(spinsys, 'ts')
         RateIntegrals_st = bath.calcRateIntegrals(spinsys, 'st')
         
         # Calculate rates based on rate factors and integrals
         Rates[0, :, :] = RateFactor_ts * spinsys.Matrix.T * RateIntegrals_ts
         Rates[1, :, :] = RateFactor_st * spinsys.Matrix * RateIntegrals_st
-
+        
         # Sum the rates
         Rates_Summed = (
             Rates[0, :, :] + Rates[1, :, :] +
             Rates[2, :, :] + Rates[3, :, :] 
         )
-
+        #print(f"Calculated Rates at V={V_DC} mV")
+        #print(Rates_Summed[0,1])
         # Build the Rate-Equation matrix
         K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
         for i in range(spinsys.dimensionOfMatrix):
@@ -206,7 +208,7 @@ def calcIETS_2ndR(
                 if i != j:
                     K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
                     K[i, j] = Rates_Summed[j, i]   # Rates leading to state i
-
+        #print(K)
         # Calculate the thermal population (Boltzmann distribution)
         p0 = np.exp(-spinsys.E_All / (spinsys.kB * spinsys.T))
         pTot = np.sum(p0)
@@ -216,11 +218,13 @@ def calcIETS_2ndR(
         if AllowPumping:
             p = null_space(K)
             if p.size == 0:  # If no valid solution, use thermal distribution
-                Populations = spinsys.p0
+                Populations = spinsys.pop_0
+                print("Warning: No valid solution for rate equations found, using thermal population instead.")
             else:
                 Populations = p[:, 0] / np.sum(p[:, 0])
         else:
             Populations = spinsys.pop_0
+            print("Using thermal population (Boltzmann distribution).")
 
         # Deriving the tunneling current using Equation 41 from Ternes paper
         I_value = 0

@@ -69,10 +69,12 @@ Date: September 2025
 
 import numpy as np
 import scipy.linalg as la
+from scipy.linalg import null_space
 from scipy.special import expit
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil
 import spinsimulation.calcBath as bath
+import matplotlib.pyplot as plt
 
 
 def fermi_box_function(energy_diff, temperature):
@@ -570,8 +572,6 @@ def redfield_dynamics(spinsys, density_matrix, time_points, bias_voltage=0.0, se
         - 'trans_matrix': Transition matrix used
         - 'rnk': Rank indicator for each time step
     """
-    import numpy as np
-    import scipy.linalg as la
 
     n_states = spinsys.dimensionOfMatrix
     eigenvalues = spinsys.E_All
@@ -691,7 +691,7 @@ def redfield_steady_state(spinsys, bias_voltage=0.0, secular_type=None,
     
     R_total = R_substrate + R_ts + R_st
     RF2 = np.reshape(R_total, (len(spinsys.E_All)**2, len(spinsys.E_All)**2))
-    from scipy.linalg import null_space
+    
     out = null_space(RF2)
     out = out[:, 0].reshape(len(spinsys.E_All), len(spinsys.E_All))
     out = out / np.trace(out)
@@ -714,7 +714,7 @@ def plot_redfield_dynamics(results, spinsys, save_path=None):
     save_path : str, optional
         Path to save the plot
     """
-    import matplotlib.pyplot as plt
+    
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(12, 10))
     
     # Population dynamics
