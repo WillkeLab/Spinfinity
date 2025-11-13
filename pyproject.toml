@@ -11,9 +11,10 @@ requires-python = ">= 3.10"
 dependencies = [
     "numpy (>=2.3.0,<3.0.0)",
     "scipy (>=1.15.3,<2.0.0)",
-    "matplotlib"
+    "matplotlib",
+    "plotly (>=6.1.2,<7.0.0)",
+    "cma"
 ]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

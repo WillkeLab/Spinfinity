@@ -2,6 +2,8 @@ import numpy as np
 import scipy as sp
 import scipy.constants as const
 from spinsimulation.SpinSys import SpinSys
+from numpy import eye
+from scipy.linalg import fractional_matrix_power
 
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
@@ -557,9 +559,6 @@ def stevens_operator(S, a, b, return_latex=False):
     latex_str : str (optional)
         LaTeX representation
     """
-
-    from numpy import eye
-    from scipy.linalg import fractional_matrix_power
 
     # Get angular momentum matrices
     Sx_, Sy_, Sz_ = calcAngMomMatrices(S)

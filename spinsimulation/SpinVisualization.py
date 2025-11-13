@@ -2,6 +2,10 @@ import numpy as np
 import scipy as sp
 import scipy.constants as const
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.colors
+from plotly.subplots import make_subplots
+
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcBath as bath
@@ -26,8 +30,12 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
 
         Returns
         -------
-        None
-            This function generates a matplotlib figure and does not return any value.
+        return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'm': numpy.ndarray
+            The matrix used for the heatmap visualization. Containing the projection values according to p/a.
 
         Raises
         ------
@@ -36,18 +44,17 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
             
         Notes
         -----
-        The color limits are set to [0, 1] for probability and [-1, 1] for amplitude.
+        - The function checks if the eigenvectors are already calculated; if not, it computes them.
         """
 
         # Check if eigVectors are calculated, if not calculate them. They are needed for the projection matrix.
-        if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        if not hasattr(spinsys, 'states') or spinsys.eigVectors is None:
             hamil.calcEigStates(spinsys)
                
         projection = np.zeros([spinsys.dimensionOfMatrix,spinsys.dimensionOfMatrix],dtype=complex)
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
                 projection[i, j] = np.dot(spinsys.eigVectors[:, i].conj().T, np.identity(spinsys.dimensionOfMatrix)[:, j])
-
 
         if plot_type == 'p':
             m = abs(np.conjugate(projection) * projection)
@@ -58,26 +65,95 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
         else:
             raise ValueError("Invalid plot_type. Use 'p' for probability or 'a' for amplitude.")
 
-        
         # Generate the figure and axes
-        fig, ax = plt.subplots(figsize=(16, 6), num=110)
-        im = ax.imshow(np.flipud(m), cmap=colormap, aspect='auto')
-        c = fig.colorbar(im, ax=ax)
-        ax.set_xlabel('Basis States')
-        ax.set_ylabel('Eigenstates')
-        ax.set_title(f"System Eigenstates, B_Ext = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]")
-        c.set_label(name0)
-        ax.set_xticks(np.arange(spinsys.dimensionOfMatrix))
-        ax.set_xticklabels(spinsys.basisStates)
-        ax.set_yticks(np.arange(spinsys.dimensionOfMatrix))
-        ax.set_yticklabels(spinsys.statesOnlyLHS[::-1])
-        # Set color limits
-        if plot_type == 'p':
-            im.set_clim(0, 1)
+        # Build a Plotly heatmap with square cells (equal aspect ratio)
+        x_vals = list(range(spinsys.dimensionOfMatrix))
+        y_vals = list(range(spinsys.dimensionOfMatrix))
+
+        # Use the same flipped matrix and labels as the matplotlib version
+        z_vals = np.flipud(m).tolist()
+        x_ticktext = spinsys.basisStates
+        y_ticktext = spinsys.statesOnlyLHS[::-1]
+
+        # Map matplotlib-like colormaps to plotly colorscales
+        if colormap == 'hot':
+            plotly_cmap = 'Hot'
+        elif colormap == 'coolwarm':
+            plotly_cmap = 'RdBu'
         else:
-            im.set_clim(-1, 1)
-        # Do not call plt.show() here
-        return fig, ax, im, c
+            plotly_cmap = colormap  # fallback to whatever plotly accepts
+
+        zmin = 0 if plot_type == 'p' else -1
+        zmax = 1 if plot_type == 'p' else 1
+
+        fig = go.Figure(
+            data=go.Heatmap(
+            z=z_vals,
+            x=x_vals,
+            y=y_vals,
+            colorscale=plotly_cmap,
+            zmin=zmin,
+            zmax=zmax,
+            colorbar=dict(title=name0),
+            hoverongaps=False
+            )
+        )
+        # make sure the heatmap uses the matrix origin at the bottom-left
+        # ensure heatmap uses our explicit x/y arrays and tick labels, then flip y-axis so row 0 is at bottom
+        fig.update_traces(x=x_vals, y=y_vals, selector=dict(type='heatmap'))
+        fig.update_xaxes(tickmode='array', tickvals=x_vals, ticktext=x_ticktext)
+        fig.update_yaxes(tickmode='array', tickvals=y_vals, ticktext=y_ticktext, autorange='reversed')
+        # Make cells square by anchoring y-axis scale to x-axis
+        fig.update_layout(
+            width=800,
+            height=600,
+            title=f"System Eigenstates, B = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]",
+            xaxis=dict(
+            title='Basis States',
+            tickmode='array',
+            tickvals=x_vals,
+            ticktext=x_ticktext,
+            constrain='domain'
+            ),
+            yaxis=dict(
+            title='Eigenstates',
+            tickmode='array',
+            tickvals=y_vals,
+            ticktext=y_ticktext,
+            scaleanchor="x",
+            scaleratio=1
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        # ensure colorbar is shown with an outline and ticks outside
+        fig.data[0].update(colorbar=dict(title=name0, outlinecolor='black', outlinewidth=1, ticks='outside'))
+
+        # add a black rectangle around the heatmap cells to serve as a border
+        dim = spinsys.dimensionOfMatrix
+        fig.update_layout(
+            shapes=[
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="y",
+                    x0=-0.5,
+                    x1=dim - 0.5,
+                    y0=-0.5,
+                    y1=dim - 0.5,
+                    line=dict(color="black", width=2),
+                    fillcolor="rgba(0,0,0,0)"
+                )
+            ]
+        )
+        fig.show()
+        
+        return_dict = {
+            'fig': fig,
+            'm': m
+        }
+        
+        return return_dict
     
 def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energyscale: str='meV'):
     """
@@ -94,12 +170,18 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
 
     Returns
     -------
-    None
-        This function does not return a value. It displays a plot of the Zeeman diagram.
-
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'B_array': numpy.ndarray
+            The array of magnetic field values used in the sweep.
+        - 'E_array': numpy.ndarray
+            The array of energy eigenvalues corresponding to each magnetic field value.
+    
     Notes
     -----
-    - The function temporarily modifies the magnetic field vector of `spinsys` during the calculation and restores it to its original value afterwards.
+    - The function restores the original field value afterwards.
     """
 
     # Save the initial B-Vector
@@ -116,18 +198,35 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
     spinsys.B = Binitial
     hamil.calcEigEnergies(spinsys)
         
-    fig, ax = plt.subplots()
+    # Build a Plotly figure with white background
+    fig = go.Figure()
     for i in range(spinsys.dimensionOfMatrix):
         if energyscale == 'GHz':
-            ax.plot(B, E[:, i] * spinsys.meVtoGHzConversion, label=f"E_{i}")
+            y = E[:, i] * spinsys.meVtoGHzConversion
         else:
-            ax.plot(B, E[:, i], label=f"E_{i}")
-    ax.set_xlabel('Magnetic Field (T)')
-    ax.set_ylabel(f'Energy ({energyscale})')
-    ax.set_title('Zeeman Diagramm')
-    ax.legend()
-    # Do not call plt.show() here
-    return fig, ax
+            y = E[:, i]
+        fig.add_trace(go.Scatter(x=B, y=y, mode='lines', name=f"E_{i}"))
+
+    fig.update_layout(
+        title='Zeeman Diagramm',
+        xaxis_title='Magnetic Field (T)',
+        yaxis_title=f'Energy ({energyscale})',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=600,
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+    fig.show()
+    
+    return_dict = {
+        'fig': fig,
+        'B_array': B,
+        'E_array': E}
+
+    return return_dict
 
 def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     """
@@ -142,13 +241,18 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
 
     Returns
     -------
-    None
-        This function displays a scatter plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'E_array': numpy.ndarray
+            The array of energy eigenvalues.
+        - 'S_elements': numpy.ndarray
+            The array of expectation values of the selected spin operator.
         
     Notes
     -----
     If the eigenvectors of the spin system are not already calculated, the function will compute them.
-    The expectation value of the selected spin operator is calculated for each eigenstate and plotted against its energy.
     """
     
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
@@ -175,18 +279,32 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
         raise ValueError("energyscale must be 'meV' or 'GHz'")
 
     # Create the figure and axes
-    fig, ax = plt.subplots()
-    ax.scatter(S_elements, energies, c='k', marker='_', s=1000, linewidths=5)
-    ax.set_xlabel('m_' + type)
-    ax.set_ylabel(f'Energy ({energyscale})')
-    ax.set_title('Energy vs S_' + type + ' Matrix Elements')
-    ax.grid(True)
-    # Do not call plt.show() here
-    spinsys.S_elements = S_elements
-    print(energies)
-    return fig, ax
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=S_elements,
+        y=energies,
+        mode='markers',
+        marker=dict(symbol='line-ew', color='black', size=40, line=dict(width=5)),
+        hovertemplate='S: %{x}<br>Energy: %{y}<extra></extra>'
+    ))
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        title=f'Energy vs S_{type} Matrix Elements',
+        xaxis=dict(title=f'm_{type}', showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(title=f'Energy ({energyscale})', showgrid=True, gridcolor='lightgray'),
+        width=700,
+        height=500
+    )
+    fig.show()
 
-    return plt
+    return_dict = {
+        'fig': fig,
+        'E_array': energies,
+        'S_elements': S_elements
+    }
+    
+    return return_dict
 
 def plotAll(spinsys: SpinSys, type: str='z', energyscale: str='meV'):
     """
@@ -211,6 +329,8 @@ def plotAll(spinsys: SpinSys, type: str='z', energyscale: str='meV'):
     plotEnergyVsS(spinsys, type=type, energyscale=energyscale)
     plotZeemanDiagramm(spinsys, energyscale=energyscale)
     plotPopulations(spinsys, AllowPumping=True, Approach="Loth")
+
+    return 
 # endregion Hamiltonian
 
 # region Bath
@@ -229,8 +349,10 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
 
     Returns
     -------
-    None
-        This function generates a plot of the populations but does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
     
     Notes
     -----
@@ -245,23 +367,51 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     x = np.arange(len(spinsys.Populations))
     width = 0.35
 
-    fig, ax = plt.subplots()
-    ax.barh(x + width/2, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
-    ax.barh(x - width/2, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
-    ax.set_yticks(x)
-    ax.set_yticklabels(spinsys.statesWithoutE)
-    ax.set_xlabel('Population')
-    ax.set_ylabel('Basis States')
-    ax.set_title('Population of Spin States')
-    ax.legend()
-    plt.tight_layout()
-    plt.show()
+    # Plot with Plotly (white background)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=spinsys.pop_0,
+        y=spinsys.statesWithoutE,
+        orientation='h',
+        name='Boltzmann Populations',
+        marker=dict(color='blue'),
+        opacity=0.5
+    ))
+    fig.add_trace(go.Bar(
+        x=spinsys.Populations,
+        y=spinsys.statesWithoutE,
+        orientation='h',
+        name='Tunneling Populations',
+        marker=dict(color='red'),
+        opacity=0.5
+    ))
 
-    return
+    fig.update_layout(
+        barmode='group',
+        title='Population of Spin States',
+        xaxis_title='Population',
+        yaxis_title='Basis States',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        height=400,
+        width=700,
+        margin=dict(l=150, r=20, t=50, b=20)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    # show first state at top (matches typical horizontal-bar plotting)
+    #fig.update_yaxes(autorange='reversed')
+
+    fig.show()
+
+    return_dict = {
+        'fig': fig}
+
+    return return_dict
 
 def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: list=None):
     """
-    Plot the contributions of transition rates between spin states.
+    Plot the contributions of the highest N transition rates between spin states.
 
     Parameters
     ----------
@@ -280,14 +430,13 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
 
     Returns
     -------
-    None
-        This function displays a matplotlib plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    The function assumes that `bath.calcRates(spinsys)` populates the `spinsys.Rates`
-    attribute with the required rate matrices. The plot shows stacked bars for each
-    transition, with each color representing a different rate contribution.
     """
     hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
@@ -295,62 +444,112 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
 
+    # Build a list of all transitions (i -> f) for i != f
+    all_transitions = [(i, f) for i in range(spinsys.dimensionOfMatrix) for f in range(spinsys.dimensionOfMatrix) if i != f]
+    transition_labels_all = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}' for (i, f) in all_transitions]
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
+
     if N is None:
-        fig, ax = plt.subplots(figsize=(12, 5))
-        for i in range(spinsys.dimensionOfMatrix):
-            for f in range(spinsys.dimensionOfMatrix):
-                if i != f:
-                    bottom=0
-                    for idx in range(4):
-                        ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][i, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                        bottom += spinsys.Rates[idx][i, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title('Rate Contributions')
-        ax.set_yscale(yscale)
+        # Prepare y-values for each rate contribution type across all transitions
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, f]) for (i, f) in all_transitions]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=transition_labels_all,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.7,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title='Rate Contributions',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type='linear' if yscale == 'linear' else yscale, autorange=True),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1200,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
         if ylim is not None:
-            ax.set_ylim(ylim)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-    
-    # Limit the number of displayed transitions to N highest entries (ignoring nan)
+            fig.update_yaxes(range=ylim)
+        fig.show()
+
     else:
-        # Collect all transitions and their total rates
+        # Collect all transitions and their total rates, ignoring NaNs
         transitions = []
         for i in range(spinsys.dimensionOfMatrix):
             for f in range(spinsys.dimensionOfMatrix):
                 if i != f:
                     total_rate = sum([spinsys.Rates[idx][i, f] for idx in range(4)])
-                    if not np.isnan(total_rate):
+                    if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                         transitions.append(((i, f), total_rate))
-        # Sort by total_rate descending and take top N
+
+        # Sort by total_rate descending and keep top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        selected = set([t[0] for t in transitions])
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(
+                title=f'Top {N} Rate Contributions (no valid transitions)',
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+            fig.update_yaxes(
+                exponentformat='e',
+                showexponent='all'
+            )
+            fig.show()
+            return
 
-        fig, ax = plt.subplots(figsize=(12, 5))
-        for (i, f), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][i, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][i, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions')
-        ax.set_yscale(yscale)
+        selected_pairs = [t[0] for t in transitions]
+        transition_labels = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[f]}' for (i, f) in selected_pairs]
+
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, f]) for (i, f) in selected_pairs]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=transition_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.7,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type='linear' if yscale == 'linear' else yscale, autorange=True),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1200,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
         if ylim is not None:
-            ax.set_ylim(ylim)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+            fig.update_yaxes(range=ylim)
+        fig.show()
 
-
-    return
+    return_dict = {
+        'fig': fig}
+    
+    return return_dict
 
 def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
@@ -372,107 +571,154 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None)
 
     Returns
     -------
-    None
-        This function displays a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    - The function assumes that `spinsys` has attributes `dimensionOfMatrix`, `statesWithoutE`, and `Rates`.
-    - The function also assumes the existence of a global `bath` object with a `calcRates` method.
-    - The legend shows the labels for the different rate contributions.
+    - The function first calculates the eigenstates and rates for the spin system.
     """
-    labels = ['ts', 'st', 'ss','tt']
-    colors = ['blue', 'orange', 'green', 'red']
 
+    # Calculate the eigenstates and rates first
     hamil.calcEigStates(spinsys)
+    bath.calcRates(spinsys)
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
+
+    # Plotly implementation of plotRatesTo
     if N is not None:
         # Collect all transitions and their total rates to the target state
         transitions = []
         for i in range(spinsys.dimensionOfMatrix):
             if i != state:
                 total_rate = sum([spinsys.Rates[idx][i, state] for idx in range(4)])
-                if not np.isnan(total_rate):
+                if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                     transitions.append(((i, state), total_rate))
+
         # Sort by total_rate descending and take top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        selected = set([t[0][0] for t in transitions])
-        fig, ax = plt.subplots(figsize=(8, 5))
-        for (i, _), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][i, state]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-        return
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(title=f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]} (no valid transitions)')
+            fig.show()
+
+        x_labels = [f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}' for (i, _), _ in transitions]
+        # Build stacked traces per rate type
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][i, state]) for (i, _), _ in transitions]
+            data.append(go.Bar(
+                name=['ts', 'st', 'ss', 'tt'][idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=['blue', 'orange', 'green', 'red'][idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + ['ts', 'st', 'ss', 'tt'][idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions to {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
     else:
-        hamil.calcEigStates(spinsys)
-        bath.calcRates(spinsys)
-        
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
+        # All transitions to the target state
+        x_labels = []
         for i in range(spinsys.dimensionOfMatrix):
             if i != state:
-                bottom=0
-                for idx in range(4):
-                    ax.bar(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}', spinsys.Rates[idx][i, state], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                    bottom += spinsys.Rates[idx][i, state]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Rate Contributions to {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+                x_labels.append(f'{spinsys.statesWithoutE[i]} → {spinsys.statesWithoutE[state]}')
 
-    return
+        data = []
+        for idx in range(4):
+            y_vals = []
+            for i in range(spinsys.dimensionOfMatrix):
+                if i != state:
+                    y_vals.append(safe_rate(spinsys.Rates[idx][i, state]))
+            data.append(go.Bar(
+                name=['ts', 'st', 'ss', 'tt'][idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=['blue', 'orange', 'green', 'red'][idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + ['ts', 'st', 'ss', 'tt'][idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Rate Contributions to {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
+        return_dict = { 
+            'fig': fig}
+
+        return return_dict
 
 def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
     """
-    Plots all transition rates originating from a specified initial state.
+    Plots the rate contributions from a specified state in a spin system.
+    This function calculates and visualizes the transition rates to all other states from a given initial state
+    in the provided spin system. The rates are displayed as stacked bar plots, with each bar representing
+    the contributions from different rate components (e.g., 'ts', 'st', 'ss', 'tt').
 
     Parameters
     ----------
     spinsys : SpinSys
-        The spin system object containing the states, rates, and matrix dimension.
-        It is expected to have the following attributes:
-            - dimensionOfMatrix: int, the number of spin states.
-            - statesWithoutE: list of str, labels for the spin states.
-            - Rates: list of 2D numpy arrays, each representing the rate matrix for a process.
+        The spin system object containing state information and rate matrices.
     state : int
-        The index of the initial state from which transitions originate.
+        The index of the target state to which rates are plotted.
     yscale : str, optional
-        The scale for the y-axis ('linear' or 'log'). Default is 'linear'.
+        The scale for the y-axis of the plot. Can be 'linear', 'log', etc. Default is 'linear'.
     N : int, optional
-        The number of highest rate transitions to display. If None, all transitions are shown (default
+        The number of highest rate transitions to display. If None, all transitions are shown (default is None).
 
     Returns
     -------
-    None
-        This function displays a matplotlib plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
 
     Notes
     -----
-    The function assumes that `bath.calcRates(spinsys)` populates the `spinsys.Rates`
-    attribute with the required rate matrices. The plot shows stacked bars for each
-    transition, with each color representing a different rate contribution.
+    - The function first calculates the eigenstates and rates for the spin system.
     """
-
+    hamil.calcEigStates(spinsys)
     bath.calcRates(spinsys)
 
     labels = ['ts', 'st', 'ss','tt']
     colors = ['blue', 'orange', 'green', 'red']
-    fig, ax = plt.subplots(figsize=(8, 5))
+
+    def safe_rate(r):
+        return 0.0 if (r is None or (isinstance(r, float) and np.isnan(r))) else float(r)
 
     if N is not None:
         # Collect all transitions and their total rates from the given state
@@ -480,45 +726,83 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=Non
         for f in range(spinsys.dimensionOfMatrix):
             if f != state:
                 total_rate = sum([spinsys.Rates[idx][state, f] for idx in range(4)])
-                if not np.isnan(total_rate):
+                if not (isinstance(total_rate, float) and np.isnan(total_rate)):
                     transitions.append(((state, f), total_rate))
-        # Sort by total_rate descending and take top N
         transitions = sorted(transitions, key=lambda x: x[1], reverse=True)[:N]
-        for (s, f), _ in transitions:
-            bottom = 0
-            for idx in range(4):
-                ax.bar(f'{spinsys.statesWithoutE[s]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][s, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                bottom += spinsys.Rates[idx][s, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
-        
+        if len(transitions) == 0:
+            fig = go.Figure()
+            fig.update_layout(title=f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]} (no valid transitions)')
+            fig.show()
+
+        x_labels = [f'{spinsys.statesWithoutE[s]} → {spinsys.statesWithoutE[f]}' for (s, f), _ in transitions]
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][s, f]) for (s, f), _ in transitions]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
+
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Top {N} Rate Contributions from {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
+
     else:
+        # All transitions from the given state
+        x_labels = [f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}' for f in range(spinsys.dimensionOfMatrix) if f != state]
+        data = []
+        for idx in range(4):
+            y_vals = [safe_rate(spinsys.Rates[idx][state, f]) for f in range(spinsys.dimensionOfMatrix) if f != state]
+            data.append(go.Bar(
+                name=labels[idx],
+                x=x_labels,
+                y=y_vals,
+                marker_color=colors[idx],
+                opacity=0.8,
+                hovertemplate='%{x}<br>' + labels[idx] + ': %{y}<extra></extra>'
+            ))
 
-        for f in range(spinsys.dimensionOfMatrix):
-            if f != state:
-                bottom=0
-                for idx in range(4):
-                    ax.bar(f'{spinsys.statesWithoutE[state]} → {spinsys.statesWithoutE[f]}', spinsys.Rates[idx][state, f], bottom=bottom, alpha=0.5, label=labels[idx], color=colors[idx])
-                    bottom += spinsys.Rates[idx][state, f]
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, fontsize=10)
-        ax.set_xlabel('Transitions')
-        ax.set_ylabel('Rate')
-        ax.set_title(f'Rate Contributions from {spinsys.statesWithoutE[state]}')
-        ax.set_yscale(yscale)
-        plt.grid(True, which="both", ls="--", linewidth=0.5)
-        # Only show legend for the first bar (Rate_exc)
-        handles, _ = ax.get_legend_handles_labels()
-        ax.legend(handles, labels)
-        plt.show()
+        fig = go.Figure(data=data)
+        fig.update_layout(
+            barmode='stack',
+            title=f'Rate Contributions from {spinsys.statesWithoutE[state]}',
+            xaxis=dict(title='Transitions', tickangle=45),
+            yaxis=dict(title='Rate', type=yscale),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=1000,
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig.update_yaxes(
+            exponentformat='e',
+            showexponent='all'
+        )
+        fig.show()
 
-    return
+    return_dict = {
+        'fig': fig}
+
+    return return_dict
+
 # endregion Bath
 
 # region dIdV
@@ -538,7 +822,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     norm : bool, optional
         If True, normalize the calculated spectrum (default is False).
     order : str, optional
-        The order of the IETS calculation. Currently, only '2nd' order is supported (default is '2nd').
+        The order of the IETS calculation. Supported orders are '2nd', '2ndR' and '3rd'.
 
     Raises
     ------
@@ -547,10 +831,24 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
     Returns
     -------
-    None
-        This function creates a plot of the IETS spectrum but does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The voltage values used in the spectrum.
+        - 'dIdVsignal': numpy.ndarray
+            The calculated dI/dV signal values.
+    Notes
+    -----
+    - the dimension of the dIdVsignal changes when plotAllSpins=True
     """
+
     if plotAllSpins==False:
+
+        # Initialize x and y arrays
+        x = np.zeros(N) # Voltage 
+        y = np.zeros(N) # dI/dV Signal
         # Calculate the IETS spectrum for the specified order
         if order == '2nd':
             x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
@@ -563,46 +861,133 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
     
-        # Plot the IETS spectrum
-        plt.figure() 
-        plt.plot(x, y, label='IETS Spectrum')
-        plt.xlabel('Bias Voltage (mV)')
-        plt.ylabel('dI/dV (a.u.)')
-        plt.ylim([0, np.max(y) * 1.1])  # Set y-axis limits to avoid cutting off the top of the plot
-        plt.title('IETS Spectrum ' + f'({order} Order)')
+        # Plot the IETS spectrum using Plotly with white background and black border
+        y_max = np.max(y)
+        if y_max == 0:
+            y_max = 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y,
+            mode='lines',
+            name='IETS Spectrum',
+            line=dict(color='black', width=2)
+        ))
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order)',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title='dI/dV (a.u.)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        # set explicit axis ranges and add a black rectangle border around the plotting area
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
     elif plotAllSpins==True:
-        fig, ax = plt.subplots()
+
+        # Initialize x and y arrays
+        x = np.zeros(N)
+        y = np.zeros((len(spinsys.Spins),N))
+
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
             #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
             if order == '2nd':
-                x, y = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV.calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '2ndR':
-                x, y, _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:], _ = dIdV.calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '3rd':
-                x, y = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV3.calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '3rdR':
-                x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i,:] = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
             else:
                 raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
             
             # Plot all IETS spectra in the same figure on top of each other
             # Only create the figure once, before the loop
             #if i == 0:
-            ax.plot(x, y, label=f'Spin {i}')
+        # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
+        color_list = plotly.colors.qualitative.Plotly
+        fig = go.Figure()
 
-        # Set labels and title for the plot
-        ax.set_xlabel('Bias Voltage (mV)')
-        ax.set_ylabel('dI/dV (a.u.)')
-        ax.set_title(f'IETS Spectrum ({order} Order) for All Spins')
-        ax.legend()
-        ax.set_ylim(bottom=0)  # start from 0
+        # Add one trace per spin (overlayed)
+        nspins = y.shape[0]
+        for i in range(nspins):
+            fig.add_trace(go.Scatter(
+            x=x,
+            y=y[i, :],
+            mode='lines',
+            line=dict(color=color_list[i % len(color_list)], width=2),
+            name=f'Spin {i}'
+            ))
 
-        plt.tight_layout()
-        plt.show()
-            
+        # Determine axis ranges similar to single-spin branch
+        y_max = np.max(y) if np.max(y) != 0 else 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order) for All Spins',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title='dI/dV (a.u.)',
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        # add a black rectangle border around the plotting area
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'V_array': x,
+        'dIdVsignal': y}      
         
-    return 
+    return return_dict
 
 # endregion dIdV
 
@@ -613,6 +998,7 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
     This function computes the ESR spectrum using the provided spin system and plots the resulting signal.
     It also marks the resonance frequencies corresponding to recorded transitions in the spin system.
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -627,43 +1013,75 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
         Linewidth for the ESR calculation (default is 0.02).
     norm : bool, optional
         Whether to normalize the ESR signal (default is True).
+
     Returns
     -------
-    None
-        The function generates a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'Freq_array': numpy.ndarray
+            The array of frequency points in GHz.
+        - 'ESRsignal': numpy.ndarray
+            The calculated ESR signal corresponding to the frequency points.
+
     Notes
     -----
-    - Resonance frequencies and transitions are marked on the plot with different colors.
     - The ESR spectrum is calculated using `ESR.calcESR_Benjamin`.
+    - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
     
     # calculate the ESR spectrum
-    freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
+    Freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
-    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
 
-    plt.figure()
-    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+    # Create the main ESR signal trace
+    fig = go.Figure()
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    fig.add_trace(go.Scatter(
+        x=Freq_array,
+        y=ESRsignal,
+        mode='lines',
+        line=dict(color='black', width=2),
+        name='ESR Signal'
+    ))
 
     # Mark resonances
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
-        index = np.argmin(np.abs(freq_array - freq_res))
+        index = np.argmin(np.abs(Freq_array - freq_res))
         amp = ESRsignal[index]
-        if amp > 0.01*np.max(ESRsignal): # Filter very small peaks
-            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                                f"f = {np.round(freq_res,4)} GHz")
-            plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                    label=transition_str, linewidth=2)
+        if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
+                             f"f = {np.round(freq_res,4)} GHz")
+            fig.add_trace(go.Scatter(
+                x=[freq_res],
+                y=[amp],
+                mode='markers',
+                marker=dict(color=color_list[i], size=12),
+                name=transition_str
+            ))
 
-    plt.xlabel('Freq (GHz)')
-    plt.ylabel('ΔI (a.u.)')
-    plt.title('ESR-Simulation')
-    plt.legend()
-    plt.xlim([freq_array[0],freq_array[-1]])
-    plt.show()
+    fig.update_layout(
+        xaxis_title='Freq (GHz)',
+        yaxis_title='ΔI (a.u.)',
+        title='ESR-Simulation',
+        legend_title='Transitions',
+        showlegend=True
+    )
+    fig.update_xaxes(range=[Freq_array[0], Freq_array[-1]])
+    fig.show()
 
-    return
+    return_dict = {
+        'fig': fig,
+        'Freq_array': Freq_array,
+        'ESRsignal': ESRsignal}
+    
+    return return_dict
 
 def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, norm: bool = True):
     """
@@ -684,49 +1102,79 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
 
     Returns
     -------
-    None
-        This function generates a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'Freq_array': numpy.ndarray
+            The array of frequency points in GHz.
+        - 'ESRsignal': numpy.ndarray
+            The calculated ESR signal corresponding to the frequency points.
         
     Notes
     -----
-    - The function updates `spinsys.RecordedTransitions` and `spinsys.ResonanceFrequencies` with the
-      calculated transitions and their corresponding resonance frequencies.
-    - Each resonance is marked on the plot with a unique color and labeled with the transition information.
+    - The ESR spectrum is calculated using `ESR.calcESR_FreqSweep_ESRrate`.
+    - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
 
     # Calculate the ESR spectrum using the specified parameters
-    freq_array, ESRsignal = ESR.calcESR_FreqSweep_ESRrate(spinsys, FreqRange=FreqRange, N=N, norm=norm)
+    Freq_array, ESRsignal = ESR.calcESR_FreqSweep_ESRrate(spinsys, FreqRange=FreqRange, N=N, norm=norm)
     
     # Record the transitions
-    spinsys.RecordedTransitions = ESR.calcRecordedTransitions(spinsys,freq_array[0],freq_array[-1])
+    spinsys.RecordedTransitions = ESR.calcRecordedTransitions(spinsys,Freq_array[0],Freq_array[-1])
     spinsys.ResonanceFrequencies = np.zeros(len(spinsys.RecordedTransitions))
     for i in range(len(spinsys.RecordedTransitions)):
         spinsys.ResonanceFrequencies[i] = abs(spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][1]] - 
                                         spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][0]])
 
     # Make the plot
-    color_list = plt.cm.hsv(np.linspace(0, 1, len(spinsys.ResonanceFrequencies)))
+    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
 
-    plt.figure()
-    plt.plot(freq_array, ESRsignal, '-k', linewidth=2, label='ESR Signal')
+    # Create the main ESR signal trace
+    fig = go.Figure()
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white'
+    )
+    fig.add_trace(go.Scatter(
+        x=Freq_array,
+        y=ESRsignal,
+        mode='lines',
+        line=dict(color='black', width=2),
+        name='ESR Signal'
+    ))
 
     # Mark resonances
     for i, freq_res in enumerate(spinsys.ResonanceFrequencies):
-        index = np.argmin(np.abs(freq_array - freq_res))
+        index = np.argmin(np.abs(Freq_array - freq_res))
         amp = ESRsignal[index]
-        transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                            f"f = {np.round(freq_res,4)} GHz")
-        plt.plot(freq_res, amp, color=color_list[i], marker='.', markersize=12, 
-                label=transition_str, linewidth=2)
-        
-    plt.xlabel('Freq (GHz)')
-    plt.ylabel('ΔI (a.u.)')
-    plt.title('ESR-Simulation')
-    plt.legend()
-    plt.xlim([freq_array[0],freq_array[-1]])
-    plt.show()
+        if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
+            transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
+                             f"f = {np.round(freq_res,4)} GHz")
+            fig.add_trace(go.Scatter(
+                x=[freq_res],
+                y=[amp],
+                mode='markers',
+                marker=dict(color=color_list[i], size=12),
+                name=transition_str
+            ))
 
-    return
+    fig.update_layout(
+        xaxis_title='Freq (GHz)',
+        yaxis_title='ΔI (a.u.)',
+        title='ESR-Simulation',
+        legend_title='Transitions',
+        showlegend=True
+    )
+    fig.update_xaxes(range=[Freq_array[0], Freq_array[-1]])
+    fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'Freq_array': Freq_array,
+        'ESRsignal': ESRsignal}
+    
+    return return_dict
 
 def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):  
     """
@@ -755,13 +1203,22 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
 
     Returns
     -------
-    None
-        This function displays a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'Freq_array': numpy.ndarray
+            The array of frequency points in GHz.
+        - 'BTip_array': numpy.ndarray
+            The array of tip magnetic field values in Tesla.
+        - 'ESRsignal': numpy.ndarray
+            The calculated ESR signal corresponding to the frequency points.
         
     Notes
     -----
-    The function visualizes the ESR signal as a 2D color plot with frequency on the x-axis
-    and tip field on the y-axis. A secondary y-axis shows the corresponding detuning in GHz.
+    - The initial tip magnetic field of the spin system is restored after the calculation.
+    - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
+    - The ESR spectrum is calculated using `ESR.calcESR_FreqSweep_Benjamin`.
     """
     # Save previous BTip value
     BTip_initial = spinsys.BTip.copy()
@@ -786,44 +1243,61 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
 
 
     # Plot the ESR Signal as a color plot
-    fig, ax1 = plt.subplots()
+    fig = go.Figure(data=go.Heatmap(
+        z=ESRsignal,
+        x=Freq_array,
+        y=BTip_array * 1e3,  # Convert to mT for y-axis
+        colorscale='Blues',
+        colorbar=dict(title='ESR Signal'),
+        zsmooth=False
+    ))
 
-    #Plot the matrix using imshow
-    im = ax1.imshow(ESRsignal, cmap='Blues', interpolation='none', 
-                    extent=[Freq_array[0], Freq_array[-1], BTip_array[0]*1e3, BTipRange[-1]*1e3], origin='lower', aspect='auto')
+    # Add labels and title
+    fig.update_layout(
+        height=600,
+        width=800,
+        xaxis_title='Freq (GHz)',
+        yaxis_title='B_Tip (mT)',
+        title=f'Tipfield dependent ESR (Angle = {Angle}°)'
+    )
 
-    # Add labels and title for primary Y-axis
-    ax1.set_xlabel('Freq (GHz)')
-    ax1.set_ylabel('B_Tip (mT)')
-    ax1.set_title('Tipfield dependent ESR' + f' (Angle = {Angle}°)')
+    # Add secondary y-axis for Detuning (GHz)
+    # We'll add a custom axis on the right with detuning values
+    # Calculate detuning for each BTip value
+    detuning_labels = np.round(Detuning, 2)
+    fig.update_layout(
+        yaxis=dict(
+            title='B_Tip (mT)',
+            side='left'
+        ),
+        yaxis2=dict(
+            title='Detuning (GHz)',
+            overlaying='y',
+            side='right',
+            tickvals=BTip_array * 1e3,
+            ticktext=detuning_labels
+        )
+    )
 
-    # Create a secondary Y-axis
-    ax2 = ax1.twinx()
-    ax2.set_ylim(BTip_array[0], BTip_array[-1])
-    y_ticks = ax1.get_yticks()
-    detuning_labels = np.interp(y_ticks / 1e3, BTip_array, Detuning)
-    ax2.set_yticks(y_ticks)
-    ax2.set_yticklabels(np.round(detuning_labels, 2))
-    ax2.set_ylabel('Detuning (GHz)')
-
-    cbar = plt.colorbar(im, ax=ax1)
-    cbar.ax.set_position([0.9, 0.1, 0.03, 0.8])
-    
-    
-    plt.show()
+    fig.show()
 
     # Restore the initial BTip value
     spinsys.BTip = BTip_initial
     hamil.calcEigEnergies(spinsys)
 
-    return
+    return_dict = {
+        'fig': fig,
+        'Freq_array': Freq_array,
+        'BTip_array': BTip_array,
+        'ESRsignal': ESRsignal}
+    
+    return return_dict
 
-def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None):
+def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None):
     """
     Plot the populations of spin states for a given spin system under ESR conditions.
     This function calculates and visualizes the populations of spin states, including Boltzmann, tunneling, 
-    and ESR-driven populations, for a provided spin system. The populations are displayed as horizontal bar plots 
-    for easy comparison.
+    and ESR-driven populations, for a provided spin system. The populations are displayed as horizontal bar plots.
 
     Parameters
     ----------
@@ -837,14 +1311,22 @@ def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None
 
     Returns
     -------
-    None
-        This function does not return any value. It displays a matplotlib plot of the populations.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'Pop_Boltzmann': numpy.ndarray
+            The Boltzmann populations of the spin states.
+        - 'Pop_Tunneling': numpy.ndarray
+            The steady state populations under the influence of the tunneling rates of the spin states.
+        - 'Pop_ESR': numpy.ndarray
+            The ESR-driven populations of the spin states.
 
     Notes
     -----
     - The function assumes that the `spinsys` object has attributes `pop_0`, `Populations`, `Populations_ESR`, and `basisStates`.
     - If the eigenstates are not already calculated, the function will compute them.
-    - Requires matplotlib and numpy for plotting and array operations.
+    - Adds Populations_ESR to the spinsys object.
     """
 
     ESR.calcPopulations_ESR(spinsys, freq=freq)
@@ -855,21 +1337,59 @@ def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None
     width = 0.2
 
     if filter is None:
-        fig, ax = plt.subplots()
-        ax.barh(x, spinsys.pop_0, height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
-        ax.barh(x + width, spinsys.Populations, height=width, color='red', alpha=0.5, label='Tunneling Populations')
-        ax.barh(x - width, spinsys.Populations_ESR, height=width, color='green', alpha=0.5, label='ESR Populations')
-        ax.set_yticks(x)
-        ax.set_yticklabels(spinsys.statesWithoutE)
-        ax.set_xlabel('Population')
-        ax.set_ylabel('Basis States')
-        ax.set_title('Population of Spin States')
-        ax.legend()
-        plt.tight_layout()
-        plt.show()
+        # Plot all states with plotly
+        labels = spinsys.statesWithoutE
+        positions = np.arange(len(spinsys.Populations))
+        pop0 = np.array(spinsys.pop_0)
+        popT = np.array(spinsys.Populations)
+        popESR = np.array(spinsys.Populations_ESR)
+
+        fig = go.Figure()
+        fig.update_layout(
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        fig.add_trace(go.Bar(
+            x=pop0,
+            y=labels,
+            orientation='h',
+            name='Boltzmann Populations',
+            marker=dict(color='blue'),
+            opacity=0.5
+        ))
+        fig.add_trace(go.Bar(
+            x=popT,
+            y=labels,
+            orientation='h',
+            name='Tunneling Populations',
+            marker=dict(color='red'),
+            opacity=0.5
+        ))
+        fig.add_trace(go.Bar(
+            x=popESR,
+            y=labels,
+            orientation='h',
+            name='ESR Populations',
+            marker=dict(color='green'),
+            opacity=0.5
+        ))
+
+        fig.update_layout(
+                barmode='group',
+                xaxis_title='Population',
+                yaxis=dict(
+                    title='Basis States',
+                    tickmode='array',
+                    tickvals=positions,
+                    ticktext=labels
+                ),
+                title=f'Population of Spin States',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+        )
+
+        fig.show()
     else:
         # Only display states with population > filter in any of the three population arrays
-        
         pop_arrays = [spinsys.pop_0, spinsys.Populations, spinsys.Populations_ESR]
         mask = np.any([np.array(p) >= filter for p in pop_arrays], axis=0)
 
@@ -877,20 +1397,68 @@ def plotPopulations_ESR(spinsys: SpinSys, freq: float = 14, filter: float = None
         if len(filtered_indices) == 0:
             print(f"No states with population greater than {filter*100}%.")
         else:
-            fig, ax = plt.subplots()
-            ax.barh(np.arange(len(filtered_indices)), spinsys.pop_0[mask], height=width, color='blue', alpha=0.5, label='Boltzmann Populations')
-            ax.barh(np.arange(len(filtered_indices)) + width, spinsys.Populations[mask], height=width, color='red', alpha=0.5, label='Tunneling Populations')
-            ax.barh(np.arange(len(filtered_indices)) - width, spinsys.Populations_ESR[mask], height=width, color='green', alpha=0.5, label='ESR Populations')
-            ax.set_yticks(np.arange(len(filtered_indices)))
-            ax.set_yticklabels(np.array(spinsys.statesWithoutE)[mask])
-            ax.set_xlabel('Population')
-            ax.set_ylabel('Basis States')
-            ax.set_title(f'Population of Spin States (> {filter*100}%)')
-            ax.legend()
-            plt.tight_layout()
-            plt.show()
+            labels = np.array(spinsys.statesWithoutE)[mask]
+            positions = np.arange(len(filtered_indices))
+            pop0 = np.array(spinsys.pop_0)[mask]
+            popT = np.array(spinsys.Populations)[mask]
+            popESR = np.array(spinsys.Populations_ESR)[mask]
 
-    return
+            fig = go.Figure()
+            fig.update_layout(
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+            fig.add_trace(go.Bar(
+                x=pop0,
+                y=positions,
+                name='Boltzmann Populations',
+                orientation='h',
+                marker=dict(color='blue'),
+                opacity=0.5,
+                width=width
+            ))
+            fig.add_trace(go.Bar(
+                x=popT,
+                y=positions,
+                name='Tunneling Populations',
+                orientation='h',
+                marker=dict(color='red'),
+                opacity=0.5,
+                width=width
+            ))
+            fig.add_trace(go.Bar(
+                x=popESR,
+                y=positions,
+                name='ESR Populations',
+                orientation='h',
+                marker=dict(color='green'),
+                opacity=0.5,
+                width=width
+            ))
+
+            fig.update_layout(
+                barmode='group',
+                xaxis_title='Population',
+                yaxis=dict(
+                    title='Basis States',
+                    tickmode='array',
+                    tickvals=positions,
+                    ticktext=labels
+                ),
+                title=f'Population of Spin States (> {filter*100}%)',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+            )
+
+            fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'Pop_Boltzmann': spinsys.pop_0,
+        'Pop_Tunneling': spinsys.Populations,
+        'Pop_ESR': spinsys.Populations_ESR}
+    
+    return return_dict
+
 # endregion ESR
 
 # region Magnetization over Voltage 
@@ -918,14 +1486,18 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
 
     Returns
     -------
-    None
-        This function displays a plot and does not return any value.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The array of voltage points in mV.
+        - 'M_array': numpy.ndarray
+            The calculated Magnetization for each spin, the last column is the total magnetization.
 
     Notes
     -----
-    The function temporarily modifies the `V_DC` attribute of `spinsys` during the voltage sweep,
-    and restores its original value after plotting. The calculations rely on external `bath` functions
-    for rates, populations, and magnetization.
+    The function restores its original value after plotting. 
     """
     
     # Save the old voltage value
@@ -956,28 +1528,80 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
             M_array[idx, -1] = spinsys.Mag_tot
 
     # Plotting
-    plt.figure(figsize=(8, 5))
-    for idx, spin in enumerate(spins):
-        plt.plot(V_array, M_array[:, spin], label=f'Spin {spin} Magnetization')
-    if total:
-        plt.plot(V_array, M_array[:, -1], label='Total Magnetization', linestyle='-', color='red')
-    if norm:
-        plt.ylim([-1, 1])
-        plt.plot(Vrange,[spinsys.TipPolarization[2],spinsys.TipPolarization[2]],'--k', label='Tip Polarization', alpha=0.5)
-        plt.plot(Vrange,[-spinsys.TipPolarization[2],-spinsys.TipPolarization[2]],'--k', label='', alpha=0.5)
-    plt.xlabel('Voltage (mV)')
-    plt.ylabel('Magnetization')
-    plt.title('Magnetization vs Voltage')
-    plt.legend()
-    plt.show()
+    fig = go.Figure()
+    color_list = plotly.colors.qualitative.Plotly
 
+    for idx, spin in enumerate(spins):
+        fig.add_trace(go.Scatter(
+            x=V_array,
+            y=M_array[:, spin],
+            mode='lines',
+            name=f'Spin {spin} Magnetization',
+            line=dict(color=color_list[idx % len(color_list)], width=2)
+        ))
+
+    if total:
+        fig.add_trace(go.Scatter(
+            x=V_array,
+            y=M_array[:, -1],
+            mode='lines',
+            name='Total Magnetization',
+            line=dict(color='red', width=2)
+        ))
+
+    if norm:
+        tp = float(spinsys.TipPolarization[2])
+        # Tip polarization lines (positive and negative). keep second line out of legend to match original behavior.
+        fig.add_trace(go.Scatter(
+            x=[V_array[0], V_array[-1]],
+            y=[tp, tp],
+            mode='lines',
+            name='Tip Polarization',
+            line=dict(color='black', dash='dash'),
+            opacity=0.5
+        ))
+        fig.add_trace(go.Scatter(
+            x=[V_array[0], V_array[-1]],
+            y=[-tp, -tp],
+            mode='lines',
+            name='',
+            line=dict(color='black', dash='dash'),
+            opacity=0.5,
+            showlegend=False
+        ))
+
+    fig.update_layout(
+        title='Magnetization vs Voltage',
+        xaxis_title='Voltage (mV)',
+        yaxis_title='Magnetization',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=800,
+        height=500,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        margin=dict(l=60, r=20, t=60, b=60)
+    )
+
+    # axis styling
+    fig.update_xaxes(range=[float(V_array[0]), float(V_array[-1])], showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+    if norm:
+        fig.update_yaxes(range=[-1, 1])
+
+    fig.show()
+    
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
     bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
     bath.calcMagnetization(spinsys, type=type, AllowPumping=True, Approach= "Loth")
     
-    return 
+    return_dict = {
+        'fig': fig,
+        'V_array': V_array,
+        'M_array': M_array}
+
+    return return_dict
 
 def plotPopulations_Voltage(
         spinsys: SpinSys,
@@ -997,13 +1621,18 @@ def plotPopulations_Voltage(
 
     Returns
     -------
-    None
-        This function does not return a value; it displays a plot of populations vs voltage.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The array of voltage points in mV.
+        - 'P_array': numpy.ndarray
+            The calculated Populations for each spin state at each voltage. 
 
     Notes
     -----
-    - The function temporarily modifies `spinsys.V_DC` during the sweep and restores its original value at the end.
-    - The bath object and its methods `calcRates` and `calcPopulations` must be accessible in the current scope.
+    - The function restores the original values at the end.
     """
 
     # Save the old voltage value
@@ -1019,24 +1648,47 @@ def plotPopulations_Voltage(
         P_array[idx, :] = spinsys.Populations
 
     # Plotting
-    plt.figure(figsize=(8, 5))
+    fig = go.Figure()
+    color_list = plotly.colors.qualitative.Plotly
     for idx in range(spinsys.dimensionOfMatrix):
-        plt.plot(V_array, P_array[:, idx], label=f'State {idx}')
-    plt.xlabel('Voltage (mV)')
-    plt.ylabel('Populations')
-    plt.title('Populations vs Voltage')
-    plt.legend()
-    plt.yscale('log')
-    plt.show()
+        fig.add_trace(go.Scatter(
+            x=V_array,
+            y=P_array[:, idx],
+            mode='lines',
+            name=f'State {idx}',
+            line=dict(color=color_list[idx % len(color_list)], width=2)
+        ))
 
+    fig.update_layout(
+        title='Populations vs Voltage',
+        xaxis_title='Voltage (mV)',
+        yaxis_title='Populations',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=800,
+        height=500,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        margin=dict(l=60, r=20, t=60, b=60)
+    )
+
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray', type='log')
+
+    fig.show()
+    
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
     bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
 
-    return
+    return_dict = {
+        'fig': fig,
+        'V_array': V_array,
+        'P_array': P_array}
 
-def plotRates_Voltages(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
+    return return_dict
+
+def plotRates_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
     """
     Plots the transition rates between spin states as a function of applied voltage.
     
@@ -1052,14 +1704,19 @@ def plotRates_Voltages(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
 
     Returns
     -------
-    None
-        This function does not return a value. It displays a plot of the transition rates.
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The array of voltage points in mV.
+        - 'R_array': numpy.ndarray
+            The calculated Rates for each transition (i → f) at each voltage.
         
     Notes
     -----
     - The function temporarily modifies `spinsys.V_DC` during the sweep and restores its original
       value at the end.
-    - The function assumes that `bath.calcRates(spinsys)` updates `spinsys.Rates_Summed` in-place.
     - Only off-diagonal transition rates (i ≠ f) are plotted.
     """
 
@@ -1079,26 +1736,96 @@ def plotRates_Voltages(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
                     R_array[idx, i, f] = spinsys.Rates_Summed[i,f]
 
     # Plotting
-    plt.figure(figsize=(10, 6))
+    # Plot with Plotly (white background)
+    fig = go.Figure()
+    color_list = plotly.colors.qualitative.Plotly
+    trace_idx = 0
     for i in range(spinsys.dimensionOfMatrix):
         for f in range(spinsys.dimensionOfMatrix):
             if i != f:
-                plt.plot(V_array, R_array[:, i, f], label=f'Rate {i}→{f}')
-    
-    plt.xlabel('Voltage (mV)')
-    plt.ylabel('Transition Rates')
-    plt.title('Transition Rates vs Voltage')
-    plt.yscale('log')
-    plt.legend()
-    plt.show()
+                y = R_array[:, i, f].copy()
+                # avoid plotting non-positive values on a log scale
+                y = np.where(y > 0, y, np.nan)
+                fig.add_trace(go.Scatter(
+                    x=V_array,
+                    y=y,
+                    mode='lines',
+                    name=f'Rate {i}→{f}',
+                    line=dict(color=color_list[trace_idx % len(color_list)], width=2),
+                    hovertemplate='Voltage: %{x}<br>Rate: %{y}<extra></extra>'
+                ))
+                trace_idx += 1
+
+    fig.update_layout(
+        title='Transition Rates vs Voltage',
+        xaxis_title='Voltage (mV)',
+        yaxis_title='Transition Rates',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=900,
+        height=500,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(type='log', showgrid=True, gridcolor='lightgray')
+    fig.show()
 
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
 
-    return
+    return_dict = {
+        'fig': fig,
+        'V_array': V_array,
+        'R_array': R_array}
+
+    return return_dict
 
 def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list=[-200,200], N: int=100, type: str='z', normVal: float=None):
+    """
+    Plot the split magnetization of two sub-systems as a function of DC bias voltage.
+    This function sweeps the DC bias voltage of the provided SpinSys object across a
+    specified range, computes the split magnetization for the two sub-systems using
+    bath.split_Magnetization
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The main spin system whose V_DC attribute will be varied during the sweep.
+    subspin : SpinSys
+        The sub-system passed to bath.split_Magnetization to compute the split
+        magnetizations.
+    Vrange : list, optional
+        Two-element sequence [Vmin, Vmax] specifying the voltage sweep range in
+        millivolts (mV). Default is [-200, 200].
+    N : int, optional
+        Number of voltage points to evaluate in the sweep (linearly spaced).
+        Default is 100.
+    type : str, optional
+        Component/type of magnetization to compute (passed through to
+        bath.split_Magnetization). Default is 'z'.
+    normVal : float or None, optional
+        If provided, both computed magnetization arrays (Mag_A and Mag_B) are
+        normalized by dividing by this value. If None, no normalization is applied.
+
+    Returns
+    -------
+    dict
+        A dictionary with the following keys:
+        - 'fig': plotly.graph_objects.Figure
+            The Plotly figure containing the magnetization vs voltage traces.
+            The figure is shown (fig.show()) before the function returns.
+        - 'V_array': numpy.ndarray
+            The 1D array of voltage values (length N) used for the sweep (units mV).
+        - 'Mag_A': numpy.ndarray
+            Computed magnetization values for subsystem A corresponding to V_array.
+        - 'Mag_B': numpy.ndarray
+            Computed magnetization values for subsystem B corresponding to V_array.
+
+    Notes
+    -----
+    - The initial values are restored after the sweep.
+    """
 
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -1118,24 +1845,91 @@ def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: l
         Mag_A = Mag_A/normVal
         Mag_B = Mag_B/normVal
 
-    # Plotting
-    plt.figure(figsize=(8, 5))
-    plt.plot(V_array, Mag_A, label='Magnetization A')
-    plt.plot(V_array, Mag_B, label='Magnetization B')
-    plt.xlabel('Voltage (mV)')
-    plt.ylabel('Magnetization')
-    plt.title('Split Magnetization vs Voltage')
-    plt.legend()
-    plt.show()
+    # Plotting with Plotly (white background)
+    color_list = plotly.colors.qualitative.Plotly
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=V_array,
+        y=Mag_A,
+        mode='lines',
+        name='Magnetization A',
+        line=dict(color=color_list[0 % len(color_list)], width=2)
+    ))
+    fig.add_trace(go.Scatter(
+        x=V_array,
+        y=Mag_B,
+        mode='lines',
+        name='Magnetization B',
+        line=dict(color=color_list[1 % len(color_list)], width=2)
+    ))
+
+    fig.update_layout(
+        title='Split Magnetization vs Voltage',
+        xaxis_title='Voltage (mV)',
+        yaxis_title='Magnetization',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=800,
+        height=500,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+        margin=dict(l=60, r=20, t=60, b=60)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+
+    fig.show()
 
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
     bath.calcPopulations(spinsys, AllowPumping=True)
 
-    return
+    return_dict = {
+        'fig': fig,
+        'V_array': V_array,
+        'Mag_A': Mag_A,
+        'Mag_B': Mag_B}
+
+    return return_dict
 
 def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list=[-200,200], N: int=100):
+    """
+    Plot split populations as a function of voltage for a given spin subsystem.
+    This function sweeps the system voltage over a specified range, computes the split
+    populations for the provided subspin at each voltage (using bath.split_Populations).
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Main spin system object whose V_DC is swept. The function temporarily sets
+        spinsys.V_DC and restores it on exit.
+    subspin : SpinSys
+        Subsystem for which eigenenergies/eigenstates are computed and populations
+        are evaluated.
+    Vrange : list, optional
+        Two-element list [V_min, V_max] specifying the voltage sweep range in mV.
+        Default is [-200, 200].
+    N : int, optional
+        Number of voltage points in the sweep. Default is 100.
+
+    Returns
+    -------
+    dict
+        A dictionary with the following keys:
+        - 'fig': plotly.graph_objs.Figure
+            Plotly figure containing two subplots (Populations A and B vs Voltage).
+        - 'V_array': ndarray
+            1D array of voltages used in the sweep (length N).
+        - 'Populations_A': ndarray
+            Array of shape (N, subspin.dimensionOfMatrix) containing populations for A.
+        - 'Populations_B': ndarray
+            Array of shape (N, subspin.dimensionOfMatrix) containing populations for B.
+
+    Notes
+    -----
+    - After restoring the initial voltage it calls bath.calcRates(spinsys) and
+      bath.calcPopulations(spinsys, AllowPumping=True).
+    """
 
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -1154,63 +1948,155 @@ def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: lis
         Populations_A[idx, :] = pA
         Populations_B[idx, :] = pB
 
-    # Plotting
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharey=True)
-    for idx in range(subspin.dimensionOfMatrix):
-        ax1.plot(V_array, Populations_A[:, idx], label=f'{subspin.statesWithoutE[idx]}')
-        ax2.plot(V_array, Populations_B[:, idx], label=f'{subspin.statesWithoutE[idx]}')
-    ax1.set_xlabel('Voltage (mV)')
-    ax1.set_ylabel('Populations')
-    ax1.set_title('Populations A vs Voltage')
-    ax1.legend()
-    ax1.set_ylim([0,1])
+    # Prepare plotly subplot figure with white background
+    color_list = plotly.colors.qualitative.Plotly
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
+                        subplot_titles=('Populations A vs Voltage', 'Populations B vs Voltage'))
 
-    ax2.set_xlabel('Voltage (mV)')
-    ax2.set_title('Populations B vs Voltage')
-    ax2.legend()
-    ax2.set_ylim([0,1])
+    for idx in range(subspin.dimensionOfMatrix):
+        color = color_list[idx % len(color_list)]
+        label = f'{subspin.statesWithoutE[idx]}'
+        fig.add_trace(
+            go.Scatter(x=V_array, y=Populations_A[:, idx], mode='lines', name=label,
+                       line=dict(color=color)),
+            row=1, col=1
+        )
+        # hide duplicate legend entries for the right subplot
+        fig.add_trace(
+            go.Scatter(x=V_array, y=Populations_B[:, idx], mode='lines', name=label,
+                       line=dict(color=color), showlegend=False),
+            row=1, col=2
+        )
+
+    # Layout styling: white background, axis labels, limits, legend
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=1000,
+        height=480,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    )
+    fig.update_xaxes(title_text='Voltage (mV)', row=1, col=1)
+    fig.update_xaxes(title_text='Voltage (mV)', row=1, col=2)
+    fig.update_yaxes(title_text='Population', range=[0, 1], row=1, col=1)
+
+    fig.show()
 
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
     bath.calcPopulations(spinsys, AllowPumping=True)
 
-    return
+    return_dict = {
+        'fig': fig,
+        'V_array': V_array,
+        'Populations_A': Populations_A,
+        'Populations_B': Populations_B}
+
+    return return_dict
 
 def plotSplitPopulations(spinsys: SpinSys, subspin: SpinSys):
+    """
+    Plot horizontal bar charts of split populations for two sub-spins using Plotly.
+    This function computes the population distributions for two parts (A and B) of
+    a given spin subsystem by calling bath.split_Populations(spinsys, subspin).
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The full spin system object from which split populations are computed.
+        Passed to bath.split_Populations along with `subspin`.
+    subspin : SpinSys
+        A SpinSys object describing the subsystem to visualize. Must provide:
+        - dimensionOfMatrix (int): length of returned population arrays.
+        - statesWithoutE (sequence of str): labels for each state used as y-axis tick
+          labels.
+
+    Returns
+    -------
+    dict
+        A dictionary with the following keys:
+        - 'fig' : plotly.graph_objs._figure.Figure
+            The Plotly Figure object containing two horizontal bar subplots.
+        - 'Populations_A' : numpy.ndarray
+            1D array of length `subspin.dimensionOfMatrix` with populations for spin A.
+        - 'Populations_B' : numpy.ndarray
+            1D array of length `subspin.dimensionOfMatrix` with populations for spin B.
+
+    Raises
+    ------
+    ValueError
+        If the arrays returned by bath.split_Populations do not match
+        `subspin.dimensionOfMatrix` in length.
+    RuntimeError
+        If required plotting dependencies (Plotly) or the bath.split_Populations call
+        fail.
+
+    Notes
+    -----
+    """
 
     Populations_A = np.zeros((subspin.dimensionOfMatrix))
     Populations_B = np.zeros((subspin.dimensionOfMatrix))
-
     
     Populations_A, Populations_B = bath.split_Populations(spinsys, subspin)
     
-    # Plotting
     x = np.arange(subspin.dimensionOfMatrix)
-    width = 0.4
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
 
-    # Plot Populations_A
-    ax1.barh(x, Populations_A, height=width, color='blue', alpha=0.6, label='Populations A')
-    ax1.set_yticks(x)
-    ax1.set_yticklabels(subspin.statesWithoutE)
-    ax1.set_xlabel('Population')
-    ax1.set_ylabel('States')
-    ax1.set_title('Population of Spin A')
-    ax1.legend()
-    ax1.set_xlim([0,1])
+    # Plot with Plotly, white background
+    y_labels = subspin.statesWithoutE
+    colors = plotly.colors.qualitative.Plotly
+    col_a = colors[0] if len(colors) > 0 else 'blue'
+    col_b = colors[1] if len(colors) > 1 else 'green'
 
-    # Plot Populations_B
-    ax2.barh(x, Populations_B, height=width, color='green', alpha=0.6, label='Populations B')
-    ax2.set_yticks(x)
-    ax2.set_yticklabels(subspin.statesWithoutE)
-    ax2.set_xlabel('Population')
-    ax2.set_title('Population of Spin B')
-    ax2.legend()
-    ax2.set_xlim([0,1])
+    fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
+                        subplot_titles=('Population of Spin A', 'Population of Spin B'),
+                        horizontal_spacing=0.08)
 
-    plt.tight_layout()
-    plt.show()
+    fig.add_trace(go.Bar(
+        x=Populations_A,
+        y=y_labels,
+        orientation='h',
+        name='Populations A',
+        marker=dict(color=col_a),
+        opacity=0.6,
+        showlegend=True
+    ), row=1, col=1)
 
-    return
+    fig.add_trace(go.Bar(
+        x=Populations_B,
+        y=y_labels,
+        orientation='h',
+        name='Populations B',
+        marker=dict(color=col_b),
+        opacity=0.6,
+        showlegend=True
+    ), row=1, col=2)
+
+    # layout & styling with white background
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=900,
+        height=500,
+        margin=dict(l=120, r=40, t=60, b=40),
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+    )
+
+    # x-axis ranges [0,1] and gridlines
+    fig.update_xaxes(range=[0, 1], showgrid=True, gridcolor='lightgray', row=1, col=1, title_text='Population')
+    fig.update_xaxes(range=[0, 1], showgrid=True, gridcolor='lightgray', row=1, col=2, title_text='Population')
+
+    # show y-labels only on the left subplot
+    fig.update_yaxes(title_text='States', row=1, col=1)
+    fig.update_yaxes(showticklabels=False, row=1, col=2)
+
+    fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'Populations_A': Populations_A,
+        'Populations_B': Populations_B}
+
+    return return_dict
 # endregion Magnetization over Voltage
