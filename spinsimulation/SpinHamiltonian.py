@@ -539,6 +539,8 @@ def anticommutator(A, B):
 
 def stevens_operator(S, a, b, return_latex=False):
     """
+    Be carefull!!! This calculates similar outcomes as the Ternes Code, however both do not match the calculations from PHI or CASSCF!
+    
     Generate Stevens operator O_a^b for spin S.
 
     Parameters
