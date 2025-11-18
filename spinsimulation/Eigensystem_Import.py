@@ -1,6 +1,7 @@
 import re
 from fractions import Fraction
 from pathlib import Path
+import numpy as np
 
 class Eigensystem_Import:
     """
@@ -285,3 +286,131 @@ class Eigensystem_Import:
 
         self._states = states
         return self._states
+
+    @staticmethod
+    def format_states(data):
+        """
+        Convert a dictionary of quantum states into an array of formatted strings.
+
+        Parameters
+        ----------
+        data : dict
+            A dictionary where each key corresponds to a state index (1-based), and 
+            each value is another dictionary with the following fields:
+            
+            - 'M' : list of float
+                The magnetic quantum number values.
+            - 'coeffs' : list of complex
+                Complex coefficients corresponding to each M.
+            - 'weights' : list of float
+                (Unused in formatting; included for completeness.)
+            - 'energy' : float
+                Energy value of the state.
+
+        Returns
+        -------
+        numpy.ndarray of object
+            Each element is a formatted string of the form:
+            
+            ``"|n> (E = energy) = +a.bbb+ c.dddj|M1> + ... "``
+
+            where:
+            - `n` is a 0-based state index,
+            - coefficients are formatted with sign and 3 decimal places,
+            - only non-zero coefficients are included.
+
+        Notes
+        -----
+        - The input dictionary is assumed to be ordered by integer keys.
+        - Dictionary key `1` corresponds to state `|0>`, key `2` → `|1>`, etc.
+        - Modify the formatting precision by changing the `:.3f` specifier.
+
+        Examples
+        --------
+        >>> arr = format_states(data)
+        >>> print(arr[0])
+        |0> (E = 0.0) = +1.000+0.000j|0.5>
+        """
+        formatted = []
+
+        for idx, state in data.items():
+            energy = state["energy"]
+            M_vals = state["M"]
+            coeffs = state["coeffs"]
+
+            terms = []
+            for M, c in zip(M_vals, coeffs):
+                if abs(c) > 0:  # include all non-zero coefficients
+                    # Format coefficient with sign, 3 decimals
+                    real = f"{c.real:+.3f}"
+                    imag = f"{c.imag:+.3f}"
+                    coeff_str = f"{real}{imag}j"
+                    terms.append(f"{coeff_str}|{M}>")
+
+            # Join all terms in a single string
+            rhs = " + ".join(terms)
+
+            # State index: shift idx→0-based (so state "1" → |0>)
+            label = f"|{idx-1}> (E = {energy}) = {rhs}"
+
+            formatted.append(label)
+
+        return np.array(formatted, dtype=object)
+
+    def extract_eigenvectors(data):
+        """
+        Convert a dictionary of quantum states into a matrix of eigenvectors.
+
+        Parameters
+        ----------
+        data : dict
+            A dictionary where each key corresponds to a state index (1-based), and
+            each value contains:
+            
+            - 'M' : list of float
+                Magnetic quantum numbers (defines ordering of basis states).
+            - 'coeffs' : list of complex
+                Complex expansion coefficients for this state.
+
+        Returns
+        -------
+        numpy.ndarray
+            A 2D array of shape (N_basis, N_states) where each column is one
+            eigenvector, ordered consistently with `format_states()`:
+            
+            - Dictionary key `1` → column 0  
+            - Dictionary key `2` → column 1  
+            - etc.
+            
+            Coefficients inside each column follow the order of the 'M' list.
+
+        Notes
+        -----
+        - No normalization is performed; the coefficients are used as provided.
+        - All states must share the same M-basis ordering.
+
+        Examples
+        --------
+        >>> vecs = extract_eigenvectors(data)
+        >>> print(vecs.shape)
+        (8, 8)
+
+        >>> print(vecs[:, 0])  # first eigenvector (state |0>)
+        """
+        
+        # Ensure consistent ordering by sorting integer keys
+        keys = sorted(data.keys())
+
+        # Number of basis states from length of the 'M' list
+        N_basis = len(data[keys[0]]["M"])
+        N_states = len(keys)
+
+        # Allocate output matrix
+        mat = np.zeros((N_basis, N_states), dtype=complex)
+
+        # Fill columns
+        for col, key in enumerate(keys):
+            coeffs = data[key]["coeffs"]
+            mat[:, col] = np.array(coeffs, dtype=complex)
+
+        return mat.T
