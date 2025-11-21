@@ -414,3 +414,34 @@ class Eigensystem_Import:
             mat[:, col] = np.array(coeffs, dtype=complex)
 
         return mat.T
+
+    def convert_to_meV(energy_dict):
+        """
+        Convert energy values from a dictionary into meV.
+
+        Parameters
+        ----------
+        energy_dict : dict
+            Dictionary of energies, where the values are numeric and
+            will be converted to meV by multiplying with the factor 0.1239842.
+
+        Returns
+        -------
+        numpy.ndarray
+            1D array containing the converted energies in meV, in the
+            same order as the dictionary's values.
+
+        Notes
+        -----
+        The conversion uses the constant factor:
+            1 unit = 0.1239842 meV
+
+        Examples
+        --------
+        >>> energies = {1: 0.0, 2: 0.0, 3: 62.42978561}
+        >>> convert_to_meV(energies)
+        array([0.        , 0.        , 7.7360607])
+        """
+        factor = 0.1239842
+        energies_meV = [value * factor for value in energy_dict.values()]
+        return np.array(energies_meV)
