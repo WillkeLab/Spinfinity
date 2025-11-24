@@ -602,20 +602,154 @@ def anticommutator(A, B):
     """
     return A @ B + B @ A
 
-def stevens_operator(S, a, b, return_latex=False):
-    """
-    Be carefull!!! This calculates similar outcomes as the Ternes Code, however both do not match the calculations from PHI or CASSCF!
+# def stevens_operator(S, a, b, return_latex=False):
+#     """
+#     Be carefull!!! This calculates similar outcomes as the Ternes Code, however both do not match the calculations from PHI or CASSCF!
     
+#     Generate Stevens operator O_a^b for spin S.
+
+#     Parameters
+#     ----------
+#     S : float
+#         Spin quantum number (e.g. 1, 3/2, 2, etc.)
+#     a : int
+#         Rank of the Stevens operator (2, 4, 6)
+#     b : int
+#         Component index (from -a to +a)
+#     return_latex : bool
+#         Whether to return a LaTeX string for display purposes
+
+#     Returns
+#     -------
+#     Oab : ndarray
+#         Matrix representation of the Stevens operator
+#     latex_str : str (optional)
+#         LaTeX representation
+#     """
+
+#     # Get angular momentum matrices
+#     Sx_, Sy_, Sz_ = calcAngMomMatrices(S)
+#     I = np.eye(Sx_.shape[0])
+#     ss = S * (S + 1)
+
+#     # Define ladder operators
+#     Sp = Sx_ + 1j * Sy_
+#     Sm = Sx_ - 1j * Sy_
+
+#     e = None
+#     latex = "$\\rm invalid$"
+
+#     if a == 2:
+#         if abs(b) == 0:
+#             e = 3 * Sz_ @ Sz_ - ss * I
+#             latex = "$3\\hat{S}_z^2$"
+#         elif abs(b) == 1:
+#             if b > 0:
+#                 e = 0.5 * anticommutator(Sx_, Sz_)
+#                 latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
+#             else:
+#                 e = 0.5 * anticommutator(Sy_, Sz_)
+#                 latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
+#         elif abs(b) == 2:
+#             if b > 0:
+#                 e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
+#                 latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
+#             else:
+#                 e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
+#                 latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
+
+#     elif a == 4:
+#         z2 = Sz_ @ Sz_
+#         z3 = z2 @ Sz_
+#         z4 = z2 @ z2
+#         ss2 = ss ** 2
+#         if abs(b) == 0:
+#             e = 35 * z4 - (30 * ss - 25) * z2 + (3 * ss2 - 6 * ss) * I
+#             latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
+#         elif abs(b) == 1:
+#             pm = Sp + Sm if b > 0 else Sp - Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(7 * z3 - (3 * ss + 1) * Sz_, pm)
+#         elif abs(b) == 2:
+#             pm = np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2) if b > 0 else \
+#                  np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2)
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(7 * z2 - (ss + 5) * I, pm)
+#         elif abs(b) == 3:
+#             pm = np.linalg.matrix_power(Sp, 3) + np.linalg.matrix_power(Sm, 3) if b > 0 else \
+#                  np.linalg.matrix_power(Sp, 3) - np.linalg.matrix_power(Sm, 3)
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 4:
+#             if b > 0:
+#                 e = 0.5 * (np.linalg.matrix_power(Sp, 4) + np.linalg.matrix_power(Sm, 4))
+#             else:
+#                 e = -0.5j * (np.linalg.matrix_power(Sp, 4) - np.linalg.matrix_power(Sm, 4))
+
+#     elif a == 6:
+#         if abs(b) > 6:
+#             return None
+#         if b == 0:
+#             e = (
+#                 231 * Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_
+#                 - (315 * ss - 735) * Sz_ @ Sz_ @ Sz_ @ Sz_
+#                 + (105 * ss ** 2 - 525 * ss + 294) * Sz_ @ Sz_
+#                 - (5 * ss ** 3 - 40 * ss ** 2 + 60 * ss) * I
+#             )
+#         elif abs(b) == 1:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 2:
+#             pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+#         elif abs(b) == 3:
+#             pm = Sp @ Sp @ Sp + Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp - Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ @ Sz_ - (3 * ss + 59) * Sz_, pm)
+#         elif abs(b) == 4:
+#             pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+#             if b < 0:
+#                 pm = Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+#                 c = -1j
+#             else:
+#                 c = 1
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+#         elif abs(b) == 5:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 6:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * pm
+        
+
+#     else:
+#         raise ValueError("Invalid a value. Allowed: 2, 4, 6")
+
+#     if return_latex:
+#         return e, latex
+#     return e
+
+def stevens_operator(S, k, q, return_latex=False):
+    """
     Generate Stevens operator O_a^b for spin S.
 
     Parameters
     ----------
     S : float
         Spin quantum number (e.g. 1, 3/2, 2, etc.)
-    a : int
+    k : int
         Rank of the Stevens operator (2, 4, 6)
-    b : int
-        Component index (from -a to +a)
+    q : int
+        Component index (from -q to +q)
     return_latex : bool
         Whether to return a LaTeX string for display purposes
 
@@ -638,95 +772,103 @@ def stevens_operator(S, a, b, return_latex=False):
     e = None
     latex = "$\\rm invalid$"
 
-    if a == 2:
-        if abs(b) == 0:
+    if k == 2:
+        if abs(q) == 0:
             e = 3 * Sz_ @ Sz_ - ss * I
             latex = "$3\\hat{S}_z^2$"
-        elif abs(b) == 1:
-            if b > 0:
-                e = 0.5 * anticommutator(Sx_, Sz_)
+        elif abs(q) == 1:
+            if q > 0:
+                e = 0.25 * (Sz_@(Sp + Sm) + (Sp + Sm)@Sz_)
                 latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
             else:
-                e = 0.5 * anticommutator(Sy_, Sz_)
+                e = -0.25j * (Sz_@(Sp - Sm) + (Sp - Sm)@Sz_)
                 latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
-        elif abs(b) == 2:
-            if b > 0:
+        elif abs(q) == 2:
+            if q > 0:
                 e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
                 latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
             else:
                 e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
                 latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
 
-    elif a == 4:
+    elif k == 4:
         z2 = Sz_ @ Sz_
         z3 = z2 @ Sz_
         z4 = z2 @ z2
         ss2 = ss ** 2
-        if abs(b) == 0:
-            e = 35 * z4 - (30 * ss - 25) * z2 + (3 * ss2 - 6 * ss) * I
+        if abs(q) == 0:
+            e = 35 * z4 - (30 * ss * I - 25 * I) * z2 + (3 * ss2 - 6 * ss) * I
             latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
-        elif abs(b) == 1:
-            pm = Sp + Sm if b > 0 else Sp - Sm
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(7 * z3 - (3 * ss + 1) * Sz_, pm)
-        elif abs(b) == 2:
-            pm = np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2) if b > 0 else \
-                 np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2)
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(7 * z2 - (ss + 5) * I, pm)
-        elif abs(b) == 3:
-            pm = np.linalg.matrix_power(Sp, 3) + np.linalg.matrix_power(Sm, 3) if b > 0 else \
-                 np.linalg.matrix_power(Sp, 3) - np.linalg.matrix_power(Sm, 3)
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(Sz_, pm)
-        elif abs(b) == 4:
-            if b > 0:
-                e = 0.5 * (np.linalg.matrix_power(Sp, 4) + np.linalg.matrix_power(Sm, 4))
+        elif abs(q) == 1:
+            pm = Sp + Sm if q > 0 else Sp - Sm
+            ppm = (7 * z3 - (3 * ss * I + 1 * I) * Sz_)
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(ppm, pm)
+        elif abs(q) == 2:
+            if q > 0:
+                pm = Sp @ Sp + Sm @ Sm 
+                c = 1
+            else: 
+                pm = Sp @ Sp - Sm @ Sm
+                c = -1j
+            e = 0.25 * c * anticommutator((7 * z2 - ss * I - 5 * I), pm)
+        elif abs(q) == 3:
+            pm = (Sp @ Sp @ Sp + Sm @ Sm @ Sm) if q > 0 else \
+                 (Sp @ Sp @ Sp - Sm @ Sm @ Sm)
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(Sz_, pm)
+        elif abs(q) == 4:
+            if q > 0:
+                e = 0.5 * (Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm)
             else:
-                e = -0.5j * (np.linalg.matrix_power(Sp, 4) - np.linalg.matrix_power(Sm, 4))
+                e = -0.5j * (Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm)
 
-    elif a == 6:
-        if abs(b) > 6:
+    elif k == 6:
+        if abs(q) > 6:
             return None
-        if b == 0:
+        if q == 0:
             e = (
                 231 * Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_
-                - (315 * ss - 735) * Sz_ @ Sz_ @ Sz_ @ Sz_
-                + (105 * ss ** 2 - 525 * ss + 294) * Sz_ @ Sz_
+                - (315 * ss * I - 735) * Sz_ @ Sz_ @ Sz_ @ Sz_
+                + (105 * ss ** 2 * I - 525 * ss + 294) * Sz_ @ Sz_
                 - (5 * ss ** 3 - 40 * ss ** 2 + 60 * ss) * I
             )
-        elif abs(b) == 1:
-            pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
-            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(Sz_, pm)
-        elif abs(b) == 2:
-            pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
-            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
-        elif abs(b) == 3:
+        elif abs(q) == 1:
+            pm = (Sp + Sm) 
+            ppm = (33 * Sz_ @ Sz_ @Sz_ @ Sz_ @Sz_ - 30 * ss * I * Sz_ @ Sz_ @ Sz_ + 15 * Sz_ @ Sz_ @ Sz_ + 5 * ss ** 2 * I * Sz_ - 10 * ss * I * Sz_ + 12 * Sz_)
+            pm = pm if q > 0 else  (Sp - Sm) 
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(pm, ppm)
+        elif abs(q) == 2:
+            pm = Sp @ Sp + Sm @ Sm 
+            ppm = (33 * Sz_ @ Sz_ @ Sz_ @ Sz_ - 18 * ss * I * Sz_ @ Sz_ - 123 * Sz_ @ Sz_ + ss ** 2 * I + 10 * ss * I + 102 * I)
+            pm = pm if q > 0 else Sp @ Sp - Sm @ Sm 
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(pm, ppm)
+        elif abs(q) == 3:
             pm = Sp @ Sp @ Sp + Sm @ Sm @ Sm
-            pm = pm if b > 0 else Sp @ Sp @ Sp - Sm @ Sm @ Sm
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ @ Sz_ - (3 * ss + 59) * Sz_, pm)
-        elif abs(b) == 4:
-            pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
-            if b < 0:
-                pm = Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
-                c = -1j
-            else:
+            ppm = (11 * Sz_ @ Sz_ @ Sz_ - (3 * ss * I + 59) * Sz_)
+            pm = pm if q > 0 else Sp @ Sp @ Sp - Sm @ Sm @ Sm
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(pm, ppm)
+        elif abs(q) == 4:
+            ppm = (11 * Sz_ @ Sz_ - ss * I - 38 * I)
+            if q > 0:
+                pm = (Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm)
                 c = 1
-            e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
-        elif abs(b) == 5:
+            else:
+                pm = (Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm)
+                c = -1j
+            e = 0.25 * c * anticommutator(pm, ppm)
+        elif abs(q) == 5:
             pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
-            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
-            c = 1 if b > 0 else -1j
-            e = 0.5 * c * anticommutator(Sz_, pm)
-        elif abs(b) == 6:
+            pm = pm if q > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+            c = 1 if q > 0 else -1j
+            e = 0.25 * c * anticommutator(pm, Sz_)
+        elif abs(q) == 6:
             pm = Sp @ Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm @ Sm
-            pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm @ Sm
-            c = 1 if b > 0 else -1j
+            pm = pm if q > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp- Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+            c = 1 if q > 0 else -1j
             e = 0.5 * c * pm
         
 
@@ -737,7 +879,7 @@ def stevens_operator(S, a, b, return_latex=False):
         return e, latex
     return e
 
-def setStevens(spinsys, i_spin, a, b, value):
+def setStevens(spinsys, i_spin, k, q, value):
     """
     Set a Stevens operator coefficient for a given spin.
 
@@ -747,10 +889,10 @@ def setStevens(spinsys, i_spin, a, b, value):
         The spin system object.
     i_spin : int
         Index of the spin in the spin system.
-    a : int
+    k : int
         Degree of the Stevens operator (e.g., 2, 4, 6).
-    b : int
-        Order of the Stevens operator (−a ≤ b ≤ a).
+    q : int
+        Order of the Stevens operator (−q ≤ k ≤ q).
     value : float or complex
         Coefficient for the Stevens operator.
     """
@@ -765,7 +907,7 @@ def setStevens(spinsys, i_spin, a, b, value):
     if not isinstance(spinsys.Stevens[i_spin], dict):
         raise TypeError(f"spinsys.Stevens[{i_spin}] must be a dictionary.")
 
-    spinsys.Stevens[i_spin][(a, b)] = value
+    spinsys.Stevens[i_spin][(k, q)] = value
 
 # endregion StevensOperators
 
