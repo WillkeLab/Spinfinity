@@ -278,6 +278,7 @@ def calcEigEnergies(spinsys: SpinSys):
     addZeroField(spinsys)
     addExchangeInteraction(spinsys)
     addExchangeOffDiagonal(spinsys)
+    addExchangeOffDiagonal(spinsys)
     #calcDipolarCoupling(spinsys) # This two functions are split because one may also want to change the D0 entries himself
     addDipolarCoupling(spinsys)
 
@@ -496,7 +497,7 @@ def addExchangeOffDiagonal(spinsys: SpinSys):
             Coupling constant arrays for each type of exchange interaction, they are 0 by default
         - Sx, Sy, Sz : ndarray
             Spin operator matrices of shape (NSpins, dim, dim)
-
+    
     Returns
     -------
     None
@@ -784,8 +785,6 @@ def anticommutator(A, B):
 
 def stevens_operator(S, k, q, return_latex=False):
     """
-    Be carefull!!! This calculates similar outcomes as the Ternes Code, however both do not match the calculations from PHI or CASSCF!
-    
     Generate Stevens operator O_a^b for spin S.
 
     Parameters
