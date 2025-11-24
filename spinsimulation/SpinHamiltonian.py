@@ -786,6 +786,140 @@ def stevens_operator(S, k, q, return_latex=False):
     """
     Be carefull!!! This calculates similar outcomes as the Ternes Code, however both do not match the calculations from PHI or CASSCF!
     
+#     Generate Stevens operator O_a^b for spin S.
+
+#     Parameters
+#     ----------
+#     S : float
+#         Spin quantum number (e.g. 1, 3/2, 2, etc.)
+#     a : int
+#         Rank of the Stevens operator (2, 4, 6)
+#     b : int
+#         Component index (from -a to +a)
+#     return_latex : bool
+#         Whether to return a LaTeX string for display purposes
+
+#     Returns
+#     -------
+#     Oab : ndarray
+#         Matrix representation of the Stevens operator
+#     latex_str : str (optional)
+#         LaTeX representation
+#     """
+
+#     # Get angular momentum matrices
+#     Sx_, Sy_, Sz_ = calcAngMomMatrices(S)
+#     I = np.eye(Sx_.shape[0])
+#     ss = S * (S + 1)
+
+#     # Define ladder operators
+#     Sp = Sx_ + 1j * Sy_
+#     Sm = Sx_ - 1j * Sy_
+
+#     e = None
+#     latex = "$\\rm invalid$"
+
+#     if a == 2:
+#         if abs(b) == 0:
+#             e = 3 * Sz_ @ Sz_ - ss * I
+#             latex = "$3\\hat{S}_z^2$"
+#         elif abs(b) == 1:
+#             if b > 0:
+#                 e = 0.5 * anticommutator(Sx_, Sz_)
+#                 latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
+#             else:
+#                 e = 0.5 * anticommutator(Sy_, Sz_)
+#                 latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
+#         elif abs(b) == 2:
+#             if b > 0:
+#                 e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
+#                 latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
+#             else:
+#                 e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
+#                 latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
+
+#     elif a == 4:
+#         z2 = Sz_ @ Sz_
+#         z3 = z2 @ Sz_
+#         z4 = z2 @ z2
+#         ss2 = ss ** 2
+#         if abs(b) == 0:
+#             e = 35 * z4 - (30 * ss - 25) * z2 + (3 * ss2 - 6 * ss) * I
+#             latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
+#         elif abs(b) == 1:
+#             pm = Sp + Sm if b > 0 else Sp - Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(7 * z3 - (3 * ss + 1) * Sz_, pm)
+#         elif abs(b) == 2:
+#             pm = np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2) if b > 0 else \
+#                  np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2)
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(7 * z2 - (ss + 5) * I, pm)
+#         elif abs(b) == 3:
+#             pm = np.linalg.matrix_power(Sp, 3) + np.linalg.matrix_power(Sm, 3) if b > 0 else \
+#                  np.linalg.matrix_power(Sp, 3) - np.linalg.matrix_power(Sm, 3)
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 4:
+#             if b > 0:
+#                 e = 0.5 * (np.linalg.matrix_power(Sp, 4) + np.linalg.matrix_power(Sm, 4))
+#             else:
+#                 e = -0.5j * (np.linalg.matrix_power(Sp, 4) - np.linalg.matrix_power(Sm, 4))
+
+#     elif a == 6:
+#         if abs(b) > 6:
+#             return None
+#         if b == 0:
+#             e = (
+#                 231 * Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_
+#                 - (315 * ss - 735) * Sz_ @ Sz_ @ Sz_ @ Sz_
+#                 + (105 * ss ** 2 - 525 * ss + 294) * Sz_ @ Sz_
+#                 - (5 * ss ** 3 - 40 * ss ** 2 + 60 * ss) * I
+#             )
+#         elif abs(b) == 1:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 2:
+#             pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+#         elif abs(b) == 3:
+#             pm = Sp @ Sp @ Sp + Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp - Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ @ Sz_ - (3 * ss + 59) * Sz_, pm)
+#         elif abs(b) == 4:
+#             pm = Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm
+#             if b < 0:
+#                 pm = Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm
+#                 c = -1j
+#             else:
+#                 c = 1
+#             e = 0.5 * c * anticommutator(11 * Sz_ @ Sz_ - (ss + 38) * I, pm)
+#         elif abs(b) == 5:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * anticommutator(Sz_, pm)
+#         elif abs(b) == 6:
+#             pm = Sp @ Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+#             pm = pm if b > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+#             c = 1 if b > 0 else -1j
+#             e = 0.5 * c * pm
+        
+
+#     else:
+#         raise ValueError("Invalid a value. Allowed: 2, 4, 6")
+
+#     if return_latex:
+#         return e, latex
+#     return e
+
+def stevens_operator(S, k, q, return_latex=False):
+    """
     Generate Stevens operator O_a^b for spin S.
 
     Parameters
