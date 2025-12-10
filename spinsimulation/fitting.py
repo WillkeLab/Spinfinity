@@ -75,10 +75,10 @@ def fit_Kondo(x_exp:np.ndarray,
                                dIdV_exp= y_exp,
                                weights=weights)
     # initial guess for the parameters
-    initial_guess = np.zeros(5)
+    initial_guess = np.zeros(7)
     # bounds for the parameters
-    lower_bounds = np.zeros(5)
-    upper_bounds = np.zeros(5)
+    lower_bounds = np.zeros(7)
+    upper_bounds = np.zeros(7)
     # for each of the parameters, check if it is fixed or not
     if fixed_params['g'] == False:
         initial_guess[0] = spinsys.gfactorvector[0] # not fixed
@@ -90,40 +90,40 @@ def fit_Kondo(x_exp:np.ndarray,
         upper_bounds[0] = fixed_params['g']+ 1e-12 # small tolerance to avoid numerical issues
 
     if fixed_params['J'] == False:
-        initial_guess[1] = spinsys.J
-        lower_bounds[1] = -1.0
-        upper_bounds[1] = 0.0
+        initial_guess[1], initial_guess[2], initial_guess[3] = spinsys.J
+        lower_bounds[1], lower_bounds[2], lower_bounds[3] = -1.0, -1.0, -1.0
+        upper_bounds[1], upper_bounds[2], upper_bounds[3] = 0.0, 0.0, 0.0
     else:
-        initial_guess[1] = fixed_params['J']
-        lower_bounds[1] = fixed_params['J']- 1e-12  # small tolerance to avoid numerical issues
-        upper_bounds[1] = fixed_params['J']+ 1e-12  # small tolerance to avoid numerical issues
+        initial_guess[1], initial_guess[2], initial_guess[3]  = fixed_params['J']
+        lower_bounds[1], lower_bounds[2], lower_bounds[3] = fixed_params['J']- 1e-12  # small tolerance to avoid numerical issues
+        upper_bounds[1], upper_bounds[2], upper_bounds[3] = fixed_params['J']+ 1e-12  # small tolerance to avoid numerical issues
 
     if fixed_params['T_eff'] == False:
-        initial_guess[2] = spinsys.T
-        lower_bounds[2] = 0.01
-        upper_bounds[2] = 5.0
+        initial_guess[4] = spinsys.T
+        lower_bounds[4] = 0.01
+        upper_bounds[4] = 5.0
     else:
-        initial_guess[2] = fixed_params['T_eff']
-        lower_bounds[2] = fixed_params['T_eff']- 1e-12  # small tolerance to avoid numerical issues
-        upper_bounds[2] = fixed_params['T_eff']+ 1e-12  # small tolerance to avoid numerical issues
+        initial_guess[4] = fixed_params['T_eff']
+        lower_bounds[4] = fixed_params['T_eff']- 1e-12  # small tolerance to avoid numerical issues
+        upper_bounds[4] = fixed_params['T_eff']+ 1e-12  # small tolerance to avoid numerical issues
 
     if fixed_params['sigma_0'] == False:
-        initial_guess[3] = 0.0
-        lower_bounds[3] = -5.0
-        upper_bounds[3] = 5.0
+        initial_guess[5] = 0.0
+        lower_bounds[5] = -5.0
+        upper_bounds[5] = 5.0
     else:
-        initial_guess[3] = fixed_params['sigma_0']
-        lower_bounds[3] = fixed_params['sigma_0']- 1e-12  # small tolerance to avoid numerical issues
-        upper_bounds[3] = fixed_params['sigma_0']+ 1e-12  # small tolerance to avoid numerical issues
+        initial_guess[5] = fixed_params['sigma_0']
+        lower_bounds[5] = fixed_params['sigma_0']- 1e-12  # small tolerance to avoid numerical issues
+        upper_bounds[5] = fixed_params['sigma_0']+ 1e-12  # small tolerance to avoid numerical issues
 
     if fixed_params['V_offset'] == False:
-        initial_guess[4] = 0.0
-        lower_bounds[4] = -2.0
-        upper_bounds[4] = 2.0
+        initial_guess[6] = 0.0
+        lower_bounds[6] = -2.0
+        upper_bounds[6] = 2.0
     else:
-        initial_guess[4] = fixed_params['V_offset']
-        lower_bounds[4] = fixed_params['V_offset']- 1e-12
-        upper_bounds[4] = fixed_params['V_offset']+ 1e-12
+        initial_guess[6] = fixed_params['V_offset']
+        lower_bounds[6] = fixed_params['V_offset']- 1e-12
+        upper_bounds[6] = fixed_params['V_offset']+ 1e-12
 
     sigma0 = 0.5  # Initial step size
     
@@ -151,8 +151,8 @@ def fit_Kondo(x_exp:np.ndarray,
         # another disposable spinsys to recalculate everything
         return_spin_sys = copy.deepcopy(spinsys)
         return_spin_sys.gfactorvector = [params[0]]
-        return_spin_sys.J = params[1]
-        return_spin_sys.T = params[2]
+        return_spin_sys.J = [params[1], params[2] , params[3]]
+        return_spin_sys.T = params[4]
 
         x_sim, y_sim = calcIETS_3rd(return_spin_sys, Vrange=[x_exp.min(), x_exp.max()], N=1000, norm=False, plot=False)
         # same but fewer points 
@@ -161,8 +161,8 @@ def fit_Kondo(x_exp:np.ndarray,
         # y_sim = y_sim / np.max(y_sim)  # Normalize to max value
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=x_exp, y=y_exp , mode='markers', name='Experimental Data'))
-        fig.add_trace(go.Scatter(x=x_sim + params[4], 
-                                 y= y_sim+ params[3], 
+        fig.add_trace(go.Scatter(x=x_sim + params[6], 
+                                 y= y_sim+ params[5], 
                                  mode='lines', name='Fit'))
         # fig.add_trace(go.Scatter(x=x_100, 
         #                          y= y_100, 
@@ -172,7 +172,7 @@ def fit_Kondo(x_exp:np.ndarray,
         fig.show()
     
 
-    return  x_sim + params[4], y_sim + params[3], {'g': params[0],'J':params[1], 'T':params[2],'sigma_0':params[3],'V_offset':params[4]},return_spin_sys
+    return  x_sim + params[6], y_sim + params[5], {'g': params[0],'J': [params[1], params[2] , params[3]], 'T':params[4],'sigma_0':params[5],'V_offset':params[6]}, return_spin_sys
 
     
 
@@ -299,14 +299,14 @@ class KondoFitter:
 
         
         # Update parameters
-        sigma_0 = params[3]
-        v_offset = params[4]
+        sigma_0 = params[5]
+        v_offset = params[6]
         # create a whole new spin system to recalculate everything 
         self.disposable_spinsys = SpinSys(Spins=[0.5])
         self.disposable_spinsys.B = self.spinsys.B
         # print(self.disposable_spinsys.B)
-        self.disposable_spinsys.J = params[1]
-        self.disposable_spinsys.T = params[2] 
+        self.disposable_spinsys.J = [params[1], params[2] , params[3]]
+        self.disposable_spinsys.T = params[4] 
         self.disposable_spinsys.gfactorvector = [params[0]]
         
         try:
