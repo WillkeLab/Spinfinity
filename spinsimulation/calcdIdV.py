@@ -216,7 +216,11 @@ def calcIETS_2ndR(
 
         # Solve the Rate-Equation if non-thermal population is desired
         if AllowPumping:
-            p = null_space(K)
+            try:
+                p = null_space(K)
+            except Exception as e:
+                print("Warning: null_space failed, using thermal population. Error:", e)
+                p = np.empty((0, 0))
             if p.size == 0:  # If no valid solution, use thermal distribution
                 Populations = spinsys.pop_0
                 print("Warning: No valid solution for rate equations found, using thermal population instead.")
