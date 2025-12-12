@@ -288,7 +288,12 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
                     spinsys.K[i, i] -= spinsys.Rates_Summed[i, j]  # Rates leaving state i
                     spinsys.K[i, j] = spinsys.Rates_Summed[j, i]  # Rates leading to state i
         # Solve the Rate equation to get the steady-state populations
-        p = null_space(spinsys.K)
+        if AllowPumping:
+            try:
+                p = null_space(K)
+            except Exception as e:
+                print("Warning: null_space failed, using thermal population. Error:", e)
+                p = np.empty((0, 0))
         if p.size == 0:  # If no valid solution, use thermal distribution
             spinsys.Populations = spinsys.pop_0
         else:
