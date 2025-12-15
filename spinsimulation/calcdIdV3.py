@@ -399,7 +399,8 @@ def calcIETS_3rd( SpinSys: SpinSys, Vrange: list = [-10, 10], N: int = 100, norm
 
     # Normalize result
     if norm == True:
-        dIdV_3rd = (dIdV_3rd - np.min(dIdV_3rd)) / (np.max(dIdV_3rd) - np.min(dIdV_3rd))
+        #dIdV_3rd = (dIdV_3rd - np.min(dIdV_3rd)) / (np.max(dIdV_3rd) - np.min(dIdV_3rd)) old nomrlaization to min and max
+        dIdV_3rd = dIdV_3rd / dIdV_3rd[0]  # Normalize to the first value
 
     if plot:
         plt.figure(189)
