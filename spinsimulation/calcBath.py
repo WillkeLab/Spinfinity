@@ -290,7 +290,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
         # Solve the Rate equation to get the steady-state populations
         if AllowPumping:
             try:
-                p = null_space(K)
+                p = null_space(spinsys.K)
             except Exception as e:
                 print("Warning: null_space failed, using thermal population. Error:", e)
                 p = np.empty((0, 0))
