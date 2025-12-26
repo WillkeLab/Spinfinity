@@ -1239,7 +1239,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
         
 
     # Calculating the Detuning from the Tipfield
-    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.g * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
+    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
 
 
     # Plot the ESR Signal as a color plot
