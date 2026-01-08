@@ -18,7 +18,7 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
     spinsys : SpinSys
         The spin system object containing eigenvalues, eigenvectors, temperature, and other relevant parameters.
     Vrange : list of float, optional
-        The voltage range [V_min, V_max] over which to calculate dI/dV. Default is [-10, 10].
+        The voltage range [V_min, V_max] over which to calculate dI/dV. Default is [-30, 30].
     N : int, optional
         Number of voltage points in the output array. Default is 100.
     norm : bool, optional
