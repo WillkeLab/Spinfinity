@@ -1,5 +1,5 @@
 include = [
-    "SpinHamiltonian.py"
+    "spinsimulation\SpinHamiltonian.py"
 ]
 
 [lint]
