@@ -1,5 +1,5 @@
 """
-Spin System Hamiltonian Construction and Analysis Module
+Spin System Hamiltonian Construction and Analysis Module.
 
 This module provides comprehensive functionality for constructing and analyzing the quantum
 mechanical Hamiltonian of multi-spin systems. It handles the calculation of spin operators,
@@ -409,7 +409,6 @@ def addZeroField(spinsys: SpinSys):
     Supports either standard parameters (D, E, DD, G) or Stevens operators.
     This function modifies self.H in-place.
     """
-
     # Check if Stevens operators are used
     # If not, use standard D, E parameters
     use_stevens = getattr(spinsys, "use_Stevens", False)
@@ -417,7 +416,7 @@ def addZeroField(spinsys: SpinSys):
         # D * Sz^2 + E(Sx^2 - Sy^2)
         for i_spin in range(spinsys.NSpins):
             spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])+ spinsys.Evector[i_spin]*(spinsys.Sx[i_spin,:,:] @ spinsys.Sx[i_spin,:,:] - spinsys.Sy[i_spin,:,:] @ spinsys.Sy[i_spin,:,:])
-
+            
     else:
         for i_spin in range(spinsys.NSpins):
                 stevens_dict = spinsys.Stevens[i_spin]  # Dict for this spin, e.g., {(2,0): value, (4,2): value}
