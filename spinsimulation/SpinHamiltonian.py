@@ -1,3 +1,47 @@
+"""
+Spin System Hamiltonian Construction and Analysis Module.
+
+This module provides comprehensive functionality for constructing and analyzing the quantum
+mechanical Hamiltonian of multi-spin systems. It handles the calculation of spin operators,
+eigenstate determination, and various interaction terms including Zeeman, exchange, dipolar,
+and anisotropy effects.
+
+Key Features
+------------
+- Spin operator calculation using Kronecker products for multi-spin systems
+- Angular momentum matrix generation for arbitrary spin quantum numbers
+- Hamiltonian construction with multiple interaction terms
+- Eigenstate calculation and analysis in Bra-Ket notation
+- Stevens operator support for high-order magnetic anisotropy
+- Dipolar coupling computation based on spatial coordinates
+- Eigenstate overlap calculations for subsystem analysis
+
+Main Components
+---------------
+Spin Operators
+    - calcSpinOperators: Constructs Sx, Sy, Sz matrices for all spins
+    - calcAngMomMatrices: Generates angular momentum matrices for a given spin quantum number
+Hamiltonian Construction
+    - calcEigEnergies: Constructs full Hamiltonian and solves for eigenenergies
+    - addZeeman: Adds Zeeman interaction term (external magnetic field)
+    - addTipField: Adds tip field contribution for readout spin
+    - addZeroField: Adds zero-field splitting and anisotropy terms
+    - addExchangeInteraction: Adds spin-spin exchange coupling
+    - calcDipolarCoupling: Calculates dipolar coupling constants
+    - addDipolarCoupling: Adds dipolar interaction to Hamiltonian
+Eigenstate Analysis
+    - calcEigStates: Generates eigenstate representations in Bra-Ket notation
+Stevens Operators
+    - stevens_operator: Generates Stevens operator matrices for magnetic anisotropy
+    - setStevens: Sets Stevens operator coefficients
+    - anticommutator: Computes anticommutator of two operators
+Overlap Calculations
+    - calcOverlap: Calculates overlap between states and eigenvectors
+The module assumes spin systems are represented using the basis of eigenstates of Sz,
+with states ordered from m = -s to m = +s. All interaction matrices are constructed
+using Kronecker products to embed single-spin operators into the full Hilbert space.
+"""
+
 import numpy as np
 import scipy as sp
 import scipy.constants as const
@@ -8,7 +52,8 @@ from scipy.linalg import fractional_matrix_power
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
         """
-        This function computes the spin operator matrices for all spins in the given `SpinSys` object.
+        Compute the spin operator matrices for all spins in the given `SpinSys` object.
+
         For each spin, the corresponding Sx, Sy, and Sz matrices are constructed using Kronecker products,
         such that each operator acts on the correct subspace of the total Hilbert space. The results are
         stored in the `spinsys.Sx`, `spinsys.Sy`, and `spinsys.Sz` attributes.
@@ -32,7 +77,6 @@ def calcSpinOperators(spinsys: SpinSys):
         are constructed such that each operator acts non-trivially only on its corresponding spin
         and as the identity on all other spins.
         """
-        
         spinsys.Sx = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix), dtype=complex)
         spinsys.Sy = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix), dtype=complex)
         spinsys.Sz = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix), dtype=complex)
@@ -119,7 +163,8 @@ def calcAngMomMatrices(s: float):
 
 def calcEigStates(spinsys: SpinSys):
     """
-    Calculates and constructs the eigenstates of a spin system in Bra-Ket notation.
+    Construct the eigenstates of a spin system in Bra-Ket notation.
+
     This function generates the basis states, sorts the eigenvectors by their absolute values,
     and constructs human-readable representations of the eigenstates, including their energies
     and dominant basis state contributions. The results are stored as attributes in the provided
@@ -203,11 +248,12 @@ def calcEigStates(spinsys: SpinSys):
 
 def calcEigEnergies(spinsys: SpinSys):
     """
-    Constructs the spin Hamiltonian for the given spin system, solves for its eigenvalues and eigenvectors,
-    and stores the sorted eigenenergies and corresponding eigenvectors in the spin system object.
-    The function sequentially adds various interaction terms to the Hamiltonian, including Zeeman, tip field,
+    Construct the spin Hamiltonian for the given spin system and solve for eigenpairs.
+
+    This function sequentially adds various interaction terms to the Hamiltonian, including Zeeman, tip field,
     zero-field splitting, exchange interaction, and dipolar coupling. It then diagonalizes the Hamiltonian,
-    sorts the eigenenergies, and updates the spin system with the results.
+    sorts the eigenenergies, and updates the spin system with the results. The sorted eigenenergies and
+    corresponding eigenvectors are stored in the spin system object.
 
     Parameters
     ----------
@@ -221,7 +267,6 @@ def calcEigEnergies(spinsys: SpinSys):
         This function modifies the `spinsys` object in place, updating its Hamiltonian, sorted eigenenergies,
         eigenvectors, and related attributes.
     """
-
     # Ensure the spin operators are calculated before constructing the Hamiltonian
     if not hasattr(spinsys, 'Sx') or spinsys.Sx is None:
             calcSpinOperators(spinsys)
@@ -261,7 +306,8 @@ def calcEigEnergies(spinsys: SpinSys):
 
 def addZeeman(spinsys: SpinSys):
     """
-    Adds the Zeeman term to the Hamiltonian of the spin system.
+    Add the Zeeman term to the Hamiltonian of the spin system.
+
     The Zeeman term describes the interaction between the magnetic moment of each spin and an external magnetic field.
     This function updates the Hamiltonian `H` of the provided `spinsys` object by adding the Zeeman contribution for each spin.
 
@@ -280,7 +326,6 @@ def addZeeman(spinsys: SpinSys):
     -----
     The Zeeman term is added to each spin as a global magnetic field.
     """
-
     # Loop through each spin in the system
     for i_spin in range(spinsys.NSpins): 
 
@@ -293,7 +338,8 @@ def addZeeman(spinsys: SpinSys):
 
 def addTipField(spinsys: SpinSys):
     """
-    Adds or subtracts the tip magnetic field contribution to the Hamiltonian for the readout spin.
+    Add or subtract the tip magnetic field contribution to the Hamiltonian for the readout spin.
+
     Depending on the value of `spinsys.tip`, this function either adds or subtracts the effect of the tip field
     on the readout spin in the spin system Hamiltonian. The contribution is calculated for each spatial component (x, y, z)
     using the corresponding spin operators and the tip field vector.
@@ -314,7 +360,6 @@ def addTipField(spinsys: SpinSys):
     - Otherwise, the tip field is subtracted from the Hamiltonian.
     - Only the readout spin is affected by the tip field.
     """
-
     # Adding the Tipfield to the Readout Spin only
     if spinsys.tip == 'a':
         # Add the tip field contribution to the Hamiltonian H
@@ -360,11 +405,10 @@ def addTipField(spinsys: SpinSys):
 def addZeroField(spinsys: SpinSys):
     """
     Build and add the anisotropy Hamiltonian for the spin system.
-    Supports either standard parameters (D, E, DD, G) or Stevens operators.
 
+    Supports either standard parameters (D, E, DD, G) or Stevens operators.
     This function modifies self.H in-place.
     """
-
     # Check if Stevens operators are used
     # If not, use standard D, E parameters
     use_stevens = getattr(spinsys, "use_Stevens", False)
@@ -372,7 +416,7 @@ def addZeroField(spinsys: SpinSys):
         # D * Sz^2 + E(Sx^2 - Sy^2)
         for i_spin in range(spinsys.NSpins):
             spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])+ spinsys.Evector[i_spin]*(spinsys.Sx[i_spin,:,:] @ spinsys.Sx[i_spin,:,:] - spinsys.Sy[i_spin,:,:] @ spinsys.Sy[i_spin,:,:])
-
+            
     else:
         for i_spin in range(spinsys.NSpins):
                 stevens_dict = spinsys.Stevens[i_spin]  # Dict for this spin, e.g., {(2,0): value, (4,2): value}
@@ -397,11 +441,10 @@ def addZeroField(spinsys: SpinSys):
                     # Add to the Hamiltonian
                     spinsys.H += coeff * Oab_full
 
-
-
 def addExchangeInteraction(spinsys: SpinSys):
     """
-    Adds the exchange interaction terms to the spin system Hamiltonian.
+    Add the exchange interaction terms to the spin system Hamiltonian.
+
     This function iterates over all unique pairs of spins in the given spin system
     and adds the exchange interaction contributions to the Hamiltonian matrix `H`.
     The exchange interaction is parameterized by the `Jvector` for each spin pair,
@@ -434,7 +477,8 @@ def addExchangeInteraction(spinsys: SpinSys):
     
 def calcDipolarCoupling(spinsys: SpinSys):
     """
-    Calculates the dipolar coupling constants for each spin pair in the given spin system.
+    Calculate the dipolar coupling constants for each spin pair in the given spin system.
+
     This function iterates over all unique pairs of spins in the provided `SpinSys` object,
     computes the distance between each pair, and calculates the dipolar coupling constant
     based on their relative positions and physical constants. The results are stored in
@@ -451,7 +495,6 @@ def calcDipolarCoupling(spinsys: SpinSys):
     None
         The function updates the `D0` attribute of the `spinsys` object in place.
     """
-
     # Calculates the Dipolar Coupling Constants of each Spin-Pair based on their relative distance
     index_counter = 0
     for i_spin in range(spinsys.NSpins):
@@ -477,7 +520,8 @@ def calcDipolarCoupling(spinsys: SpinSys):
 
 def addDipolarCoupling(spinsys: SpinSys):
     """
-    Adds dipolar coupling interactions to the spin Hamiltonian of a spin system.
+    Add dipolar coupling interactions to the spin Hamiltonian of a spin system.
+
     This function iterates over all unique pairs of spins in the given spin system and updates
     the system's Hamiltonian (`spinsys.H`) by adding the dipolar coupling terms. The dipolar
     interaction is calculated based on the positions of the spins and their respective spin
@@ -535,6 +579,27 @@ def addDipolarCoupling(spinsys: SpinSys):
 # region StevensOperators
 
 def anticommutator(A, B):
+    """
+    Compute the anticommutator of two operators.
+
+    Parameters
+    ----------
+    A : array_like
+        First operator, typically a matrix or linear operator.
+    B : array_like
+        Second operator, typically a matrix or linear operator.
+
+    Returns
+    -------
+    ndarray
+        The anticommutator A @ B + B @ A.
+
+    Notes
+    -----
+    The anticommutator is commonly used in quantum mechanics and quantum field
+    theory, particularly for fermionic systems where operators satisfy canonical
+    anticommutation relations.
+    """
     return A @ B + B @ A
 
 def stevens_operator(S, a, b, return_latex=False):
@@ -559,7 +624,6 @@ def stevens_operator(S, a, b, return_latex=False):
     latex_str : str (optional)
         LaTeX representation
     """
-
     # Get angular momentum matrices
     Sx_, Sy_, Sz_ = calcAngMomMatrices(S)
     I = np.eye(Sx_.shape[0])
@@ -735,7 +799,6 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     This function projects the eigenvectors of the composite system onto a given state
     of subsystem B and computes the overlap for each eigenvector.
     """
-
     EV = np.asarray(spinsys.eigVectors)
     stateB  = np.asarray(stateB).reshape(-1)
     if order.upper() == 'AB':
