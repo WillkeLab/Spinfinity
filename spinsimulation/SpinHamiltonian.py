@@ -1,3 +1,46 @@
+"""
+Spin System Hamiltonian Construction and Analysis Module
+This module provides comprehensive functionality for constructing and analyzing the quantum 
+mechanical Hamiltonian of multi-spin systems. It handles the calculation of spin operators, 
+eigenstate determination, and various interaction terms including Zeeman, exchange, dipolar, 
+and anisotropy effects.
+
+Key Features
+------------
+- Spin operator calculation using Kronecker products for multi-spin systems
+- Angular momentum matrix generation for arbitrary spin quantum numbers
+- Hamiltonian construction with multiple interaction terms
+- Eigenstate calculation and analysis in Bra-Ket notation
+- Stevens operator support for high-order magnetic anisotropy
+- Dipolar coupling computation based on spatial coordinates
+- Eigenstate overlap calculations for subsystem analysis
+
+Main Components
+---------------
+Spin Operators
+    - calcSpinOperators: Constructs Sx, Sy, Sz matrices for all spins
+    - calcAngMomMatrices: Generates angular momentum matrices for a given spin quantum number
+Hamiltonian Construction
+    - calcEigEnergies: Constructs full Hamiltonian and solves for eigenenergies
+    - addZeeman: Adds Zeeman interaction term (external magnetic field)
+    - addTipField: Adds tip field contribution for readout spin
+    - addZeroField: Adds zero-field splitting and anisotropy terms
+    - addExchangeInteraction: Adds spin-spin exchange coupling
+    - calcDipolarCoupling: Calculates dipolar coupling constants
+    - addDipolarCoupling: Adds dipolar interaction to Hamiltonian
+Eigenstate Analysis
+    - calcEigStates: Generates eigenstate representations in Bra-Ket notation
+Stevens Operators
+    - stevens_operator: Generates Stevens operator matrices for magnetic anisotropy
+    - setStevens: Sets Stevens operator coefficients
+    - anticommutator: Computes anticommutator of two operators
+Overlap Calculations
+    - calcOverlap: Calculates overlap between states and eigenvectors
+The module assumes spin systems are represented using the basis of eigenstates of Sz,
+with states ordered from m = -s to m = +s. All interaction matrices are constructed
+using Kronecker products to embed single-spin operators into the full Hilbert space.
+"""
+
 import numpy as np
 import scipy as sp
 import scipy.constants as const

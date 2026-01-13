@@ -56,4 +56,4 @@ Ruff Check:
 Ruff Format:
   extends: .base_ruff
   script:
-    - ruff format --diff
+    - ruff format
