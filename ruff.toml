@@ -1,0 +1,9 @@
+include = [
+    "SpinHamiltonian.py"
+]
+
+[lint]
+select = ["D"]
+
+[lint.pydocstyle]
+convention = "numpy"
