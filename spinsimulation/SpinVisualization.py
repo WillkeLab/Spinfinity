@@ -860,6 +860,12 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+        
+        # Define y-axis label according to normalization 
+        if norm:
+            y_label = 'Normalized dI/dV (a.u.)'
+        else:
+            y_label = 'dI/dV (S)'
     
         # Plot the IETS spectrum using Plotly with white background and black border
         y_max = np.max(y)
@@ -880,7 +886,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         fig.update_layout(
             title=f'IETS Spectrum ({order} Order)',
             xaxis_title='Bias Voltage (mV)',
-            yaxis_title='dI/dV (a.u.)',
+            yaxis_title=y_label,
             plot_bgcolor='white',
             paper_bgcolor='white',
             width=800,
@@ -954,7 +960,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         fig.update_layout(
             title=f'IETS Spectrum ({order} Order) for All Spins',
             xaxis_title='Bias Voltage (mV)',
-            yaxis_title='dI/dV (a.u.)',
+            yaxis_title=y_label,
             plot_bgcolor='white',
             paper_bgcolor='white',
             width=800,

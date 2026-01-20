@@ -62,6 +62,10 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
                 ytemp = spinsys.pop_0[i] * (RateMatrix[j, i] * ep + RateMatrix[i, j] * en)
                 dIdV_array = dIdV_array + ytemp
 
+    # Normalize with Rate_00 to get correct units
+    Rate_0 = RateMatrix[0][0]  # Transition matrix element of the ground state
+    dIdV_array = dIdV_array * spinsys.G / Rate_0
+    
     # Normalize dI/dV if required
     if norm:
         dIdV_array = dIdV_array / dIdV_array[0]  # Normalize to the first value
