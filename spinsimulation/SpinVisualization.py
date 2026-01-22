@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
+from matplotlib import cm
 
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
@@ -1041,7 +1042,10 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     Freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
-    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
+    Nc = len(spinsys.ResonanceFrequencies)
+    color_list = cm.jet(np.linspace(0, 1, Nc))
+    color_list = [f'rgb({int(c[0]*255)},{int(c[1]*255)},{int(c[2]*255)})' for c in color_list]
+
 
     # Create the main ESR signal trace
     fig = go.Figure()
