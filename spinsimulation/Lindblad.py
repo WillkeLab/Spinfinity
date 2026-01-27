@@ -61,7 +61,7 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
     if threshold_percent > 1 or threshold_percent < 0:
         raise ValueError('threshold_percent should be between 0 and 1')
     max_rate = np.nanmax(Rates_Summed)   # find maximum value in Rates_Summed while ignoring Nan entries
-    threshold = threshold_percent * max_rate
+    threshold_value = threshold_percent * max_rate
 
     N_levels = len(spinsys.E_All)    # number of energy levels (NxN: dimension of Lindblad operators)
 
@@ -69,16 +69,21 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
     collapse_ops = []   # empty list to store operators
 
     for i_initial in range(N_levels):
-        for j_final in range(N_levels): # TODO jetzt doppelt sich i->j und j->i: nur j>i?
+        for j_final in range(N_levels):
 
             if i_initial == j_final:
                 continue  # skip diagonal elements
             
-            if Rates_Summed[i_initial][j_final] < threshold:
+            if abs(Rates_Summed[i_initial][j_final]) < threshold_value:
                 continue   # skip too small rates
 
-            E_op = np.zeros((N_levels, N_levels))    # matrix filled with zeros of dimension NxN as base for Lindblad hopping operators
-            E_op[j_final][i_initial] = 1    # hopping operator from energy i (column) to j (row)
+            ##E_op = np.zeros((N_levels, N_levels))    # matrix filled with zeros of dimension NxN as base for Lindblad hopping operators
+            ##E_op[j_final][i_initial] = 1    # hopping operator from energy i (column) to j (row)
+            E_op = Qobj(spinsys.eigVectors[j_final]) * Qobj(spinsys.eigVectors[i_initial]).dag()  # define hopping operator from eigenstate i to j
+
+            ##print(f'initial state: \n {spinsys.eigVectors[i_initial]}')
+            ##print(f'final state: \n {spinsys.eigVectors[j_final]}\n ')
+            ##print(f'hop: \n {E_op*Qobj(spinsys.eigVectors[i_initial])}\n ')
 
             L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor            
  
