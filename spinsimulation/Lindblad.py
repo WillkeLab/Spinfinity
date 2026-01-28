@@ -1,5 +1,7 @@
 # import python libraries
 import numpy as np
+import scipy.constants as const
+import matplotlib.pyplot as plt
 
 # import other SpinFinity packages
 from spinsimulation.SpinSys import SpinSys
@@ -7,7 +9,7 @@ import spinsimulation.SpinHamiltonian as hamil
 import spinsimulation.calcBath as bath
 
 # import qutip code
-from qutip import *
+from qutip import Qobj, mesolve
 
 
 # Content
@@ -93,6 +95,91 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
 
 
     return collapse_ops 
+
+
+def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BTip_values = np.linspace(-0.1, 0.1, 100), Baxis="z", spinidx=0):
+        """
+        Plots a colormap of <Sz>(t) at different tip fields. 
+        Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
+        at each time step.
+        
+        Parameters
+        ---------
+        spinsys : SpinSys
+            The spin system object 
+        psi_0 : Qobj
+            Initial state of spinsys.
+        times: np.array, optional
+            Time values at which Lindblad equation should be solved for each tip field strength.
+            Default is np.linspace(0, 1e-7, 500)
+        BTip_values: np.array, optional
+            Tip field strengths to sweep through.
+            Default is np.linspace(-0.1, 0.1, 100)
+        Baxis: string, optional
+            which B axis ("x", "y", or "z") should be swept through.
+            Default is "z".
+        spinidx: int, optional
+            Which single spin of the spinsys is plotted.
+            Default is 0 (which is typically the readout spin)
+
+        Returns
+        ---------
+        np.array
+            2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
+
+        """
+        # TODO check which spinsys attributes have to be recalculated and where
+        # TODO check factor 2 in E_z
+        BTip_initial = spinsys.BTip   # save for later
+
+        # select axis to sweep through (convert to numerical index)
+        if Baxis=="z":
+            Bidx = 2
+        elif Baxis=="y":
+            Bidx = 1
+        elif Baxis=="x":
+            Bidx = 0
+
+        hamil.calcAngMomMatrices(spinsys.ReadoutSpin)  # calculate Sz
+        E_z = Qobj(2*spinsys.Sz[spinidx])   # define Sz of the chosen spin of which the expectation value will be calculated
+
+        resulti = []  # initialize array to store <Sz> results
+
+        # get decay values for spin spinidx. Store result of each tip field step in resulti
+        for BTip_value in BTip_values:
+            spinsys.BTip[Bidx] = BTip_value
+            hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian and eigenenergies
+    
+            L_operators = collapse_operators(spinsys)  # calculate new collapse operators with new Hamiltonian
+
+            meV_to_J = 1e-3 * const.e
+            H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
+
+            result = mesolve(H_q, psi_0, times, L_operators, [E_z])  # calculate Sz expectation values for given tip field
+
+            resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
+        
+        resulti = np.stack(resulti)
+
+        # Plot as a 2D colormap: x=time, y=tip field values
+        fig, ax = plt.subplots()
+        im = ax.imshow(
+            resulti,
+            aspect="auto",
+            origin="lower",
+            extent=[times[0], times[-1], BTip_values[0], BTip_values[-1]],
+        )
+        ax.set_xlabel("time/s")
+        ax.set_ylabel(f"BTip_{Baxis}/T")
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label(r'$\langle S_z \rangle$')
+        plt.tight_layout()
+        plt.show()
+
+        # Restore original BTip
+        spinsys.BTip = BTip_initial
+
+        return resulti
 
 
 
