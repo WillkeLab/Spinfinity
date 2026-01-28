@@ -775,21 +775,21 @@ def stevens_operator(S, k, q, return_latex=False):
     if k == 2:
         if abs(q) == 0:
             e = 3 * Sz_ @ Sz_ - ss * I
-            latex = "$3\\hat{S}_z^2$"
+            #latex = "$3\\hat{S}_z^2$"
         elif abs(q) == 1:
             if q > 0:
                 e = 0.25 * (Sz_@(Sp + Sm) + (Sp + Sm)@Sz_)
-                latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
+                #latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
             else:
                 e = -0.25j * (Sz_@(Sp - Sm) + (Sp - Sm)@Sz_)
-                latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
+                #latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
         elif abs(q) == 2:
             if q > 0:
                 e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
-                latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
+                #latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
             else:
                 e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
-                latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
+                #latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
 
     elif k == 4:
         z2 = Sz_ @ Sz_
@@ -798,7 +798,7 @@ def stevens_operator(S, k, q, return_latex=False):
         ss2 = ss ** 2
         if abs(q) == 0:
             e = 35 * z4 - (30 * ss * I - 25 * I) * z2 + (3 * ss2 - 6 * ss) * I
-            latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
+            #latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
         elif abs(q) == 1:
             pm = Sp + Sm if q > 0 else Sp - Sm
             ppm = (7 * z3 - (3 * ss * I + 1 * I) * Sz_)

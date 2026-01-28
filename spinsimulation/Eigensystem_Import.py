@@ -33,6 +33,7 @@ class Eigensystem_Import:
         self.j_label = j_label  # e.g. "7/2"
         self._energies = None      # {state_index: energy_cm1}
         self._states = None        # {state_index: {"M": [...], "coeffs": [...], "weights": [...], "energy": float}}
+        self._stevens = None  # 
 
     @classmethod
     def from_file(cls, filename: str, j_label: str = "7/2"):
@@ -445,3 +446,152 @@ class Eigensystem_Import:
         factor = 0.1239842
         energies_meV = [value * factor for value in energy_dict.values()]
         return np.array(energies_meV)
+
+    def get_stevens_parameters(self):
+        """
+        Parse the "Extended Stevens Operators (ESO)" table with header:
+
+            k |  q  |    (K)^2    |         B(k,q)
+
+        inside the section:
+            'CALCULATION OF CRYSTAL-FIELD PARAMETERS OF THE GROUND ATOMIC MULTIPLET J = x/y.'
+
+        Returns
+        -------
+        dict
+            Dictionary mapping "k,q" -> float, e.g. {"2,-2": -1.23e-3, "6,6": ...}
+        """
+        if self._stevens is not None:
+            return self._stevens
+
+        text = self.text
+        j_pat = re.escape(self.j_label)
+
+        # 1) Find the correct J block
+        m0 = re.search(
+            rf"CALCULATION OF CRYSTAL-FIELD PARAMETERS OF THE GROUND ATOMIC MULTIPLET\s+J\s*=\s*{j_pat}\.",
+            text
+        )
+        if not m0:
+            raise RuntimeError(
+                f"Could not find 'CALCULATION OF CRYSTAL-FIELD PARAMETERS ... J = {self.j_label}.'"
+            )
+
+        # 2) Work on a chunk after that header
+        section = text[m0.end(): m0.end() + 60000]  # generous window
+
+        # 3) Find the ESO B(k,q) table header (the one with (K)^2)
+        #    We anchor on the exact header line content, then parse until the closing dashed line.
+        header_re = re.compile(
+            r"^\s*k\s*\|\s*q\s*\|\s*\(?K\)?\^2\s*\|\s*B\(k,q\)\s*$",
+            re.IGNORECASE | re.MULTILINE
+        )
+
+        mh = header_re.search(section)
+        if not mh:
+            # some MOLCAS variants have extra spaces: try a looser header match
+            mh = re.search(r"^\s*k\s*\|\s*q\s*\|.*\(\s*K\s*\)\^2.*B\(k,q\)", section, re.IGNORECASE | re.MULTILINE)
+
+        if not mh:
+            raise RuntimeError(
+                f"Could not find the extended Stevens table header (with (K)^2 and B(k,q)) for J = {self.j_label}."
+            )
+
+        # Parse from header line onward
+        table_text = section[mh.start():]
+        stevens = self._parse_stevens_bkq_table(table_text)
+
+        if not stevens:
+            raise RuntimeError(
+                f"Found the Stevens table header, but could not parse any B(k,q) rows for J = {self.j_label}."
+            )
+
+        self._stevens = stevens
+        return stevens
+
+    @staticmethod
+    def _parse_stevens_bkq_table(table_text: str):
+        """
+        Parse the extended Stevens table blocks (often separated by dashed lines),
+        returning dict {"k,q": float} for all ranks (2,4,6,...).
+        """
+        lines = table_text.splitlines()
+
+        # Data lines look like:
+        #   2 |  -2 |  1.50 | -1.99628921154922E-03 |
+        row_re = re.compile(
+            r"^\s*(\d+)\s*\|\s*([+-]?\d+)\s*\|\s*([+-]?\d+(?:\.\d+)?)?\s*\|\s*([+-]?\d+(?:\.\d+)?E[+-]\d+)\s*\|?\s*$",
+            re.IGNORECASE
+        )
+
+        # Stop when we clearly leave the B(k,q) table and enter something else
+        stop_markers = (
+            "A(k,q)",                 # often the next table
+            "WYBOURNE",               # other CF conventions
+            "CRYSTAL-FIELD HAMILTONIAN",
+            "EIGENVALUES",
+            "WAVE FUNCTION",
+            "CALCULATION OF CRYSTAL-FIELD PARAMETERS",  # next J block
+        )
+
+        out = {}
+        in_data = False
+        saw_any_row = False
+
+        for ln in lines:
+            s = ln.strip()
+
+            # detect leaving this table after we already parsed something
+            if saw_any_row:
+                upper = s.upper()
+                if any(m.upper() in upper for m in stop_markers):
+                    break
+
+            # Header separator: first dashed line under the header starts data mode
+            if not in_data:
+                if s and set(s) <= set("-|"):
+                    in_data = True
+                continue
+
+            # Inside the table: dashed separators can appear between blocks -> SKIP, don't break
+            if s and set(s) <= set("-|"):
+                continue
+
+            if not s:
+                continue
+
+            m = row_re.match(ln)
+            if not m:
+                # allow some non-row noise lines without aborting parsing
+                continue
+
+            k = int(m.group(1))
+            q = int(m.group(2))
+            val = float(m.group(4))
+
+            out[f"{k},{q}"] = val
+            saw_any_row = True
+
+        return out
+    
+    def get_stevens_parameters_meV(self, factor: float = 0.1239842):
+            """
+            Return extended Stevens parameters converted to meV.
+
+            Parameters
+            ----------
+            factor : float, optional
+                Conversion factor from cm^-1 to meV.
+                Default: 0.1239842 meV / cm^-1
+
+            Returns
+            -------
+            dict
+                Dictionary {"k,q": B_kq_meV}
+            """
+            Bkq = self.get_stevens_parameters()
+
+            return {
+                kq: val * factor
+                for kq, val in Bkq.items()
+            }
