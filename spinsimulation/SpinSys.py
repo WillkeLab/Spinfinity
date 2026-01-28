@@ -118,7 +118,6 @@ class SpinSys:
     ## Initialize the Spin System ##
     def __init__(self, Spins: list):
 
-        self.g=2 # Default g-factor for spins, can be overwritten
         self.Spins=Spins
         self.NSpins=len(self.Spins)
         self.dimensionOfMatrix=1 # A system with N spins [S1,S2,S3,...,SN] is represented through a matrix of dimension (2*S1+1)*(2*S2+1)*...*(2*SN+1)
@@ -138,7 +137,7 @@ class SpinSys:
 
         # Spin Hamiltoninan
         self.H = np.zeros((self.dimensionOfMatrix,self.dimensionOfMatrix),dtype=complex)
-        self.gfactorvector = [self.g]*self.NSpins # Each spin gets his own g-factor, by default 2
+        self.gfactorvector = [2.0]*self.NSpins # Each spin gets his own g-factor, by default 2
         self.Dvector = np.zeros(self.NSpins) # Out of plane Anistropy as list for each spin 
         self.Evector = np.zeros(self.NSpins) # In plane Anisotropy as list for each spin 
         self.D0=np.zeros((self.NSpins,self.NSpins)) # Creates the Dipole Interaction Matrix

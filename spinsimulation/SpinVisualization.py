@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
+from matplotlib import cm
 
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
@@ -860,6 +861,12 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+        
+        # Define y-axis label according to normalization 
+        if norm:
+            y_label = 'Normalized dI/dV (a.u.)'
+        else:
+            y_label = 'dI/dV (S)'
     
         # Plot the IETS spectrum using Plotly with white background and black border
         y_max = np.max(y)
@@ -880,7 +887,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         fig.update_layout(
             title=f'IETS Spectrum ({order} Order)',
             xaxis_title='Bias Voltage (mV)',
-            yaxis_title='dI/dV (a.u.)',
+            yaxis_title=y_label,
             plot_bgcolor='white',
             paper_bgcolor='white',
             width=800,
@@ -954,7 +961,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
         fig.update_layout(
             title=f'IETS Spectrum ({order} Order) for All Spins',
             xaxis_title='Bias Voltage (mV)',
-            yaxis_title='dI/dV (a.u.)',
+            yaxis_title=y_label,
             plot_bgcolor='white',
             paper_bgcolor='white',
             width=800,
@@ -1035,7 +1042,10 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     Freq_array, ESRsignal = ESR.calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
-    color_list = plotly.colors.qualitative.Plotly[:len(spinsys.ResonanceFrequencies)]
+    Nc = len(spinsys.ResonanceFrequencies)
+    color_list = cm.jet(np.linspace(0, 1, Nc))
+    color_list = [f'rgb({int(c[0]*255)},{int(c[1]*255)},{int(c[2]*255)})' for c in color_list]
+
 
     # Create the main ESR signal trace
     fig = go.Figure()
@@ -1239,7 +1249,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
         
 
     # Calculating the Detuning from the Tipfield
-    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.g * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
+    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
 
 
     # Plot the ESR Signal as a color plot

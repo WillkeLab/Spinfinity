@@ -62,6 +62,10 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
                 ytemp = spinsys.pop_0[i] * (RateMatrix[j, i] * ep + RateMatrix[i, j] * en)
                 dIdV_array = dIdV_array + ytemp
 
+    # Normalize with Rate_00 to get correct units
+    Rate_0 = RateMatrix[0][0]  # Transition matrix element of the ground state
+    dIdV_array = dIdV_array * spinsys.G / Rate_0
+    
     # Normalize dI/dV if required
     if norm:
         dIdV_array = dIdV_array / dIdV_array[0]  # Normalize to the first value
@@ -216,7 +220,11 @@ def calcIETS_2ndR(
 
         # Solve the Rate-Equation if non-thermal population is desired
         if AllowPumping:
-            p = null_space(K)
+            try:
+                p = null_space(K)
+            except Exception as e:
+                print("Warning: null_space failed, using thermal population. Error:", e)
+                p = np.empty((0, 0))
             if p.size == 0:  # If no valid solution, use thermal distribution
                 Populations = spinsys.pop_0
                 print("Warning: No valid solution for rate equations found, using thermal population instead.")
