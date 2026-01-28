@@ -7,7 +7,8 @@ from . import calcESR as ESR
 from . import SpinVisualization as vis
 from . import fitting as fitting
 from . import BlochRedfield as BR
+from .Eigensystem_Import import Eigensystem_Import as ESI
 
 
 # Make everything available when importing the package
-__all__ = ['SpinSys', 'hamil', 'bath', 'dIdV', 'dIdV3', 'ESR', 'vis','fitting','BR']
+__all__ = ['SpinSys', 'hamil', 'bath', 'dIdV', 'dIdV3', 'ESR', 'vis','fitting','BR', 'ESI']
