@@ -476,50 +476,7 @@ def addExchangeInteraction(spinsys: SpinSys):
                 # Increment the index counter
                 index_counter += 1
     return
-
-def addExchangeOffDiagonal(spinsys: SpinSys):
-    """
-    Add off-diagonal exchange interaction terms to the spin system Hamiltonian.
-
-    This function computes and accumulates spin-spin exchange interactions for all
-    unique pairs of spins (where i < j) in the system. It adds six types of
-    anisotropic exchange coupling terms to the Hamiltonian matrix.
-
-    Parameters
-    ----------
-    spinsys : SpinSys
-        The spin system object containing:
-        - NSpins : int
-            Number of spins in the system
-        - H : ndarray
-            The Hamiltonian matrix to which exchange terms are added
-        - Jxy, Jxz, Jyz, Jyx, Jzx, Jzy : ndarray
-            Coupling constant arrays for each type of exchange interaction, they are 0 by default
-        - Sx, Sy, Sz : ndarray
-            Spin operator matrices of shape (NSpins, dim, dim)
     
-    Returns
-    -------
-    None
-        The function modifies spinsys.H in-place by adding exchange interaction terms.
-    """
-    index_counter = 0 
-
-    for i_spin in range(spinsys.NSpins):
-        for j_spin in range(spinsys.NSpins):
-            if i_spin < j_spin:  # We only look at the case where i_spin < j_spin
-                # Add the spin-spin interaction terms to the Hamiltonian H
-                spinsys.H += spinsys.Jxy[index_counter] * spinsys.Sx[i_spin, :, :] @ spinsys.Sy[j_spin, :, :]
-                spinsys.H += spinsys.Jxz[index_counter] * spinsys.Sx[i_spin, :, :] @ spinsys.Sz[j_spin, :, :]
-                spinsys.H += spinsys.Jyz[index_counter] * spinsys.Sy[i_spin, :, :] @ spinsys.Sz[j_spin, :, :]
-                spinsys.H += spinsys.Jyx[index_counter] * spinsys.Sy[i_spin, :, :] @ spinsys.Sx[j_spin, :, :]
-                spinsys.H += spinsys.Jzx[index_counter] * spinsys.Sz[i_spin, :, :] @ spinsys.Sx[j_spin, :, :]
-                spinsys.H += spinsys.Jzy[index_counter] * spinsys.Sz[i_spin, :, :] @ spinsys.Sy[j_spin, :, :]
-                # Increment the index counter
-                index_counter += 1
-
-    return
-
 def calcDipolarCoupling(spinsys: SpinSys):
     """
     Calculate the dipolar coupling constants for each spin pair in the given spin system.
