@@ -143,6 +143,13 @@ class SpinSys:
         self.D0=np.zeros((self.NSpins,self.NSpins)) # Creates the Dipole Interaction Matrix
         self.DipoleBool = np.zeros((1,(self.NSpins * (self.NSpins - 1)) // 2),dtype=bool) # Dipole-Bool array to activate and deactivate the dipole interaction between specific spins
         self.Jvector = np.zeros(((self.NSpins * (self.NSpins - 1)) // 2, 3)) # A vector that contains all possible spin combinations
+        # Off diagonal Elements of the Exchange Parameter J
+        self.Jxy = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
+        self.Jxz = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
+        self.Jyz = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
+        self.Jyx = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
+        self.Jzx = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
+        self.Jzy = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
 
         # Tunneling Parameters
         self.V_DC = 0 # [V]

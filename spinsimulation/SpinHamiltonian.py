@@ -277,6 +277,8 @@ def calcEigEnergies(spinsys: SpinSys):
     addTipField(spinsys)
     addZeroField(spinsys)
     addExchangeInteraction(spinsys)
+    addExchangeOffDiagonal(spinsys)
+    addExchangeOffDiagonal(spinsys)
     #calcDipolarCoupling(spinsys) # This two functions are split because one may also want to change the D0 entries himself
     addDipolarCoupling(spinsys)
 
