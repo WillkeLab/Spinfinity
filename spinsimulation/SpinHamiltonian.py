@@ -278,7 +278,6 @@ def calcEigEnergies(spinsys: SpinSys):
     addZeroField(spinsys)
     addExchangeInteraction(spinsys)
     addExchangeOffDiagonal(spinsys)
-    addExchangeOffDiagonal(spinsys)
     #calcDipolarCoupling(spinsys) # This two functions are split because one may also want to change the D0 entries himself
     addDipolarCoupling(spinsys)
 
@@ -473,6 +472,42 @@ def addExchangeInteraction(spinsys: SpinSys):
                 spinsys.H += spinsys.Jvector[index_counter, 0] * spinsys.Sx[i_spin, :, :] @ spinsys.Sx[j_spin, :, :]
                 spinsys.H += spinsys.Jvector[index_counter, 1] * spinsys.Sy[i_spin, :, :] @ spinsys.Sy[j_spin, :, :]
                 spinsys.H += spinsys.Jvector[index_counter, 2] * spinsys.Sz[i_spin, :, :] @ spinsys.Sz[j_spin, :, :]
+                # Increment the index counter
+                index_counter += 1
+    return
+
+def addExchangeOffDiagonal(spinsys: SpinSys):
+    """
+    Add off-diagonal exchange interaction terms to the spin system Hamiltonian.
+
+    This function computes and adds all pairwise spin-spin exchange interactions
+    to the Hamiltonian matrix. It iterates through unique spin pairs (i < j) and
+    adds six types of exchange coupling terms: Jxy, Jxz, Jyz, Jyx, Jzx, and Jzy.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the Hamiltonian matrix H, spin operators
+        (Sx, Sy, Sz), exchange coupling constants (Jxy, Jxz, Jyz, Jyx, Jzx, Jzy),
+        and the total number of spins NSpins.
+
+    Returns
+    -------
+    None
+        Modifies the Hamiltonian matrix in-place by adding exchange interaction terms.
+    """
+    index_counter = 0  # Initialize the index counter (0-based indexing in Python)
+
+    for i_spin in range(spinsys.NSpins):
+        for j_spin in range(spinsys.NSpins):
+            if i_spin < j_spin:  # We only look at the case where i_spin < j_spin
+                # Add the spin-spin interaction terms to the Hamiltonian H
+                spinsys.H += spinsys.Jxy[index_counter] * spinsys.Sx[i_spin, :, :] @ spinsys.Sy[j_spin, :, :]
+                spinsys.H += spinsys.Jxz[index_counter] * spinsys.Sx[i_spin, :, :] @ spinsys.Sz[j_spin, :, :]
+                spinsys.H += spinsys.Jyz[index_counter] * spinsys.Sy[i_spin, :, :] @ spinsys.Sz[j_spin, :, :]
+                spinsys.H += spinsys.Jyx[index_counter] * spinsys.Sy[i_spin, :, :] @ spinsys.Sx[j_spin, :, :]
+                spinsys.H += spinsys.Jzx[index_counter] * spinsys.Sz[i_spin, :, :] @ spinsys.Sx[j_spin, :, :]
+                spinsys.H += spinsys.Jzy[index_counter] * spinsys.Sz[i_spin, :, :] @ spinsys.Sy[j_spin, :, :]
                 # Increment the index counter
                 index_counter += 1
     return
