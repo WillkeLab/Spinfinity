@@ -844,6 +844,11 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     -----
     - the dimension of the dIdVsignal changes when plotAllSpins=True
     """
+    # Define y-axis label according to normalization 
+    if norm:
+        y_label = 'Normalized dI/dV (a.u.)'
+    else:
+        y_label = 'dI/dV (S)'
 
     if plotAllSpins==False:
 
@@ -861,12 +866,6 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             x, y = dIdV3.calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
         else:
             raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
-        
-        # Define y-axis label according to normalization 
-        if norm:
-            y_label = 'Normalized dI/dV (a.u.)'
-        else:
-            y_label = 'dI/dV (S)'
     
         # Plot the IETS spectrum using Plotly with white background and black border
         y_max = np.max(y)
