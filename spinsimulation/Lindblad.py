@@ -150,7 +150,7 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     return result
 
 
-def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
+def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z", title="Time evolution"):
     """
     Plot spin expectation values along axis of selected spins over time.
 
@@ -169,6 +169,9 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     axis : {"x", "y", "z"}, optional
         Spin component to plot (Sx, Sy or Sz correspondingly).
         Default is ``"z"``.
+    title : string, optional
+        Title of the plot
+        Default is "Time evolution"
 
     Returns
     -------
@@ -195,6 +198,7 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     ax.set_ylim([-1, 1])
     ax.set_xlabel('t/s')
     ax.set_ylabel(f'<S{axis}>')
+    plt.title(title)
     plt.show()
 
     return_dict = {
@@ -218,7 +222,7 @@ def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BT
         ---------
         spinsys : SpinSys
             The spin system object 
-        psi_0 : Qobj
+        psi_0 : Qobj, array or np.array
             Initial state of spinsys.
         times: np.array, optional
             Time values at which Lindblad equation should be solved for each tip field strength.
@@ -243,6 +247,10 @@ def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BT
         # TODO check factor 2 in E_z
         BTip_initial = spinsys.BTip   # save for later
 
+        # convert psi_0 into Qobj if it is not already one
+        if not isinstance(psi_0, Qobj):
+            psi_0 = Qobj(psi_0)
+
         # select axis to sweep through (convert to numerical index)
         if Baxis=="z":
             Bidx = 2
@@ -258,7 +266,7 @@ def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BT
 
         # get decay values for spin spinidx. Store result of each tip field step in resulti
         for BTip_value in BTip_values:
-            spinsys.BTip[Bidx] = BTip_value
+            spinsys.BTip[Bidx] = BTip_value 
             hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian and eigenenergies
     
             L_operators = collapse_operators(spinsys)  # calculate new collapse operators with new Hamiltonian
