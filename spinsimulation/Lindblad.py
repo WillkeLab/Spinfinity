@@ -16,7 +16,7 @@ from qutip import Qobj, mesolve
 
 # - calculate collapse operators with off diagonal elements
 # - Filter rates and kick out values below a threshhold
-# - Translator into QuTIp objects 
+# - Translator into QuTip objects 
 # -   
 # - Lindblad master equation solver for spin systems
 # (- Current from density matrix)
@@ -93,8 +93,91 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
 
             collapse_ops.append(Qobj(L_ij))  # append new L_ij to the list of collapse operators
 
+    spinsys.collapse_ops = collapse_ops
 
     return collapse_ops 
+
+
+def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
+    """
+    Docstring for plot_time_evolution
+    
+    :param spinsys: Description
+    :param psi_0: Qobj
+    :param times: Description
+    :param spin_idx: Description
+    :param options: Description
+    """
+
+    # Ensure the Lindblad collapse operators are calculated before using mesolve
+    if not hasattr(spinsys, 'collapse_ops') or spinsys.collapse_ops is None:
+        collapse_operators(spinsys)
+
+    # convert spinsys Hamiltonian in Qobj with unit 1/s
+    meV_to_J = 1e-3 * const.e
+    H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
+
+    # define list of operators e_ops for which the Lindblad equation will be solved
+    
+    # if axis=="z":    # convert axis string into numerical index
+    #     axis_idx = 2
+    # elif axis=="y":
+    #     axis_idx = 1
+    # elif axis=="x":
+    #     axis_idx = 0
+    # else:
+    #     raise ValueError('axis must be string x, y or z')
+    
+    S = getattr(spinsys, f"S{axis}", None)   # gets Sx, Sy or Sz depending on axis
+    if S is None:
+        raise ValueError('axis must be "x", "y" or "z"')
+    print(f'S={S}')
+    print(f'S[0]={S[0]}')
+        
+    e_ops = []  # initialize list of operators
+
+    for spin in spin_idx:
+        E_z = 2*S[spin]
+        e_ops.append(Qobj(E_z))
+
+    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})
+
+    return result
+
+
+def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
+    """
+    Docstring for plot_time_evolution
+    
+    :param spinsys: Description
+    :param psi_0: Description
+    :param times: Description
+    :param spin_idx: Description
+    :param axis: Description
+    """
+
+    result = calc_time_evolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
+
+    fig, ax = plt.subplots()
+
+    for spin in spin_idx:
+        ax.plot(times, result.expect[spin], label=f'n={spin}')
+
+    ax.legend()
+    ax.set_ylim([-1, 1])
+    ax.set_xlabel('t/s')
+    ax.set_ylabel(f'<S{axis}>')
+    plt.show()
+
+    return_dict = {
+        'fig': fig,
+        'time_values': times,
+        'expectation_values': result.expect,
+        'state_values': result.states
+        }
+    
+    return return_dict
+
 
 
 def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BTip_values = np.linspace(-0.1, 0.1, 100), Baxis="z", spinidx=0):
