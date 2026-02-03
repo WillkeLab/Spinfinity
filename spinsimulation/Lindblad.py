@@ -100,13 +100,33 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
 
 def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
     """
-    Docstring for plot_time_evolution
-    
-    :param spinsys: Description
-    :param psi_0: Qobj
-    :param times: Description
-    :param spin_idx: Description
-    :param options: Description
+    Solve the Lindblad master equation with QuTip and return mesolve result.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system with Hamiltonian, eigenstates, and spin operators.
+    psi_0 : Qobj
+        Initial state (ket) for the time evolution.
+    times : array_like, optional
+        Time points (in seconds) at which to evaluate the evolution.
+        Default is ``np.linspace(0, 1e-7, 500)``.
+    spin_idx : list[int], optional
+        Indices of spins for which the expectation values over time are computed.
+        Default is ``[0]``.
+    axis : {"x", "y", "z"}, optional
+        Axis along which the expectation value should be computed. The expectation value of Sx, Sy or Sz are computed depending on axis.
+        Default is ``"z"``.
+
+    Returns
+    -------
+    qutip.solver.Result
+        QuTiP result object with ``expect`` and ``states``.
+
+    Raises
+    ------
+    ValueError
+        If ``axis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
     """
 
     # Ensure the Lindblad collapse operators are calculated before using mesolve
@@ -117,43 +137,58 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     meV_to_J = 1e-3 * const.e
     H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
 
-    # define list of operators e_ops for which the Lindblad equation will be solved
-    
-    # if axis=="z":    # convert axis string into numerical index
-    #     axis_idx = 2
-    # elif axis=="y":
-    #     axis_idx = 1
-    # elif axis=="x":
-    #     axis_idx = 0
-    # else:
-    #     raise ValueError('axis must be string x, y or z')
-    
+    # calculate list of operators e_ops for which the Lindblad equation will be solved
     S = getattr(spinsys, f"S{axis}", None)   # gets Sx, Sy or Sz depending on axis
     if S is None:
         raise ValueError('axis must be "x", "y" or "z"')
-    print(f'S={S}')
-    print(f'S[0]={S[0]}')
         
-    e_ops = []  # initialize list of operators
+    e_ops = []  # initialize list of operators for which the expectation value will be computed from the total density matrix
 
-    for spin in spin_idx:
-        E_z = 2*S[spin]
+    for spin in spin_idx:   # calculate S matrix for each spin in spin_idx
+        E_z = 2*S[spin]   
         e_ops.append(Qobj(E_z))
 
-    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})
+    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  # solve Lindblad equation
 
     return result
 
 
 def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
     """
-    Docstring for plot_time_evolution
-    
-    :param spinsys: Description
-    :param psi_0: Description
-    :param times: Description
-    :param spin_idx: Description
-    :param axis: Description
+    Plot expectation values of a spin component over time.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system with Hamiltonian, eigenstates, and spin operators.
+    psi_0 : Qobj
+        Initial state (ket or density matrix) for the time evolution.
+    times : array_like, optional
+        Time points (in seconds) at which to evaluate the evolution.
+        Default is ``np.linspace(0, 1e-7, 500)``.
+    spin_idx : list[int], optional
+        Indices of spins for which expectation values are plotted.
+        Default is ``[0]``.
+    axis : {"x", "y", "z"}, optional
+        Spin component to plot.
+        Default is ``"z"``.
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        ``fig`` : matplotlib.figure.Figure
+            The created figure.
+        ``time_values`` : ndarray
+            Time values used for the plot.
+        ``expectation_values`` : list[ndarray]
+            Expectation values for each requested spin index.
+        ``state_values`` : list[Qobj]
+            Time-evolved states from the solver.
+
+    See Also
+    --------
+    calc_time_evolution : Compute the time evolution without plotting.
     """
 
     result = calc_time_evolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
