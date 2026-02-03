@@ -100,8 +100,8 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     ----------
     spinsys : SpinSys
         Spin system with Hamiltonian, eigenstates, and spin operators.
-    psi_0 : Qobj
-        Initial state (ket) for the time evolution.
+    psi_0 : Qobj, array or np.array
+        Initial state vector for the time evolution.
     times : array_like, optional
         Time points (in seconds) at which to evaluate the evolution.
         Default is ``np.linspace(0, 1e-7, 500)``.
@@ -122,6 +122,9 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     ValueError
         If ``axis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
     """
+    # convert psi_0 into Qobj if it is not already one
+    if not isinstance(psi_0, Qobj):
+        psi_0 = Qobj(psi_0)
 
     # Ensure the Lindblad collapse operators are calculated before using mesolve
     if not hasattr(spinsys, 'collapse_ops') or spinsys.collapse_ops is None:
