@@ -83,13 +83,7 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
             ##E_op[j_final][i_initial] = 1    # hopping operator from energy i (column) to j (row)
             E_op = Qobj(spinsys.eigVectors[j_final]) * Qobj(spinsys.eigVectors[i_initial]).dag()  # define hopping operator from eigenstate i to j
 
-            ##print(f'initial state: \n {spinsys.eigVectors[i_initial]}')
-            ##print(f'final state: \n {spinsys.eigVectors[j_final]}\n ')
-            ##print(f'hop: \n {E_op*Qobj(spinsys.eigVectors[i_initial])}\n ')
-
             L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor            
- 
-            ## for testing: print(f'L[{i_initial}][{j_final}] = {L_ij}')
 
             collapse_ops.append(Qobj(L_ij))  # append new L_ij to the list of collapse operators
 
@@ -155,14 +149,14 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
 
 def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
     """
-    Plot expectation values of a spin component over time.
+    Plot spin expectation values along axis of selected spins over time.
 
     Parameters
     ----------
     spinsys : SpinSys
         Spin system with Hamiltonian, eigenstates, and spin operators.
     psi_0 : Qobj
-        Initial state (ket or density matrix) for the time evolution.
+        Initial state (ket) for the time evolution.
     times : array_like, optional
         Time points (in seconds) at which to evaluate the evolution.
         Default is ``np.linspace(0, 1e-7, 500)``.
@@ -170,7 +164,7 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
         Indices of spins for which expectation values are plotted.
         Default is ``[0]``.
     axis : {"x", "y", "z"}, optional
-        Spin component to plot.
+        Spin component to plot (Sx, Sy or Sz correspondingly).
         Default is ``"z"``.
 
     Returns
@@ -185,18 +179,14 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
             Expectation values for each requested spin index.
         ``state_values`` : list[Qobj]
             Time-evolved states from the solver.
-
-    See Also
-    --------
-    calc_time_evolution : Compute the time evolution without plotting.
     """
-
-    result = calc_time_evolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
+    # calculate time evolution with QuTip
+    result = calc_time_evolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)  
 
     fig, ax = plt.subplots()
 
-    for spin in spin_idx:
-        ax.plot(times, result.expect[spin], label=f'n={spin}')
+    for j, spin in enumerate(spin_idx):    # plot expectation value for each spin
+        ax.plot(times, result.expect[j], label=f'n={spin}')
 
     ax.legend()
     ax.set_ylim([-1, 1])
@@ -207,7 +197,7 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     return_dict = {
         'fig': fig,
         'time_values': times,
-        'expectation_values': result.expect,
+        'expectation_values': result.expect,    # expectation values for each spin in spin_idx
         'state_values': result.states
         }
     
