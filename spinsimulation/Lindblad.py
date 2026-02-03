@@ -10,6 +10,7 @@ import spinsimulation.calcBath as bath
 
 # import qutip code
 from qutip import Qobj, mesolve
+from qutip.solver.result import Result as QuTiPResult  # to be able to make sure that entities are of the qutip result class
 
 
 # Content
@@ -30,7 +31,7 @@ def test():
     print("hello!")
 
 
-def collapse_operators(spinsys, threshold_percent = 0.01):
+def collapse_operators(spinsys: SpinSys, threshold_percent: float = 0.01):
     """
     Build Lindblad relaxation operators from the system's rates.
 
@@ -92,7 +93,7 @@ def collapse_operators(spinsys, threshold_percent = 0.01):
     return collapse_ops 
 
 
-def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z"):
+def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
     """
     Solve the Lindblad master equation with QuTip and return mesolve result.
 
@@ -150,7 +151,7 @@ def calc_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
     return result
 
 
-def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_idx=[0], axis="z", title="Time evolution"):
+def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z", title: str ="Time evolution"):
     """
     Plot spin expectation values along axis of selected spins over time.
 
@@ -205,14 +206,15 @@ def plot_time_evolution(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), spin_id
         'fig': fig,
         'time_values': times,
         'expectation_values': result.expect,    # expectation values for each spin in spin_idx
-        'state_values': result.states
+        'state_values': result.states,
+        'QuTip_result': result
         }
     
     return return_dict
 
 
 
-def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BTip_values = np.linspace(-0.1, 0.1, 100), Baxis="z", spinidx=0):
+def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
         """
         Plots a colormap of <Sz>(t) at different tip fields. 
         Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
@@ -245,7 +247,9 @@ def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BT
         """
         # TODO check which spinsys attributes have to be recalculated and where
         # TODO check factor 2 in E_z
-        BTip_initial = spinsys.BTip   # save for later
+
+        # save initial value for later
+        BTip_initial = spinsys.BTip.copy()   
 
         # convert psi_0 into Qobj if it is not already one
         if not isinstance(psi_0, Qobj):
@@ -302,7 +306,105 @@ def plot_decay_tipfieldsweep(spinsys, psi_0, times=np.linspace(0, 1e-7, 500), BT
 
 
 
+def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
+    """
+    Plot the density matrix at a selected time (value or index) as a 3D bar chart.
 
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system providing the state labels used for axis tick text.
+    result : qutip.solver.result.Result
+        QuTiP solver result containing ``states`` and ``times``. 
+        Usually the solution of calc_time_evolution.
+    time_type : {"index", "value"}
+        Selects whether the time is given by an explicit index or by a
+        floating-point time value to be matched to the closest entry in
+        ``result.times``.
+    time_index : int, optional
+        Index to ``result.times`` when ``time_type == "index"`` at which 
+        ``result.states`` density matrix is plotted.
+    time_value : float, optional
+        Time value (in seconds) used to find the closest entry in
+        ``result.times`` when ``time_type == "value"``.
+
+    Returns
+    -------
+    None
+        This function creates and shows a matplotlib figure.
+
+    Raises
+    ------
+    ValueError
+        If ``time_type`` is "index" and ``time_index`` is not provided, or if
+        ``time_type`` is "value" and ``time_value`` is not provided.
+
+    """
+    times = result.times
+
+    # choose state and time of result corresponding to time_index
+    if time_type == "index":  
+        if time_index is None:  # make sure a time_index is given
+            raise ValueError('time_index must be provided when time_type == "index"')
+        state = result.states[time_index]
+        time = times[time_index]
+
+    # choose state and time at the time closest to time_value
+    elif time_type == "value":
+        if time_value is None:   # make sure a time_value is given
+            raise ValueError('time_value must be provided when time_type == "value"')
+        
+        time_index = np.searchsorted(times, time_value, side='left')   # time_index is index at which times[time_index-1] < time_value <= times[time_index]
+        
+        if abs(times[time_index]-time_value) > abs(time_value-times[time_index-1]) and time_index != 0:
+            time_index-=1     # take time_index-1 in case times[time_index-1] is closer to time_value than times[time_index]
+        
+        state = result.states[time_index]
+        time = times[time_index]
+
+
+    # Get the full density matrix as a numpy array (not Qobj)
+    densmat = state.full()  
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Create grid for plotting in 3d
+    x = np.arange(densmat.shape[0])
+    y = np.arange(densmat.shape[1])
+    X, Y = np.meshgrid(x, y) 
+
+    dx = dy = 0.5 # width of the bars
+
+    # when values are 0 in the matrix they get plotted in grey
+    is_zero = (abs(densmat.flatten()) == 0.0)
+    colors = np.where(is_zero, "lightgrey", "C0")
+
+    # get the axis labels in the format |0>, |1> etc.
+    xy_axtext = spinsys.statesWithoutE
+
+    # Plot the real part of the density matrix
+    ax.bar3d(X.flatten()-dx/2, Y.flatten()-dy/2, np.zeros_like(densmat.flatten()), 0.5, 0.5, abs(densmat.flatten()), shade=True, color=colors)
+    ax.set_xlabel('State')
+    ax.set_ylabel('State')
+    ax.set_zlabel('Real Part of Density Matrix')
+    ax.set_xticks(x)
+    ax.set_yticks(y)
+    ax.set_xlim(-0.5, len(x) - 0.5)
+    ax.set_ylim(-0.5, len(y) - 0.5)
+    ax.set_xticklabels(xy_axtext)
+    ax.set_yticklabels(xy_axtext)
+    plt.tight_layout()
+    plt.title(f'Density Matrix at t = {time:.2} s')
+    plt.show()
+
+    return_dict = {
+        'fig': fig,
+        'time': time,
+        'state': state,
+        }
+    
+    return return_dict
 
 
 
