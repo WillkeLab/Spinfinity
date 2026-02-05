@@ -30,10 +30,11 @@ def test():
     """
     print("hello!")
 
-
+# region Lindblad solving
 def collapse_operators(spinsys: SpinSys, threshold_percent: float = 0.01):
     """
-    Build Lindblad relaxation operators from the system's rates.
+    Builds Lindblad relaxation operators from the system's rates. 
+    Adds attribute collapse_ops to spinsys.
 
     Parameters
     ----------
@@ -132,7 +133,7 @@ def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
     if not hasattr(spinsys, 'collapse_ops') or spinsys.collapse_ops is None:
         collapse_operators(spinsys)
 
-    # convert spinsys Hamiltonian in Qobj with unit 1/s
+    # convert spinsys Hamiltonian into Qobj with unit 1/s
     meV_to_J = 1e-3 * const.e
     H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
 
@@ -143,11 +144,13 @@ def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
         
     e_ops = []  # initialize list of operators for which the expectation value will be computed from the total density matrix
 
-    for spin in spin_idx:   # calculate S matrix for each spin in spin_idx
+    # calculate S matrix for each spin in spin_idx
+    for spin in spin_idx:   
         E_z = 2*S[spin]   
         e_ops.append(Qobj(E_z))
 
-    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  # solve Lindblad equation
+    # solve Lindblad equation
+    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  
 
     return result
 
@@ -198,7 +201,7 @@ def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
         ax.plot(times, result.expect[j], label=f'n={spin}')
 
     ax.legend()
-    ax.set_ylim([-1, 1])
+    ax.set_ylim([-1, 1])   # Sz from -1 to 1
     ax.set_xlabel('t/s')
     ax.set_ylabel(f'<S{axis}>')
     plt.title(title)
@@ -214,31 +217,48 @@ def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
     
     return return_dict
 
+# endregion Lindblad solver
 
 # region tip field sweep
-def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
     """
-    Docstring for calc_decay_tipfieldsweep
-    
-    :param spinsys: Description
-    :type spinsys: SpinSys
-    :param psi_0: Description
-    :type psi_0: list
-    :param times: Description
-    :type times: list
-    :param BTip_values: Description
-    :type BTip_values: list
-    :param Baxis: Description
-    :type Baxis: str
-    :param spinidx: Description
-    :type spinidx: int
+    Calculates <Sz>(t) of a selected spin at different tip fields. 
+    Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
+    at each time step.
+        
+    Parameters
+    ---------
+    spinsys : SpinSys
+        The spin system object 
+    psi_0 : Qobj, array or np.array
+        Initial state of spinsys. Can also be a density matrix.
+    times: np.array, optional
+        Time values at which Lindblad equation should be solved for each tip field strength.
+        Default is np.linspace(0, 1e-7, 100)
+    BTip_values: np.array, optional
+        Tip field strengths to sweep through.
+        Default is np.linspace(-0.1, 0.1, 100)
+    Baxis: string, optional
+        which B axis ("x", "y", or "z") should be swept through.
+        Default is "z".
+    spinidx: int, optional
+        Which single spin of the spinsys is plotted.
+        Default is 0 (which is typically the readout spin)
+
+    Returns
+    -------
+    resulti: numpy.ndarray
+        2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
+
     """
+    # TODO check which spinsys attributes have to be recalculated and where
+
     # save initial value for later
     BTip_initial = spinsys.BTip.copy()   
 
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
-        si_0 = Qobj(psi_0)
+        psi_0 = Qobj(psi_0)
 
     # convert axis to sweep through to numerical value for indexing
     if Baxis=="z":
@@ -277,7 +297,7 @@ def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
     return resulti
 
 
-def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
         """
         Plots a colormap the absolute values of <Sz>(t) at different tip fields. 
         Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
@@ -291,7 +311,7 @@ def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
             Initial state of spinsys. Can also be a density matrix.
         times: np.array, optional
             Time values at which Lindblad equation should be solved for each tip field strength.
-            Default is np.linspace(0, 1e-7, 500)
+            Default is np.linspace(0, 1e-7, 100)
         BTip_values: np.array, optional
             Tip field strengths to sweep through.
             Default is np.linspace(-0.1, 0.1, 100)
@@ -302,8 +322,6 @@ def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
             Which single spin of the spinsys is plotted.
             Default is 0 (which is typically the readout spin)
 
-        Returns
-        ---------
         Returns
         -------
         returndict: dict
@@ -318,14 +336,15 @@ def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
             2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
 
         """
-        # TODO check which spinsys attributes have to be recalculated and where
-
+        # calculate <Sz> at each time and BTip field step with calc_decay_tipfieldsweep
         resulti = calc_decay_tipfieldsweep(spinsys, psi_0, times, BTip_values, Baxis, spinidx)
+
+        abs_resulti = abs(resulti)
 
         # Plot as a 2D colormap: x=time, y=tip field values
         fig, ax = plt.subplots()
         im = ax.imshow(
-            abs(resulti),
+            abs_resulti,
             aspect="auto",
             origin="lower",
             extent=[times[0], times[-1], BTip_values[0], BTip_values[-1]],
@@ -501,4 +520,79 @@ def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_ind
     return return_dict
 # endregion density matrix
 
+# region current
+def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth"):
+    """
+    Calculates the current over time for a selected spin from a QuTiP result. 
 
+
+    Notes
+    ------
+    Example to get the QuTiP result:
+        result_dict = lind.plot_time_evolution(spinsys, psi_0)
+        result = result_dict['QuTiP_result']
+    """
+    # TODO function name, with spinidx or automatically spin below tip? (maybe not calculated in result)
+    times = result.times
+    densmats = result.states  # density matrices at each time
+
+    # Derive the tunneling current at each time step using Equation 41 from Ternes paper
+    I = []
+    for timeidx in range(len(times)):   # iterate through time steps
+        I_timeidx = 0   # initialize current at time step times[timeidx]
+        densmat_timestep = densmats[timeidx].full()   # get density matrix at times[timeidx] as numpy.ndarray (not Qobj)
+
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                population_i = densmat_timestep[i][i]    # population is diagonal entry of density matrix
+                I_temp = const.e * population_i * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
+                I_timeidx += np.real(I_temp)    # I_temp is real but has 0j part, discard it to avoid warnings when plotting
+        I.append(I_timeidx)
+
+    I = np.array(I)    # convert to numpy array
+
+    # Adjust current calculation based on approach
+    if Approach == "Ternes":
+        I = I / (const.e**2 * spinsys.T02 / spinsys.h_meV)
+    if Approach == "Loth":
+        I = np.add(I, spinsys.b0 * spinsys.G * spinsys.V_DC)  # add factor to every element in array I
+
+    return I
+
+def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth", title: str =None):
+    """
+    Docstring for plot_TunnelCurrent_time
+    
+    :param spinsys: Description
+    :type spinsys: SpinSys
+    :param result: Description
+    :type result: QuTiPResult
+    :param Approach: Description
+    :type Approach: str
+    """
+    # TODO is this function necessary? Should it look more pretty?
+    # TODO check units Ternes
+    times = result.times
+    I = calcTunnelCurrent_time(spinsys, result, Approach=Approach)
+
+    # set plot title if not specified
+    if title == None:
+        title = "Tunneling current"
+
+    # set y label (different units depending on Approach)
+    if Approach == "Ternes":
+        ylabel = r"Current $(\frac{meV}{C^2 s})$"
+    elif Approach == "Loth":
+        ylabel = "Current (A)"
+
+    fig, ax = plt.subplots()
+    ax.plot(times, I)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel(ylabel)
+    plt.title(title)
+    plt.show()
+
+    return_dict = {}
+
+
+# endregion current 
