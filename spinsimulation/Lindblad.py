@@ -438,8 +438,8 @@ def calc_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_ind
 
 def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
     """
-    Plots the density matrix at a selected time (value or index) as a 3D bar chart.
-    Density matrix is extracted of result in calc_densmat.
+    Plots real parts of the density matrix at a selected time (value or index) as a 3D bar chart.
+    The density matrix is extracted of result in calc_densmat.
 
     Parameters
     ----------
@@ -523,14 +523,28 @@ def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_ind
 # region current
 def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth"):
     """
-    Calculates the current over time for a selected spin from a QuTiP result. 
+    Calculate the tunneling current over time from a QuTiP time-evolution result.
 
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system containing the Rates and other relevant parameters.
+    result : qutip.solver.result.Result
+        QuTiP result object returned by ``mesolve`` with ``states`` and ``times``.
+    Approach : {"Loth", "Ternes"}, Optional
+        Determines the current normalization and offset. 
+        Default is ``"Loth"``.
+
+    Returns
+    -------
+    I : list[float]
+        Current values at each time point in ``result.times``.
 
     Notes
-    ------
-    Example to get the QuTiP result:
-        result_dict = lind.plot_time_evolution(spinsys, psi_0)
-        result = result_dict['QuTiP_result']
+    -----
+    - The function assumes that required attribute `Rates` are available in the provided `spinsys` object.
+    - A possibility to get the QuTiP result is using the function calc_time_evolution
+
     """
     # TODO function name, with spinidx or automatically spin below tip? (maybe not calculated in result)
     times = result.times
@@ -559,25 +573,44 @@ def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
 
     return I
 
-def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth", title: str =None):
+def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth", title: str ="Tunneling current"):
     """
-    Docstring for plot_TunnelCurrent_time
-    
-    :param spinsys: Description
-    :type spinsys: SpinSys
-    :param result: Description
-    :type result: QuTiPResult
-    :param Approach: Description
-    :type Approach: str
+    Plot the tunneling current as a function of time.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system containing rate matrices and tunneling parameters.
+    result : qutip.solver.result.Result
+        QuTiP result object returned by ``mesolve`` with ``states`` and ``times``.
+    Approach : {"Loth", "Ternes"}, optional
+        Current calculation approach passed through to
+        :func:`calcTunnelCurrent_time`. Default is ``"Loth"``.
+    title : str, optional
+        Title for the plot. If ``None``, a default title is used.
+
+    Returns
+    -------
+    return_dict : dict
+        Dictionary containing:
+        ``fig`` : matplotlib.figure.Figure
+            The created figure.
+        ``time_values`` : numpy.ndarray
+            Time values used on the x-axis.
+        ``I_values`` : list
+            Current values at each time point.
+        ``Approach`` : str
+            The approach used for the current calculation.
+
+    Notes
+    -----
+    The unit of the y-axis label depends on the selected approach. 
+
     """
-    # TODO is this function necessary? Should it look more pretty?
+
     # TODO check units Ternes
     times = result.times
     I = calcTunnelCurrent_time(spinsys, result, Approach=Approach)
-
-    # set plot title if not specified
-    if title == None:
-        title = "Tunneling current"
 
     # set y label (different units depending on Approach)
     if Approach == "Ternes":
@@ -592,7 +625,14 @@ def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
     plt.title(title)
     plt.show()
 
-    return_dict = {}
+    return_dict = {
+        'fig': fig,
+        'time_values': times,
+        'I_values': I,
+        'Approach': Approach
+    }
+
+    return return_dict
 
 
 # endregion current 
