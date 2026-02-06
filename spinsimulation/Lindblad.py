@@ -56,7 +56,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     ValueError
         If threshold_percent is not between 0 and 1 (exclusive).
     """ 
-
+    # TODO what needs to be recalculated every time?
     hamil.calcEigStates(spinsys)  # QUESTION should this be recalculated every time?
     bath.calcRates(spinsys)  
     bath.calcPopulations(spinsys)
@@ -203,6 +203,8 @@ def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
         ``spin_idx`` : list[int]
             Indices of the spins for which the expectation values were calculated
     """
+    # TODO: plot without recalculating result
+
     # calculate time evolution with QuTiP
     result = calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)  
 
@@ -706,7 +708,7 @@ def calcFourierFreqs(signal, times, reals = False):
 
 def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
     """
-    Plot the frequency spectrum from a time evolution result.
+    Plot the frequency spectrum from a time evolution result. Also calculates the frequencies where peaks are found.
 
     Parameters
     ----------
@@ -734,10 +736,19 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
 
     Returns
     -------
-    freqs : list[numpy.ndarray]
-        Frequency arrays for each plotted spin.
-    amps : list[numpy.ndarray]
-        Fourier amplitudes corresponding to ``freqs``.
+    return_dict: dict
+    A dictionary containing:
+    - ``fig`` : matplotlib.figure.Figure
+        The created figure.
+    - ``frequencies`` : list[numpy.ndarray]
+        Frequency arrays for each plotted spin (same order as ``spin_indices``).
+    - ``amplitudes`` : list[numpy.ndarray]
+        Fourier amplitudes corresponding to ``frequencies``.
+    - ``frequency_peaks`` : list[numpy.ndarray]
+        Peak frequencies for each plotted spin. 
+        scipy.signal.find_peaks usually doesn't find peaks at zero frequency.
+    - ``spin_indices`` : list[int]
+        Spin indices corresponding to each spectrum in the plot.
 
     Notes
     -----
@@ -750,7 +761,7 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
     - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only needed when
       the time evolution has to be recalculated.
     """
-    # TODO take out offset (peak at 0Hz)
+    # TODO take out offset (peak at 0Hz): Sz = sz-np.mean(Sz)
 
     # calculate the time evolution result to be Fourier transformed if necessary or wanted
     if not hasattr(spinsys, 'resultTimeEvolution') or recalculateTimeEvolution==True:
@@ -782,7 +793,9 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
     labels = []
 
     for idxToPlot in plot_idx:
-        freqs_i, amps_i = calcFourierFreqs(np.real(S_expvals[idxToPlot]), times_used, reals=True)
+        S_values = np.real(S_expvals[idxToPlot])
+        S_values = S_values - np.mean(S_values)    # remove offset (otherwise big peak at zero frequency)
+        freqs_i, amps_i = calcFourierFreqs(S_values, times_used, reals=True)
         freqs.append(freqs_i)
         amps.append(amps_i)
         labels.append(spin_idx[idxToPlot])
