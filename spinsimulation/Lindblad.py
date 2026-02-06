@@ -1,5 +1,6 @@
 # import python libraries
 import numpy as np
+import scipy
 import scipy.constants as const
 import matplotlib.pyplot as plt
 
@@ -31,7 +32,7 @@ def test():
     print("hello!")
 
 # region Lindblad solving
-def collapse_operators(spinsys: SpinSys, threshold_percent: float = 0.01):
+def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     """
     Builds Lindblad relaxation operators from the system's rates. 
     Adds attribute collapse_ops to spinsys.
@@ -94,7 +95,7 @@ def collapse_operators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -125,13 +126,15 @@ def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
     ValueError
         If ``axis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
     """
+    # TODO add spinsys.resultTimeEvolution to docstring
+
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
         psi_0 = Qobj(psi_0)
 
     # Ensure the Lindblad collapse operators are calculated before using mesolve
     if not hasattr(spinsys, 'collapse_ops') or spinsys.collapse_ops is None:
-        collapse_operators(spinsys)
+        collapseOperators(spinsys)
 
     # convert spinsys Hamiltonian into Qobj with unit 1/s
     meV_to_J = 1e-3 * const.e
@@ -151,11 +154,17 @@ def calc_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
 
     # solve Lindblad equation
     result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  
+    result_dict = {
+        'QuTip_result': result,
+        'Spin_idx': spin_idx,
+        'S_axis': axis
+    }
+    spinsys.resultTimeEvolution = result_dict
 
     return result
 
 
-def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z", title: str ="Time evolution"):
+def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z", title: str ="Time evolution"):
     """
     Plot spin expectation values along axis of selected spins over time.
 
@@ -191,9 +200,11 @@ def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
             Expectation values for each requested spin index.
         ``state_values`` : list[Qobj]
             Time-evolved states from the solver.
+        ``spin_idx`` : list[int]
+            Indices of the spins for which the expectation values were calculated
     """
     # calculate time evolution with QuTiP
-    result = calc_time_evolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)  
+    result = calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)  
 
     fig, ax = plt.subplots()
 
@@ -212,7 +223,8 @@ def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
         'time_values': times,
         'expectation_values': result.expect,    # expectation values for each spin in spin_idx
         'state_values': result.states,
-        'QuTiP_result': result
+        'QuTiP_result': result,
+        'spin_idx': spin_idx
         }
     
     return return_dict
@@ -220,7 +232,7 @@ def plot_time_evolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(
 # endregion Lindblad solver
 
 # region tip field sweep
-def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
     """
     Calculates <Sz>(t) of a selected spin at different tip fields. 
     Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
@@ -275,12 +287,12 @@ def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
 
     resulti = []  # initialize array to store <Sz> results
 
-    # get decay values for spin spinidx. Store result of each tip field step in resulti
+    # get decay values for spin spinidx. Store result of each tip field step in resulti.
     for BTip_value in BTip_values:
         spinsys.BTip[Bidx] = BTip_value 
         hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian and eigenenergies
     
-        L_operators = collapse_operators(spinsys)  # calculate new collapse operators with new Hamiltonian
+        L_operators = collapseOperators(spinsys)  # calculate new collapse operators with new Hamiltonian
 
         meV_to_J = 1e-3 * const.e
         H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
@@ -292,16 +304,17 @@ def calc_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
     resulti = np.stack(resulti)
     
     # Restore original BTip
-    spinsys.BTip = BTip_initial
+    spinsys.BTip = BTip_initial 
+    collapseOperators(spinsys);
 
     return resulti
 
 
-def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
         """
         Plots a colormap the absolute values of <Sz>(t) at different tip fields. 
         Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
-        at each time step.
+        at each time step. 
         
         Parameters
         ---------
@@ -335,9 +348,13 @@ def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
         ``Sz`` : numpy.ndarray
             2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
 
+        Notes
+        -------
+        The <Sz> values are computed with calcDecayTipfieldsweep.
+
         """
-        # calculate <Sz> at each time and BTip field step with calc_decay_tipfieldsweep
-        resulti = calc_decay_tipfieldsweep(spinsys, psi_0, times, BTip_values, Baxis, spinidx)
+        # calculate <Sz> at each time and BTip field step with calcDecayTipfieldsweep
+        resulti = calcDecayTipfieldsweep(spinsys, psi_0, times, BTip_values, Baxis, spinidx)
 
         abs_resulti = abs(resulti)
 
@@ -366,9 +383,9 @@ def plot_decay_tipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.lins
 # endregion tip field sweep
 
 # region density matrix
-def calc_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
+def calcDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
     """
-    Return the density matrix at a selected time (value or index). 
+    Return the density matrix at a selected time (value or index) from a QuTiP result. 
 
     Parameters
     ----------
@@ -436,7 +453,7 @@ def calc_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_ind
 
 
 
-def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
+def plotDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
     """
     Plots real parts of the density matrix at a selected time (value or index) as a 3D bar chart.
     The density matrix is extracted of result in calc_densmat.
@@ -473,8 +490,9 @@ def plot_densmat(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_ind
     The ``result`` given to the function can be calculated via calc_time_evolution or plot_time_evolution. There it i
     """
     # TODO center state labels, make prettier
+    # TODO plot for multiple times?
 
-    time, densmat = calc_densmat(spinsys, result, time_type, time_index, time_value)
+    time, densmat = calcDensityMatrix(spinsys, result, time_type, time_index, time_value)
 
     fig = plt.figure()  # wider so that z axis label also gets displayed
     ax = fig.add_subplot(111, projection='3d')
@@ -636,3 +654,164 @@ def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
 
 
 # endregion current 
+
+# region Fourier
+def calcFourierFreqs(signal, times, reals = False):
+    """
+     Compute the discrete Fourier transform and frequency axis for a time signal using scipy.fft.
+
+    Parameters
+    ----------
+    signal : array_like or qutip.Qobj
+        Time-domain signal to transform. 
+    times : array_like or qutip.Qobj
+        Time values corresponding to ``signal``. Must be uniformly sampled.
+    reals : bool, optional
+        If ``True``, compute a real FFT (``rfft``) and return only the
+        non-negative frequencies. If ``False``, compute the full complex FFT.
+        Default is ``False``.
+
+    Returns
+    -------
+    freqs : numpy.ndarray
+        Frequency values corresponding to the FFT bins.
+    amps : numpy.ndarray
+        Fourier amplitudes of ``signal`` at the returned frequencies.
+
+    Notes
+    -----
+    - This function assumes uniform sampling to calculate the difference between the time steps.
+    """
+    # convert to arrays in case the input is Qobj
+    if isinstance(signal, Qobj):
+        signal = signal.full()
+
+    if isinstance(times, Qobj):
+        times = times.full()
+
+    N = len(times)  # number of data points
+
+    dt = times[1] - times[0]    # time difference between data points (assuming uniform distribution)
+
+    if reals:
+        amps = scipy.fft.rfft(signal)
+        freqs = scipy.fft.rfftfreq(N, dt)
+
+    else:
+        amps = scipy.fft.fft(signal)
+        freqs = scipy.fft.fftfreq(N, dt)
+
+    return freqs, amps
+
+
+def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
+    """
+    Plot the frequency spectrum from a time evolution result.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system containing (or used to compute) the time evolution result.
+    title : str, optional
+        Title of the plot. Default is ``"Frequencies"``.
+    spin_idxToPlot : list[int], optional
+        Spin indices to plot. If ``None``, all spins in
+        ``spinsys.resultTimeEvolution['Spin_idx']`` are plotted.
+    recalculateTimeEvolution : bool, optional
+        If ``True``, recompute the time evolution even if a cached result
+        exists. Default is ``False``. Then psi_0 must also be defined.
+    psi_0 : array_like or Qobj, optional
+        Initial state (ket or density matrix) used only when the time evolution must be recomputed.
+    times : array_like, optional
+        Time points (in seconds) used only when the time evolution must be recomputed.
+        Default is ``np.linspace(0, 1e-7, 500)``.
+    spin_idx : list[int], optional
+        Spin indices used only when the time evolution must be recomputed.
+        Default is ``[0]``.
+    axis : {"x", "y", "z"}, optional
+        Spin component used to calculate expectation values only when the time evolution must be recomputed.
+        Default is ``"z"``.
+
+    Returns
+    -------
+    freqs : list[numpy.ndarray]
+        Frequency arrays for each plotted spin.
+    amps : list[numpy.ndarray]
+        Fourier amplitudes corresponding to ``freqs``.
+
+    Notes
+    -----
+    - Expectation values are real, so a real FFT (``rfft``) is used.
+    - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only used if
+      ``spinsys.resultTimeEvolution`` is not defined or if
+      ``recalculateTimeEvolution`` is ``True``.
+      Otherwise the used time evolution is ``spinsys.resultTimeEvolution``,
+      NOT necessarily calculated with the values given to ``plotFourierFreqs``.
+    - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only needed when
+      the time evolution has to be recalculated.
+    """
+    # TODO take out offset (peak at 0Hz)
+
+    # calculate the time evolution result to be Fourier transformed if necessary or wanted
+    if not hasattr(spinsys, 'resultTimeEvolution') or recalculateTimeEvolution==True:
+        if psi_0 == None:
+            raise ValueError('psi_0 has to be defined to calculate resultTimeEvolution.')
+        calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
+        # calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
+
+    # get data to Fourier transform from time evolution result
+    result = spinsys.resultTimeEvolution['QuTip_result']  # result with expectation values
+    S_expvals = result.expect
+    times_used = result.times
+    spin_idx = spinsys.resultTimeEvolution['Spin_idx']  # spin indices with results. For labeling the plot only.
+
+    # select indices of spins to plot if not specified
+    if spin_idxToPlot == None:
+        spin_idxToPlot = spin_idx    # If not specified, the frequencies of all spins for which the time evolution was calculated is plotted.
+
+    # check that requested spin indices exist in result and map to positions in spin_idx
+    missing = [s for s in spin_idxToPlot if s not in spin_idx]   # list that contains missing spin indices
+    if missing:     # non-empty list is considered True
+        raise ValueError(f"spin_idxToPlot contains indices not present in resultTimeEvolution['Spin_idx']: {missing}")
+
+    plot_idx = [i for i, s in enumerate(spin_idx) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx
+
+    # get frequencies from calcFourierFreqs
+    freqs = []
+    amps = []
+    labels = []
+
+    for idxToPlot in plot_idx:
+        freqs_i, amps_i = calcFourierFreqs(np.real(S_expvals[idxToPlot]), times_used, reals=True)
+        freqs.append(freqs_i)
+        amps.append(amps_i)
+        labels.append(spin_idx[idxToPlot])
+
+    # plot frequency spectrum
+    fig, ax = plt.subplots()
+    for spectrum_idx in range(len(freqs)):
+        ax.plot(freqs[spectrum_idx], abs(amps[spectrum_idx]), label=f'n={labels[spectrum_idx]}')
+    ax.set_xlabel("Frequency (Hz)")  
+    ax.set_ylabel("Amplitude")      # TODO units
+    plt.title(title)
+    plt.legend()
+    plt.show()
+
+    # calculate frequency peaks
+    freq_peaks = []
+    for freqs_i, amps_i in zip(freqs, amps):
+        peak_idx, _ = scipy.signal.find_peaks(np.abs(amps_i))
+        freq_peaks.append(freqs_i[peak_idx])
+
+    return_dict = {
+        'fig': fig,
+        'frequencies': freqs,
+        'amplitudes': amps,
+        'frequency_peaks': freq_peaks,
+        'spin_indices': labels
+    }
+
+    return return_dict
+
+# endregion Fourier
+
