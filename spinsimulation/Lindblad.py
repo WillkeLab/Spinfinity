@@ -406,7 +406,7 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1
         Tip field values (in Tesla) to sweep for the selected component.
         Default is ``np.linspace(-0.1, 0.1, 100)``.
     Baxis : {"x", "y", "z"}, optional
-        Which component of ``spinsys.BTip`` is swept. Default is ``"z"``.
+        Which component of ``spinsys.BTip`` is swept through. Default is ``"z"``.
         Only this component is swept through, the other two stay the same.
     energyscale : {"meV", "GHz"}, optional
         Unit for the plotted energies. Default is ``"meV"``. 
