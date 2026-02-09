@@ -3,6 +3,9 @@ import numpy as np
 import scipy
 import scipy.constants as const
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+import plotly.colors
+from plotly.subplots import make_subplots
 
 # import other SpinFinity packages
 from spinsimulation.SpinSys import SpinSys
@@ -23,6 +26,9 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # - Lindblad master equation solver for spin systems
 # (- Current from density matrix)
 # -  
+
+# TODO matplotlib to Plotly
+# TODO range and number of points instead of linspace as arg
 
 
 def test():
@@ -95,7 +101,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], Saxis: str ="z"):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -112,7 +118,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     spin_idx : list[int], optional
         Indices of spins for which the expectation values over time are computed.
         Default is ``[0]``.
-    axis : {"x", "y", "z"}, optional
+    Saxis : {"x", "y", "z"}, optional
         Axis along which the expectation value should be computed. The expectation value of Sx, Sy or Sz are computed depending on axis.
         Default is ``"z"``.
 
@@ -124,9 +130,9 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     Raises
     ------
     ValueError
-        If ``axis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
+        If ``Saxis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
     """
-    # TODO add spinsys.resultTimeEvolution to docstring
+    # TODO add spinsys.timeEvolution_result to docstring
 
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
@@ -141,9 +147,9 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
 
     # calculate list of operators e_ops for which the Lindblad equation will be solved
-    S = getattr(spinsys, f"S{axis}", None)   # gets Sx, Sy or Sz depending on axis
+    S = getattr(spinsys, f"S{Saxis}", None)   # gets Sx, Sy or Sz depending on Saxis
     if S is None:
-        raise ValueError('axis must be "x", "y" or "z"')
+        raise ValueError('Saxis must be "x", "y" or "z"')
         
     e_ops = []  # initialize list of operators for which the expectation value will be computed from the total density matrix
 
@@ -157,16 +163,20 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     result_dict = {
         'QuTip_result': result,
         'Spin_idx': spin_idx,
-        'S_axis': axis
+        'S_axis': Saxis
     }
-    spinsys.resultTimeEvolution = result_dict
+
+    # add results as attributes to spinsys object
+    spinsys.timeEvolution_result = result
+    spinsys.timeEvolution_spinidx = spin_idx
+    spinsys.timeEvolution_Saxis = Saxis
 
     return result
 
 
-def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z", title: str ="Time evolution"):
+def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], Saxis: str ="z", title: str ="Time evolution"):
     """
-    Plot spin expectation values along axis of selected spins over time.
+    Plot spin expectation values along Saxis of selected spins over time.
 
     Parameters
     ----------
@@ -181,7 +191,7 @@ def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     spin_idx : list[int], optional
         Indices of spins for which expectation values are plotted.
         Default is ``[0]``.
-    axis : {"x", "y", "z"}, optional
+    Saxis : {"x", "y", "z"}, optional
         Spin component to plot (Sx, Sy or Sz correspondingly).
         Default is ``"z"``.
     title : string, optional
@@ -206,7 +216,7 @@ def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     # TODO: plot without recalculating result
 
     # calculate time evolution with QuTiP
-    result = calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)  
+    result = calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, Saxis=Saxis)  
 
     fig, ax = plt.subplots()
 
@@ -216,7 +226,7 @@ def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     ax.legend()
     ax.set_ylim([-1, 1])   # Sz from -1 to 1
     ax.set_xlabel('t/s')
-    ax.set_ylabel(f'<S{axis}>')
+    ax.set_ylabel(f'<S{Saxis}>')
     plt.title(title)
     plt.show()
 
@@ -382,19 +392,110 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
         }
 
         return returndict
+
+def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", energyscale: str='meV'):
+    """
+    Plots the Zeeman diagram for a given spin system over a specified magnetic tip field range.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        Spin system containing the tip field vector, Hamiltonian, and
+        energy levels (``E_sort``).
+    BTip_values : array_like, optional
+        Tip field values (in Tesla) to sweep for the selected component.
+        Default is ``np.linspace(-0.1, 0.1, 100)``.
+    Baxis : {"x", "y", "z"}, optional
+        Which component of ``spinsys.BTip`` is swept. Default is ``"z"``.
+        Only this component is swept through, the other two stay the same.
+    energyscale : {"meV", "GHz"}, optional
+        Unit for the plotted energies. Default is ``"meV"``. 
+
+    Returns
+    -------
+    return_dict : dict
+        A dictionary containing:
+        - ``fig`` : plotly.graph_objects.Figure
+            Plotly figure containing the Zeeman diagram.
+        - ``B_array`` : numpy.ndarray
+            Tip field values used in the sweep (same as ``BTip_values``).
+        - ``E_array`` : numpy.ndarray
+            Energy eigenvalues for each tip field value.
+    
+    Notes
+    -----
+    - The function restores the original ``spinsys.BTip`` after the sweep.
+    - Energies are recalculated for each tip field value via
+      ``hamil.calcEigEnergies``.
+    """
+
+    # Save the initial BTip-Vector
+    BTipInitial = spinsys.BTip.copy()  
+
+    N = len(BTip_values)
+    E = np.zeros((N, spinsys.dimensionOfMatrix))
+
+    # convert axis to sweep through to numerical value for indexing
+    if Baxis=="z":
+        Bidx = 2
+    elif Baxis=="y":
+        Bidx = 1
+    elif Baxis=="x":
+        Bidx = 0
+    
+    for i in range(N):
+        spinsys.BTip[Bidx] = BTip_values[i]
+        hamil.calcEigEnergies(spinsys)
+        E[i,:] = spinsys.E_sort
+
+    # Restore the initial solution
+    spinsys.BTip = BTipInitial
+    hamil.calcEigEnergies(spinsys)
+        
+    # Build a Plotly figure with white background
+    fig = go.Figure()
+    for i in range(spinsys.dimensionOfMatrix):
+        if energyscale == 'GHz':
+            y = E[:, i] * spinsys.meVtoGHzConversion
+        else:
+            y = E[:, i]
+        fig.add_trace(go.Scatter(x=BTip_values, y=y, mode='lines', name=f"E_{i}"))
+
+    fig.update_layout(
+        title='Tip field Zeeman Diagramm',
+        xaxis_title=f'BTip_{Baxis} (T)',
+        yaxis_title=f'Energy ({energyscale})',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=600,
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+    fig.show()
+    
+    return_dict = {
+        'fig': fig,
+        'B_array': BTip_values,
+        'E_array': E}
+
+    return return_dict
+
+
+
+
 # endregion tip field sweep
 
 # region density matrix
-def calcDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
+def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, time_value: float =None):
     """
     Return the density matrix at a selected time (value or index) from a QuTiP result. 
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system (currently unused, kept for symmetry with plotting).
-    result : qutip.solver.result.Result
-        QuTiP solver result containing ``states`` and ``times``.
+        Spin system containing time evolution attributes.
     time_type : {"index", "value"}
         Selects whether the time is given by an explicit index or by a
         floating-point time value to be matched to the closest entry in
@@ -422,6 +523,10 @@ def calcDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, tim
         If time_type is not "value" or "index".
 
     """
+    # get time evolution result stored in spinsys
+    if not hasattr(spinsys, 'timeEvolution_result'):
+        raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
+    result = spinsys.timeEvolution_result
     times = result.times
 
     # choose state and time of result corresponding to time_index
@@ -455,17 +560,15 @@ def calcDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, tim
 
 
 
-def plotDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, time_index: int =None, time_value: float =None):
+def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, time_value: float =None):
     """
     Plots real parts of the density matrix at a selected time (value or index) as a 3D bar chart.
-    The density matrix is extracted of result in calc_densmat.
+    The density matrix is extracted of spinsys.timeEvolution_result in calc_densmat.
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system providing the state labels used for axis tick text.
-    result : qutip.solver.result.Result
-        QuTiP solver result containing ``states`` and ``times``. 
+        Spin system providing the time evolution result with density matrices and state labels used for axis tick text.
     time_type : {"index", "value"}
         Selects whether the time is given by an explicit index or by a
         floating-point time value to be matched to the closest entry in
@@ -492,9 +595,13 @@ def plotDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, tim
     The ``result`` given to the function can be calculated via calc_time_evolution or plot_time_evolution. There it i
     """
     # TODO center state labels, make prettier
-    # TODO plot for multiple times?
+    # TODO do we want abs or real part plotted?
 
-    time, densmat = calcDensityMatrix(spinsys, result, time_type, time_index, time_value)
+    if not hasattr(spinsys, 'timeEvolution_result'):
+        raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
+    time, densmat = calcDensityMatrix(spinsys, time_type, time_index, time_value)
+    print(np.real(densmat.flatten()))
+    ##print(densmat)
 
     fig = plt.figure()  # wider so that z axis label also gets displayed
     ax = fig.add_subplot(111, projection='3d')
@@ -541,16 +648,14 @@ def plotDensityMatrix(spinsys: SpinSys, result: QuTiPResult, time_type: str, tim
 # endregion density matrix
 
 # region current
-def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth"):
+def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
     """
     Calculate the tunneling current over time from a QuTiP time-evolution result.
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system containing the Rates and other relevant parameters.
-    result : qutip.solver.result.Result
-        QuTiP result object returned by ``mesolve`` with ``states`` and ``times``.
+        Spin system containing Rates and timeEvolution_result.
     Approach : {"Loth", "Ternes"}, Optional
         Determines the current normalization and offset. 
         Default is ``"Loth"``.
@@ -560,25 +665,31 @@ def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
     I : list[float]
         Current values at each time point in ``result.times``.
 
+    Raises
+    -------
+    TODO
+
     Notes
     -----
     - The function assumes that required attribute `Rates` are available in the provided `spinsys` object.
     - A possibility to get the QuTiP result is using the function calc_time_evolution
 
     """
-    # TODO function name, with spinidx or automatically spin below tip? (maybe not calculated in result)
-    times = result.times
+    if not hasattr(spinsys, 'timeEvolution_result'):
+        raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
+    
+    result = spinsys.timeEvolution_result
     densmats = result.states  # density matrices at each time
 
     # Derive the tunneling current at each time step using Equation 41 from Ternes paper
     I = []
-    for timeidx in range(len(times)):   # iterate through time steps
+    for timeidx in range(len(densmats)):   # iterate through time steps
         I_timeidx = 0   # initialize current at time step times[timeidx]
         densmat_timestep = densmats[timeidx].full()   # get density matrix at times[timeidx] as numpy.ndarray (not Qobj)
 
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
-                population_i = densmat_timestep[i][i]    # population is diagonal entry of density matrix
+                population_i = densmat_timestep[i][i]    # population of state is diagonal entry of density matrix
                 I_temp = const.e * population_i * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
                 I_timeidx += np.real(I_temp)    # I_temp is real but has 0j part, discard it to avoid warnings when plotting
         I.append(I_timeidx)
@@ -593,21 +704,20 @@ def calcTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
 
     return I
 
-def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str = "Loth", title: str ="Tunneling current"):
+def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str ="Tunneling current"):
     """
     Plot the tunneling current as a function of time.
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system containing rate matrices and tunneling parameters.
-    result : qutip.solver.result.Result
-        QuTiP result object returned by ``mesolve`` with ``states`` and ``times``.
+        Spin system containing rate matrices, tunneling parameters and timeEvolution_result containing
+        a QuTiP result object returned by ``mesolve`` with ``states`` and ``times``..
     Approach : {"Loth", "Ternes"}, optional
-        Current calculation approach passed through to
-        :func:`calcTunnelCurrent_time`. Default is ``"Loth"``.
+        Current calculation approach passed through to `calcTunnelCurrent_time`. 
+        Default is ``"Loth"``.
     title : str, optional
-        Title for the plot. If ``None``, a default title is used.
+        Title for the plot. Default is ``Tunneling current``.
 
     Returns
     -------
@@ -629,8 +739,12 @@ def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
     """
 
     # TODO check units Ternes
+    if not hasattr(spinsys, 'timeEvolution_result'):
+        raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
+    
+    result = spinsys.timeEvolution_result
     times = result.times
-    I = calcTunnelCurrent_time(spinsys, result, Approach=Approach)
+    I = calcTunnelCurrent_time(spinsys, Approach=Approach)
 
     # set y label (different units depending on Approach)
     if Approach == "Ternes":
@@ -641,6 +755,7 @@ def plotTunnelCurrent_time(spinsys: SpinSys, result: QuTiPResult, Approach: str 
     fig, ax = plt.subplots()
     ax.plot(times, I)
     ax.set_xlabel("Time (s)")
+    
     ax.set_ylabel(ylabel)
     plt.title(title)
     plt.show()
@@ -708,7 +823,7 @@ def calcFourierFreqs(signal, times, reals = False):
 
 def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
     """
-    Plot the frequency spectrum from a time evolution result. Also calculates the frequencies where peaks are found.
+    Plot the frequency spectrum from a time evolution result. Also calculates the frequencies at which peaks are found.
 
     Parameters
     ----------
@@ -718,7 +833,7 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
         Title of the plot. Default is ``"Frequencies"``.
     spin_idxToPlot : list[int], optional
         Spin indices to plot. If ``None``, all spins in
-        ``spinsys.resultTimeEvolution['Spin_idx']`` are plotted.
+        ``spinsys.timeEvolution_spinidx`` are plotted.
     recalculateTimeEvolution : bool, optional
         If ``True``, recompute the time evolution even if a cached result
         exists. Default is ``False``. Then psi_0 must also be defined.
@@ -754,27 +869,27 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
     -----
     - Expectation values are real, so a real FFT (``rfft``) is used.
     - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only used if
-      ``spinsys.resultTimeEvolution`` is not defined or if
+      ``spinsys.timeEvolution_result`` is not defined or if
       ``recalculateTimeEvolution`` is ``True``.
-      Otherwise the used time evolution is ``spinsys.resultTimeEvolution``,
+      Otherwise the used time evolution is ``spinsys.timeEvolution_result``,
       NOT necessarily calculated with the values given to ``plotFourierFreqs``.
     - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only needed when
       the time evolution has to be recalculated.
     """
-    # TODO take out offset (peak at 0Hz): Sz = sz-np.mean(Sz)
+    # TODO add offset to docstring
 
     # calculate the time evolution result to be Fourier transformed if necessary or wanted
-    if not hasattr(spinsys, 'resultTimeEvolution') or recalculateTimeEvolution==True:
+    if not hasattr(spinsys, 'timeEvolution_result') or recalculateTimeEvolution==True:
         if psi_0 == None:
-            raise ValueError('psi_0 has to be defined to calculate resultTimeEvolution.')
+            raise ValueError('psi_0 has to be defined to calculate the time evolution.')
         calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
         # calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
 
     # get data to Fourier transform from time evolution result
-    result = spinsys.resultTimeEvolution['QuTip_result']  # result with expectation values
+    result = spinsys.timeEvolution_result  # result with expectation values
     S_expvals = result.expect
     times_used = result.times
-    spin_idx = spinsys.resultTimeEvolution['Spin_idx']  # spin indices with results. For labeling the plot only.
+    spin_idx = spinsys.timeEvolution_spinidx  # spin indices corresponding to time evolution results. For labeling the plot only.
 
     # select indices of spins to plot if not specified
     if spin_idxToPlot == None:
@@ -783,7 +898,7 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
     # check that requested spin indices exist in result and map to positions in spin_idx
     missing = [s for s in spin_idxToPlot if s not in spin_idx]   # list that contains missing spin indices
     if missing:     # non-empty list is considered True
-        raise ValueError(f"spin_idxToPlot contains indices not present in resultTimeEvolution['Spin_idx']: {missing}")
+        raise ValueError(f"spin_idxToPlot contains indices not present in timeEvolution_spinidx: {missing}")
 
     plot_idx = [i for i, s in enumerate(spin_idx) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx
 
@@ -800,21 +915,22 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot
         amps.append(amps_i)
         labels.append(spin_idx[idxToPlot])
 
+    # calculate frequency peaks
+    freq_peaks = []
+    for freqs_i, amps_i in zip(freqs, amps):
+        peak_idx, _ = scipy.signal.find_peaks(np.abs(amps_i))
+        freq_peaks.append(freqs_i[peak_idx])
+
     # plot frequency spectrum
     fig, ax = plt.subplots()
     for spectrum_idx in range(len(freqs)):
         ax.plot(freqs[spectrum_idx], abs(amps[spectrum_idx]), label=f'n={labels[spectrum_idx]}')
     ax.set_xlabel("Frequency (Hz)")  
     ax.set_ylabel("Amplitude")      # TODO units
+    # ax.vlines(freq_peaks, 0, 50, color='r')
     plt.title(title)
     plt.legend()
     plt.show()
-
-    # calculate frequency peaks
-    freq_peaks = []
-    for freqs_i, amps_i in zip(freqs, amps):
-        peak_idx, _ = scipy.signal.find_peaks(np.abs(amps_i))
-        freq_peaks.append(freqs_i[peak_idx])
 
     return_dict = {
         'fig': fig,
