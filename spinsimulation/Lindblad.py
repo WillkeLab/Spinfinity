@@ -20,7 +20,7 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # Content
 
 # - calculate collapse operators with off diagonal elements
-# - Filter rates and kick out values below a threshhold
+# - Filter rates and kick out values below a threshold
 # - Translator into QuTiP objects 
 # -   
 # - Lindblad master equation solver for spin systems
@@ -28,14 +28,14 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # -  
 
 # TODO matplotlib to Plotly
-# TODO range and number of points instead of linspace as arg
+# TODO range and number of points instead of linspace as arg (as in vis)
 
 
 def test():
     """
     To test if Lindblad package was successfully imported
     """
-    print("hello!")
+    print("hello! Lindblad here.")
 
 # region Lindblad solving
 def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
@@ -131,9 +131,14 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     ------
     ValueError
         If ``Saxis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
-    """
-    # TODO add spinsys.timeEvolution_result to docstring
 
+    Notes
+    ------
+    This function adds the following attributes to the given spinsys:
+    - spinsys.timeEvolution_result : the QuTiP result of mesolve
+    - spinsys.timeEvolution_spinidx : spin_idx
+    - spinsys.timeEvolution_Saxis : Saxis
+    """
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
         psi_0 = Qobj(psi_0)
@@ -160,11 +165,6 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
 
     # solve Lindblad equation
     result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  
-    result_dict = {
-        'QuTip_result': result,
-        'Spin_idx': spin_idx,
-        'S_axis': Saxis
-    }
 
     # add results as attributes to spinsys object
     spinsys.timeEvolution_result = result
@@ -667,7 +667,9 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
 
     Raises
     -------
-    TODO
+    AttributeError
+        If ``spinsys`` does not have ``resultTimeEvolution``. Run
+        ``calcTimeEvolution`` first.
 
     Notes
     -----
@@ -821,7 +823,7 @@ def calcFourierFreqs(signal, times, reals = False):
     return freqs, amps
 
 
-def plotFourierFreqs(spinsys: SpinSys, title: str ="Frequencies", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
+def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
     """
     Plot the frequency spectrum from a time evolution result. Also calculates the frequencies at which peaks are found.
 
