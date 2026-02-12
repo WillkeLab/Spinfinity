@@ -84,7 +84,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
 
             ##E_op = np.zeros((N_levels, N_levels))    # matrix filled with zeros of dimension NxN as base for Lindblad hopping operators
             ##E_op[j_final][i_initial] = 1    # hopping operator from energy i (column) to j (row)
-            E_op = Qobj(spinsys.eigVectors[j_final]) * Qobj(spinsys.eigVectors[i_initial]).dag()  # define hopping operator from eigenstate i to j
+            E_op = Qobj(spinsys.eigVectors[:, j_final]) * Qobj(spinsys.eigVectors[:, i_initial]).dag()  # define hopping operator from eigenstate i to j
 
             L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor            
 
@@ -572,7 +572,6 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
         Time value selected from ``result.times``.
     densmat : np.ndarray
         Density matrix corresponding to the selected time.
-
 
     Raises
     ------
