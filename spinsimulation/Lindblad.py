@@ -17,7 +17,7 @@ from qutip import Qobj, mesolve
 from qutip.solver.result import Result as QuTiPResult  # to be able to make sure that entities are of the qutip result class
 
 
-# Content
+# Content TODO update
 
 # - calculate collapse operators with off diagonal elements
 # - Filter rates and kick out values below a threshold
@@ -28,7 +28,7 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # -  
 
 # TODO matplotlib to Plotly
-# TODO range and number of points instead of linspace as arg (as in vis)
+# TODO example notebook
 
 
 # region Lindblad solving
@@ -43,7 +43,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
         The spin system object containing eigenvectors, spin operators, rates and populations.
 
     threshold_percent : float, Optional
-        Threshold in [0, 1] for filtering rates. If a rate is less than threshold_percent of the highest rate, it will not be considered in the operators.
+        Threshold in [0, 1] for filtering rates. If a rate is less than threshold_percent * the highest rate, it will not be considered in the operators.
         Default is 0.01.
 
     Returns
@@ -95,7 +95,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z"):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict ={'store_states':True}):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -168,7 +168,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         e_ops.append(Qobj(E_z))
 
     # solve Lindblad equation
-    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options={'store_states':True})  
+    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=options)  
 
     # add results as attributes to spinsys object
     spinsys.timeEvolution_result = result
@@ -202,8 +202,8 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
             Time grid used in the underlying simulation.
         ``expectation_values``
             Spin expectation values.
-        ``state_values``
-            Density matrices at each time step in time_values.
+        ``Saxis``
+            Axis along which the expectation value <S_Saxis> was computed.
         ``spin_idx_plotted``
             Positions of the plotted spins within ``spinsys.timeEvolution_spinidx``.
     The returned expectation_values, time_values, QuTiP_result and state_values are the ones calculated 
@@ -281,24 +281,30 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
 # endregion Lindblad solver
 
 # region tip field sweep
-def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", spinidx: int=0):
     """
     Calculates <Sz>(t) of a selected spin at different tip fields. 
     Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
     at each time step.
-        
+    
     Parameters
     ---------
     spinsys : SpinSys
         The spin system object 
     psi_0 : Qobj, array or np.array
         Initial state of spinsys. Can also be a density matrix.
-    times: np.array, optional
-        Time values at which Lindblad equation should be solved for each tip field strength.
-        Default is np.linspace(0, 1e-7, 100)
-    BTip_values: np.array, optional
-        Tip field strengths to sweep through.
-        Default is np.linspace(-0.1, 0.1, 100)
+    timeRange : list of float, optional
+        Time range [min, max] in seconds for which the Lindblad equation should be solved for each tip field strength.
+        Default is [0, 1e-7].
+    N_times : int, optional
+        Number of time points in the sweep.
+        Default is 100.
+    BTipRange : list of float, optional
+        Tip field strength range [min, max] in Tesla for which the Lindblad equation should be solved at each time step.
+        Default is [-0.1, 0.1].
+    N_BTip : int, optional
+        Number of tip field points in the sweep.
+        Default is 100.
     Baxis: string, optional
         which B axis ("x", "y", or "z") should be swept through.
         Default is "z".
@@ -312,10 +318,14 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
         2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
 
     """
-    # TODO check which spinsys attributes have to be recalculated and where
+    # TODO Saxis of expectation value ?
 
     # save initial value for later
     BTip_initial = spinsys.BTip.copy()   
+
+    # define BTip and time values arrays
+    times = np.linspace(timeRange[0], timeRange[1], N_times)
+    BTip_values = np.linspace(BTipRange[0], BTipRange[1], N_BTip)
 
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
@@ -329,8 +339,6 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
     elif Baxis=="x":
         Bidx = 0
 
-    hamil.calcAngMomMatrices(spinsys.ReadoutSpin)  # calculate S matrices
-
     # define Sz of the spin of which the expectation value will be calculated
     E_z = Qobj(2*spinsys.Sz[spinidx])   # *2 to have values from -1 to 1
 
@@ -339,7 +347,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
     # get decay values for spin spinidx. Store result of each tip field step in resulti.
     for BTip_value in BTip_values:
         spinsys.BTip[Bidx] = BTip_value 
-        hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian and eigenenergies
+        hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
     
         L_operators = collapseOperators(spinsys)  # calculate new collapse operators with new Hamiltonian
 
@@ -352,16 +360,17 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
         
     resulti = np.stack(resulti)
     
-    # Restore original BTip
+    # Restore original BTip and attributes that were changed
     spinsys.BTip = BTip_initial 
+    hamil.calcEigEnergies(spinsys);
     collapseOperators(spinsys);
 
     return resulti
 
 
-def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 100), BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", spinidx: int=0):
+def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", spinidx: int=0):
         """
-        Plots a colormap the absolute values of <Sz>(t) at different tip fields. 
+        Plots a colormap the absolute values of <Sz>(t) at different tip fields over time. 
         Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
         at each time step. 
         
@@ -371,12 +380,18 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
             The spin system object 
         psi_0 : Qobj, array or np.array
             Initial state of spinsys. Can also be a density matrix.
-        times: np.array, optional
-            Time values at which Lindblad equation should be solved for each tip field strength.
-            Default is np.linspace(0, 1e-7, 100)
-        BTip_values: np.array, optional
-            Tip field strengths to sweep through.
-            Default is np.linspace(-0.1, 0.1, 100)
+        timeRange : list of float, optional
+            Time range [min, max] in seconds for which the Lindblad equation should be solved for each tip field strength.
+            Default is [0, 1e-7].
+        N_times : int, optional
+            Number of time points in the sweep.
+            Default is 100.
+        BTipRange : list of float, optional
+            Tip field strength range [min, max] in Tesla for which the Lindblad equation should be solved at each time step.
+            Default is [-0.1, 0.1].
+        N_BTip : int, optional
+            Number of tip field points in the sweep.
+            Default is 100.
         Baxis: string, optional
             which B axis ("x", "y", or "z") should be swept through.
             Default is "z".
@@ -400,12 +415,15 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
         Notes
         -------
         The <Sz> values are computed with calcDecayTipfieldsweep.
-
         """
         # calculate <Sz> at each time and BTip field step with calcDecayTipfieldsweep
-        resulti = calcDecayTipfieldsweep(spinsys, psi_0, times, BTip_values, Baxis, spinidx)
+        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, spinidx=spinidx)
 
         abs_resulti = abs(resulti)
+
+        # define BTip and time values arrays
+        times = np.linspace(timeRange[0], timeRange[1], N_times)
+        BTip_values = np.linspace(BTipRange[0], BTipRange[1], N_BTip)
 
         # Plot as a 2D colormap: x=time, y=tip field values
         fig, ax = plt.subplots()
@@ -430,7 +448,8 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, times: list =np.linspa
 
         return returndict
 
-def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1, 0.1, 100), Baxis: str ="z", energyscale: str='meV'):
+
+def plotTipZeemanDiagramm(spinsys: SpinSys, BTipRange: list[float] = [-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", energyscale: str='meV'):
     """
     Plots the Zeeman diagram for a given spin system over a specified magnetic tip field range.
 
@@ -439,9 +458,12 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1
     spinsys : SpinSys
         Spin system containing the tip field vector, Hamiltonian, and
         energy levels (``E_sort``).
-    BTip_values : array_like, optional
-        Tip field values (in Tesla) to sweep for the selected component.
-        Default is ``np.linspace(-0.1, 0.1, 100)``.
+    BTipRange : list of float, optional
+        Tip field strength range [min, max] in Tesla to sweep the selected BTip component (along Baxis) through.
+        Default is [-0.1, 0.1].
+    N_BTip : int, optional
+        Number of tip field points in the sweep.
+        Default is 100.
     Baxis : {"x", "y", "z"}, optional
         Which component of ``spinsys.BTip`` is swept through. Default is ``"z"``.
         Only this component is swept through, the other two stay the same.
@@ -469,8 +491,9 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1
     # Save the initial BTip-Vector
     BTipInitial = spinsys.BTip.copy()  
 
-    N = len(BTip_values)
-    E = np.zeros((N, spinsys.dimensionOfMatrix))
+    # create useful arrays
+    E = np.zeros((N_BTip, spinsys.dimensionOfMatrix))   # empty array with one entry for each energy eigenvalue and BTip value
+    BTip_values = np.linspace(BTipRange[0], BTipRange[1], N_BTip)   # array of BTip values to sweep through
 
     # convert axis to sweep through to numerical value for indexing
     if Baxis=="z":
@@ -480,7 +503,7 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTip_values: list = np.linspace(-0.1
     elif Baxis=="x":
         Bidx = 0
     
-    for i in range(N):
+    for i in range(N_BTip):
         spinsys.BTip[Bidx] = BTip_values[i]
         hamil.calcEigEnergies(spinsys)
         E[i,:] = spinsys.E_sort
@@ -626,10 +649,6 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
         The time at which the density matrix is plotted.
     - 'density_matrix': np.ndarray
         The density matrix that is plotted.
-
-    Notes
-    -------
-    The ``result`` given to the function can be calculated via calc_time_evolution or plot_time_evolution. There it i
     """
     # TODO center state labels, make prettier
     # TODO do we want abs or real part plotted?
@@ -705,7 +724,7 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
     Raises
     -------
     AttributeError
-        If ``spinsys`` does not have ``resultTimeEvolution``. Run
+        If ``spinsys`` does not have ``timeEvolution_result``. Run
         ``calcTimeEvolution`` first.
 
     Notes
@@ -860,74 +879,54 @@ def calcFourierFreqs(signal, times, reals = False):
     return freqs, amps
 
 
-def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spin_idxToPlot: list[int] ="all", recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
+def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
     """
-    Plot the frequency spectrum from a time evolution result. Also calculates the frequencies at which peaks are found.
+    Plot the frequency spectrum from an existing time evolution result and
+    return the FFT data and peak frequencies.
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system containing (or used to compute) the time evolution result.
-    title : str, optional
-        Title of the plot. Default is ``"Frequencies"``.
-    spin_idxToPlot : list[int], optional
-        Spin indices to plot. 
-        Default is ``"all"``, meaning that all spins for which the evolution was calculated are plotted.
-    recalculateTimeEvolution : bool, optional
-        If ``True``, recompute the time evolution even if a cached result
-        exists. Default is ``False``. Then psi_0 must also be defined.
-    psi_0 : array_like or Qobj, optional
-        Initial state (ket or density matrix) used only when the time evolution must be recomputed.
-    times : array_like, optional
-        Time points (in seconds) used only when the time evolution must be recomputed.
-        Default is ``np.linspace(0, 1e-7, 500)``.
-    spin_idx : list[int], optional
-        Spin indices used only when the time evolution must be recomputed.
-        Default is ``[0]``.
-    axis : {"x", "y", "z"}, optional
-        Spin component used to calculate expectation values only when the time evolution must be recomputed.
-        Default is ``"z"``.
+        Spin system containing ``timeEvolution_result`` produced by
+        ``calcTimeEvolution``.
+    spin_idxToPlot : {"all"} or sequence of int, optional
+        Spin indices to plot. If ``"all"``, all spins in
+        ``spinsys.timeEvolution_spinidx`` are plotted.
 
     Returns
     -------
-    return_dict: dict
-    A dictionary containing:
-    - ``fig`` : matplotlib.figure.Figure
-        The created figure.
-    - ``frequencies`` : list[numpy.ndarray]
-        Frequency arrays for each plotted spin (same order as ``spin_indices``).
-    - ``amplitudes`` : list[numpy.ndarray]
-        Fourier amplitudes corresponding to ``frequencies``.
-    - ``frequency_peaks`` : list[numpy.ndarray]
-        Peak frequencies for each plotted spin. 
-        scipy.signal.find_peaks usually doesn't find peaks at zero frequency.
-    - ``spin_indices`` : list[int]
-        Spin indices corresponding to each spectrum in the plot.
+    return_dict : dict
+        A dictionary containing:
+        - ``fig`` : matplotlib.figure.Figure
+            The created figure.
+        - ``frequencies`` : list[numpy.ndarray]
+            Frequency arrays for each plotted spin (same order as
+            ``spin_indices``).
+        - ``amplitudes`` : list[numpy.ndarray]
+            Fourier amplitudes corresponding to ``frequencies``.
+        - ``frequency_peaks`` : list[numpy.ndarray]
+            Peak frequencies for each plotted spin.
+        - ``spin_indices`` : list[int]
+            Spin indices corresponding to each spectrum in the plot.
 
     Notes
     -----
     - Expectation values are real, so a real FFT (``rfft``) is used.
-    - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only used if
-      ``spinsys.timeEvolution_result`` is not defined or if
-      ``recalculateTimeEvolution`` is ``True``.
-      Otherwise the used time evolution is ``spinsys.timeEvolution_result``,
-      NOT necessarily calculated with the values given to ``plotFourierFreqs``.
-    - ``psi_0``, ``times``, ``spin_idx`` and ``axis`` are only needed when
-      the time evolution has to be recalculated.
+    - The mean value of each spin's <S> is subtracted before the FFT to
+      remove the DC offset (otherwise a large peak appears at zero frequency).
+    - This function does not recompute time evolution; it uses the cached
+      ``spinsys.timeEvolution_result``.
     """
-    # TODO add offset to docstring
+    # TODO units amplitude
 
     # calculate the time evolution result to be Fourier transformed if necessary or wanted
-    if not hasattr(spinsys, 'timeEvolution_result') or recalculateTimeEvolution==True:
-        if psi_0 == None:
-            raise ValueError('psi_0 has to be defined to calculate the time evolution.')
-        calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, axis=axis)
-        # calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], axis: str ="z"):
+    if not hasattr(spinsys, 'timeEvolution_result') or spinsys.timeEvolution_result == None:
+        raise AttributeError('The SpinSys object has no attribute `timeEvolution_result`. Run lind.calcTimeEvolution first.')
 
     # get data to Fourier transform from time evolution result
     result = spinsys.timeEvolution_result  # result with expectation values
     S_expvals = result.expect
-    times_used = result.times
+    times = result.times
     spin_idx = spinsys.timeEvolution_spinidx  # spin indices corresponding to time evolution results. For labeling the plot only.
 
     # select indices of spins to plot if not specified
@@ -949,7 +948,7 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spi
     for idxToPlot in plot_idx:
         S_values = np.real(S_expvals[idxToPlot])
         S_values = S_values - np.mean(S_values)    # remove offset (otherwise big peak at zero frequency)
-        freqs_i, amps_i = calcFourierFreqs(S_values, times_used, reals=True)
+        freqs_i, amps_i = calcFourierFreqs(S_values, times, reals=True)
         freqs.append(freqs_i)
         amps.append(amps_i)
         labels.append(spin_idx[idxToPlot])
@@ -965,9 +964,9 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spi
     for spectrum_idx in range(len(freqs)):
         ax.plot(freqs[spectrum_idx], abs(amps[spectrum_idx]), label=f'n={labels[spectrum_idx]}')
     ax.set_xlabel("Frequency (Hz)")  
-    ax.set_ylabel("Amplitude")      # TODO units
+    ax.set_ylabel("Amplitude")
     # ax.vlines(freq_peaks, 0, 50, color='r')
-    plt.title(title)
+    plt.title("Fourier transformation")
     plt.legend()
     plt.show()
 
