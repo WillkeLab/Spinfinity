@@ -31,12 +31,6 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # TODO range and number of points instead of linspace as arg (as in vis)
 
 
-def test():
-    """
-    To test if Lindblad package was successfully imported
-    """
-    print("hello! Lindblad here.")
-
 # region Lindblad solving
 def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     """
@@ -46,7 +40,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     Parameters
     ----------
     spinsys : SpinSys
-        The spin system object containing eigenvectors, spin operators, and populations.
+        The spin system object containing eigenvectors, spin operators, rates and populations.
 
     threshold_percent : float, Optional
         Threshold in [0, 1] for filtering rates. If a rate is less than threshold_percent of the highest rate, it will not be considered in the operators.
@@ -62,10 +56,10 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     ValueError
         If threshold_percent is not between 0 and 1 (exclusive).
     """ 
-    # TODO what needs to be recalculated every time?
-    hamil.calcEigStates(spinsys)  # QUESTION should this be recalculated every time?
-    bath.calcRates(spinsys)  
-    bath.calcPopulations(spinsys)
+    # define rates for the operator's prefactors
+    if not hasattr(spinsys, 'Rates_Summed') or spinsys.Rates_Summed is None:
+        bath.calcRates(spinsys)
+
     Rates_Summed = spinsys.Rates_Summed
 
     # calculate threshold
@@ -74,7 +68,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     max_rate = np.nanmax(Rates_Summed)   # find maximum value in Rates_Summed while ignoring Nan entries
     threshold_value = threshold_percent * max_rate
 
-    N_levels = len(spinsys.E_All)    # number of energy levels (NxN: dimension of Lindblad operators)
+    N_levels = spinsys.dimensionOfMatrix    # number of energy levels (NxN: dimension of Lindblad operators)
 
     # calculate relaxation operators
     collapse_ops = []   # empty list to store operators
@@ -101,7 +95,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], Saxis: str ="z"):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z"):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -110,14 +104,18 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     spinsys : SpinSys
         Spin system with Hamiltonian, eigenstates, and spin operators.
     psi_0 : Qobj, array or np.array
-        Initial state vector for the time evolution. 
+        Initial state vector (ket) for the time evolution. 
         Can also be a density matrix of the same dimension as the Hamiltonian.
-    times : array_like, optional
-        Time points (in seconds) at which to evaluate the evolution.
-        Default is ``np.linspace(0, 1e-7, 500)``.
+    timeRange : list of two floats, optional
+        Time range in seconds for which to calculate the evolution.
+        Default is [0, 1e-7]
+    N_times: int, optional
+        For how many time steps to calculate the evolution. The time values will be N_times equidistant values
+        in timeRange.
+        Default is 500.
     spin_idx : list[int], optional
         Indices of spins for which the expectation values over time are computed.
-        Default is ``[0]``.
+        Default is ``"all"``, in which case the expectation values of all spins in spinsys are calculated.
     Saxis : {"x", "y", "z"}, optional
         Axis along which the expectation value should be computed. The expectation value of Sx, Sy or Sz are computed depending on axis.
         Default is ``"z"``.
@@ -130,7 +128,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     Raises
     ------
     ValueError
-        If ``Saxis`` is not one of ``"x"``, ``"y"``, or ``"z"``.
+        If ``Saxis`` is not one of ``"x"``, ``"y"``, or ``"z"`` or spinsys.S(x, y or z) are not defined.
 
     Notes
     ------
@@ -139,6 +137,9 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     - spinsys.timeEvolution_spinidx : spin_idx
     - spinsys.timeEvolution_Saxis : Saxis
     """
+    # convert Ntimes and timeRange to list with time values
+    times = np.linspace(timeRange[0], timeRange[1], N_times, dtype=float)
+
     # convert psi_0 into Qobj if it is not already one
     if not isinstance(psi_0, Qobj):
         psi_0 = Qobj(psi_0)
@@ -154,11 +155,14 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     # calculate list of operators e_ops for which the Lindblad equation will be solved
     S = getattr(spinsys, f"S{Saxis}", None)   # gets Sx, Sy or Sz depending on Saxis
     if S is None:
-        raise ValueError('Saxis must be "x", "y" or "z"')
+        raise ValueError('Saxis must be "x", "y" or "z" and the angular momentum matrices must have been calculated.')
         
     e_ops = []  # initialize list of operators for which the expectation value will be computed from the total density matrix
 
     # calculate S matrix for each spin in spin_idx
+    if spin_idx=="all":
+        spin_idx = np.arange(0, spinsys.NSpins, 1)  # use all spins in spinsys
+    
     for spin in spin_idx:   
         E_z = 2*S[spin]   
         e_ops.append(Qobj(E_z))
@@ -174,69 +178,102 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0,
     return result
 
 
-def plotTimeEvolution(spinsys: SpinSys, psi_0: list, times: list =np.linspace(0, 1e-7, 500), spin_idx: list =[0], Saxis: str ="z", title: str ="Time evolution"):
+def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idxToPlot: list[int] ="all"):
     """
-    Plot spin expectation values along Saxis of selected spins over time.
+    Plot spin expectation values over time from a previously computed time evolution.
 
     Parameters
     ----------
     spinsys : SpinSys
-        Spin system with Hamiltonian, eigenstates, and spin operators.
-    psi_0 : Qobj
-        Initial state (ket) for the time evolution.
-        Can also be a density matrix.
-    times : array_like, optional
-        Time points (in seconds) at which to evaluate the evolution.
-        Default is ``np.linspace(0, 1e-7, 500)``.
-    spin_idx : list[int], optional
-        Indices of spins for which expectation values are plotted.
-        Default is ``[0]``.
-    Saxis : {"x", "y", "z"}, optional
-        Spin component to plot (Sx, Sy or Sz correspondingly).
-        Default is ``"z"``.
-    title : string, optional
-        Title of the plot
-        Default is "Time evolution"
+        Spin system containing ``timeEvolution_result`` produced by `calcTimeEvolution`.
+    timeRange : {"all"} or sequence of float, optional
+        Time interval ``[t_min, t_max]`` in seconds to display on the x-axis.
+        If ``"all"``, the full simulated time interval is used.
+    spin_idxToPlot : {"all"} or sequence of int, optional
+        Spin indices to include in the plot. If ``"all"``, all spin indices for which the time evolution
+        was computed are plotted.
 
     Returns
     -------
-    dict
-        Dictionary containing:
-        ``fig`` : matplotlib.figure.Figure
-            The created figure.
-        ``time_values`` : numpy.ndarray
-            Time values used for the plot.
-        ``expectation_values`` : list[numpy.ndarray]
-            Expectation values for each requested spin index.
-        ``state_values`` : list[Qobj]
-            Time-evolved states from the solver.
-        ``spin_idx`` : list[int]
-            Indices of the spins for which the expectation values were calculated
-    """
-    # TODO: plot without recalculating result
+    return_dict : dict
+        ``fig``
+            Matplotlib figure object.
+        ``time_values``
+            Time grid used in the underlying simulation.
+        ``expectation_values``
+            Spin expectation values.
+        ``state_values``
+            Density matrices at each time step in time_values.
+        ``spin_idx_plotted``
+            Positions of the plotted spins within ``spinsys.timeEvolution_spinidx``.
+    The returned expectation_values, time_values, QuTiP_result and state_values are the ones calculated 
+    in calcTimeEvolution. In order to replicate the plot yourself, plot expectation_values[spin_idx_plotted] 
+    and limit the time axis to your desired time range.
 
-    # calculate time evolution with QuTiP
-    result = calcTimeEvolution(spinsys, psi_0, times=times, spin_idx=spin_idx, Saxis=Saxis)  
+    Raises
+    ------
+    AttributeError
+        If ``spinsys.timeEvolution_result`` is missing.
+    ValueError
+        If ``timeRange`` lies outside the simulated interval.
+    ValueError
+        If requested ``spin_idxToPlot`` entries are not present in the spins ``spinsys.timeEvolution_spinidx`` 
+        for which the time evolution was computed.
+        
+    Notes
+    -----
+    This function does not run a new time evolution. It only visualizes data previously
+    computed by `calcTimeEvolution`.
+    """
+
+    # check if the time evolution was calculated
+    if not hasattr(spinsys, 'timeEvolution_result') or spinsys.timeEvolution_result is None:
+        raise AttributeError('timeEvolution_result is not defined. The time evolution must first be calculated via calcTimeEvolution.')
+    
+    result = spinsys.timeEvolution_result
+    times_calc = result.times   # times for which the time evolution was calculated
+    spin_idx_calc = spinsys.timeEvolution_spinidx    # indices of the spins for which the time evolution was calculated
+    Saxis = spinsys.timeEvolution_Saxis
 
     fig, ax = plt.subplots()
 
-    for j, spin in enumerate(spin_idx):    # plot expectation value for each spin
-        ax.plot(times, result.expect[j], label=f'n={spin}')
+    # set timeRange to the time range for which the time evolution was calculated if not specified otherwise.
+    if timeRange == "all":
+        timeRange = [times_calc[0], times_calc[-1]]
+
+    # check that timeRange is not bigger than the time range for which the expectation values were calculated
+    if timeRange[-1] > times_calc[-1]:
+        raise ValueError('The time range upper bound exceeds the time range for which the time evolution was calculated.')
+    if timeRange[0] < times_calc[0]:
+        raise ValueError('The time range lower bound is below the time range for which the time evolution was calculated.')
+
+    # select spins to plot and check if their time evolutions were calculated
+    if spin_idxToPlot == "all":
+        spin_idxToPlot = spin_idx_calc    # If not specified, the expectation values of all spins for which the time evolution was calculated are plotted.
+
+    # check that requested spin indices exist in result and map to positions in spin_idx
+    missing = [s for s in spin_idxToPlot if s not in spin_idx_calc]   # list that contains missing spin indices
+    if missing:     # non-empty list is considered True
+        raise ValueError(f"spin_idxToPlot contains indices not present in timeEvolution_spinidx: {missing}")
+
+    plot_idx = [i for i, s in enumerate(spin_idx_calc) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx
+    for j, spin in enumerate(plot_idx):    # plot expectation value for each spin
+        ax.plot(times_calc, result.expect[j], label=f'n={spin}')
 
     ax.legend()
-    ax.set_ylim([-1, 1])   # Sz from -1 to 1
+    ax.set_ylim([-1, 1])   # <S> from -1 to 1
+    ax.set_xlim(timeRange)
     ax.set_xlabel('t/s')
     ax.set_ylabel(f'<S{Saxis}>')
-    plt.title(title)
+    plt.title("Time evolution")
     plt.show()
 
     return_dict = {
         'fig': fig,
-        'time_values': times,
-        'expectation_values': result.expect,    # expectation values for each spin in spin_idx
-        'state_values': result.states,
-        'QuTiP_result': result,
-        'spin_idx': spin_idx
+        'time_values': times_calc,
+        'expectation_values': result.expect,
+        'Saxis': Saxis,
+        'spin_idx_plotted': plot_idx
         }
     
     return return_dict
@@ -823,7 +860,7 @@ def calcFourierFreqs(signal, times, reals = False):
     return freqs, amps
 
 
-def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spin_idxToPlot: list[int] =None, recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
+def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spin_idxToPlot: list[int] ="all", recalculateTimeEvolution: bool = False, psi_0: list=None, times: list =np.linspace(0, 1e-7, 500), spin_idx: list[int] =[0], axis: str ="z"):
     """
     Plot the frequency spectrum from a time evolution result. Also calculates the frequencies at which peaks are found.
 
@@ -834,8 +871,8 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spi
     title : str, optional
         Title of the plot. Default is ``"Frequencies"``.
     spin_idxToPlot : list[int], optional
-        Spin indices to plot. If ``None``, all spins in
-        ``spinsys.timeEvolution_spinidx`` are plotted.
+        Spin indices to plot. 
+        Default is ``"all"``, meaning that all spins for which the evolution was calculated are plotted.
     recalculateTimeEvolution : bool, optional
         If ``True``, recompute the time evolution even if a cached result
         exists. Default is ``False``. Then psi_0 must also be defined.
@@ -894,7 +931,7 @@ def plotFourierFreqs(spinsys: SpinSys, title: str ="Fourier transformation", spi
     spin_idx = spinsys.timeEvolution_spinidx  # spin indices corresponding to time evolution results. For labeling the plot only.
 
     # select indices of spins to plot if not specified
-    if spin_idxToPlot == None:
+    if spin_idxToPlot == "all":
         spin_idxToPlot = spin_idx    # If not specified, the frequencies of all spins for which the time evolution was calculated is plotted.
 
     # check that requested spin indices exist in result and map to positions in spin_idx
