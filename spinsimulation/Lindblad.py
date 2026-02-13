@@ -95,7 +95,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict ={'store_states':True}):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict ={'store_states':True, 'nsteps':1000}):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -119,6 +119,10 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
     Saxis : {"x", "y", "z"}, optional
         Axis along which the expectation value should be computed. The expectation value of Sx, Sy or Sz are computed depending on axis.
         Default is ``"z"``.
+    options: dict, optional
+        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation
+        Default is {'store_states':True, 'nsteps':1000}. 'store_states' needs to be True to plot density matrices, 
+        otherwise it is not needed.
 
     Returns
     -------
@@ -132,6 +136,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     Notes
     ------
+    If you get an 'IntegratorException', try increasing N_times or nsteps in the options.
     This function adds the following attributes to the given spinsys:
     - spinsys.timeEvolution_result : the QuTiP result of mesolve
     - spinsys.timeEvolution_spinidx : spin_idx
@@ -251,14 +256,14 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
     if spin_idxToPlot == "all":
         spin_idxToPlot = spin_idx_calc    # If not specified, the expectation values of all spins for which the time evolution was calculated are plotted.
 
-    # check that requested spin indices exist in result and map to positions in spin_idx
+    # check that requested spin indices exist in result and map to positions in spin_idx_calc
     missing = [s for s in spin_idxToPlot if s not in spin_idx_calc]   # list that contains missing spin indices
     if missing:     # non-empty list is considered True
         raise ValueError(f"spin_idxToPlot contains indices not present in timeEvolution_spinidx: {missing}")
 
-    plot_idx = [i for i, s in enumerate(spin_idx_calc) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx
-    for j, spin in enumerate(plot_idx):    # plot expectation value for each spin
-        ax.plot(times_calc, result.expect[j], label=f'n={spin}')
+    plot_idx = [i for i, s in enumerate(spin_idx_calc) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx_calc
+    for i in plot_idx:    # plot expectation value for each spin
+        ax.plot(times_calc, result.expect[i], label=f'n={spin_idx_calc[i]}')
 
     ax.legend()
     ax.set_ylim([-1, 1])   # <S> from -1 to 1
@@ -319,6 +324,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
 
     """
     # TODO Saxis of expectation value ?
+    # TODO mesolve options 
 
     # save initial value for later
     BTip_initial = spinsys.BTip.copy()   
