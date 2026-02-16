@@ -286,7 +286,7 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
 # endregion Lindblad solver
 
 # region tip field sweep
-def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", spinidx: int=0):
+def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options: dict ={'store_states':False, 'nsteps':1000}):
     """
     Calculates <Sz>(t) of a selected spin at different tip fields. 
     Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
@@ -313,19 +313,29 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     Baxis: string, optional
         which B axis ("x", "y", or "z") should be swept through.
         Default is "z".
+    Saxis: string, optional
+        For which S axis ("x", "y", or "z") the expectation value should be calculated.
+        Default is "z".
     spinidx: int, optional
         Which single spin of the spinsys is plotted.
         Default is 0 (which is typically the readout spin)
-
+    options: dict, optional
+        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation
+        Default is {'store_states':False, 'nsteps':1000}. 'nsteps' can be increased if you get an 'IntegratorException'. 
+    
     Returns
     -------
     resulti: numpy.ndarray
         2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
 
-    """
-    # TODO Saxis of expectation value ?
-    # TODO mesolve options 
+    Raises
+    -------
+    ValueError
+        If Baxis is not "x", "y" or "z".
+    ValueError
+        If Saxis is not "x", "y" or "z" or spinsys.S(x, y or z) are not defined.
 
+    """
     # save initial value for later
     BTip_initial = spinsys.BTip.copy()   
 
@@ -344,11 +354,20 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         Bidx = 1
     elif Baxis=="x":
         Bidx = 0
+    else: 
+        raise ValueError('Baxis must be "x", "y" or "z".')
 
-    # define Sz of the spin of which the expectation value will be calculated
-    E_z = Qobj(2*spinsys.Sz[spinidx])   # *2 to have values from -1 to 1
+    # define Sx/Sy/Sz of the spin of which the expectation value will be calculated
+    if Saxis=="x":
+        S = Qobj(2*spinsys.Sx[spinidx])   # *2 to have values from -1 to 1
+    elif Saxis=="y":
+        S = Qobj(2*spinsys.Sy[spinidx])   # *2 to have values from -1 to 1
+    elif Saxis=="z":
+        S = Qobj(2*spinsys.Sz[spinidx])   # *2 to have values from -1 to 1
+    else: 
+        raise ValueError('Saxis must be "x", "y" or "z" and the angular momentum matrices must have been calculated.')
 
-    resulti = []  # initialize array to store <Sz> results
+    resulti = []  # initialize array to store <S> results
 
     # get decay values for spin spinidx. Store result of each tip field step in resulti.
     for BTip_value in BTip_values:
@@ -360,7 +379,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         meV_to_J = 1e-3 * const.e
         H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
 
-        result = mesolve(H_q, psi_0, times, L_operators, [E_z])  # calculate S expectation values for given tip field
+        result = mesolve(H_q, psi_0, times, L_operators, [S])  # calculate S expectation values for given tip field
 
         resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
         
@@ -374,10 +393,10 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     return resulti
 
 
-def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", spinidx: int=0):
+def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0):
         """
-        Plots a colormap the absolute values of <Sz>(t) at different tip fields over time. 
-        Sweeps through one tip field component over a specified range, computes the expectation value of Sz of a specified spin
+        Plots a colormap of <S>(t) at different tip fields over time. 
+        Sweeps through one tip field component over a specified range, computes the expectation value of Sx, Sy or Sz of a specified spin
         at each time step. 
         
         Parameters
@@ -399,7 +418,10 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
             Number of tip field points in the sweep.
             Default is 100.
         Baxis: string, optional
-            which B axis ("x", "y", or "z") should be swept through.
+            Which B axis ("x", "y", or "z") should be swept through.
+            Default is "z".
+        Saxis: string, optional
+            For which S axis ("x", "y", or "z") the expectation value should be calculated.
             Default is "z".
         spinidx: int, optional
             Which single spin of the spinsys is plotted.
@@ -415,17 +437,17 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
             Time values used for the plot.
         ``BTip_values`` : numpy.ndarray
             Expectation values for each requested spin index.
-        ``Sz`` : numpy.ndarray
-            2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
+        ``S`` : numpy.ndarray
+            2D array of shape (len(BTip_values), len(times)) containing ⟨S_{Saxis}⟩(t) for each time and tip field value.
 
         Notes
         -------
-        The <Sz> values are computed with calcDecayTipfieldsweep.
+        The <S> values are computed with calcDecayTipfieldsweep.
         """
-        # calculate <Sz> at each time and BTip field step with calcDecayTipfieldsweep
-        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, spinidx=spinidx)
+        # calculate <S> at each time and BTip field step with calcDecayTipfieldsweep
+        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, Saxis=Saxis, spinidx=spinidx)
 
-        abs_resulti = abs(resulti)
+        resulti = np.real(resulti)
 
         # define BTip and time values arrays
         times = np.linspace(timeRange[0], timeRange[1], N_times)
@@ -434,22 +456,23 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         # Plot as a 2D colormap: x=time, y=tip field values
         fig, ax = plt.subplots()
         im = ax.imshow(
-            abs_resulti,
+            resulti,
             aspect="auto",
             origin="lower",
             extent=[times[0], times[-1], BTip_values[0], BTip_values[-1]],
+            cmap="managua_r",
         )
         ax.set_xlabel("time/s")
         ax.set_ylabel(f"BTip_{Baxis}/T")
         cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label(r'$\langle S_z \rangle$')
+        cbar.set_label(f'< S{Saxis} >')
         plt.show()
 
         returndict = {
             'fig': fig,
             'time_values': times,
             'BTip_values': BTip_values,
-            'Sz': resulti
+            'S': resulti
         }
 
         return returndict
@@ -588,6 +611,8 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
         If time_type is not "value" or "index".
 
     """
+    # TODO take last time step if time_value is bigger than all times in result.times, take first time step if time_value is smaller than all times in result.times
+
     # get time evolution result stored in spinsys
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
@@ -656,13 +681,10 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
         The density matrix that is plotted.
     """
     # TODO center state labels, make prettier
-    # TODO do we want abs or real part plotted?
 
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
     time, densmat = calcDensityMatrix(spinsys, time_type, time_index, time_value)
-    print(np.real(densmat.flatten()))
-    ##print(densmat)
 
     fig = plt.figure()  # wider so that z axis label also gets displayed
     ax = fig.add_subplot(111, projection='3d')
@@ -672,7 +694,7 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
     y = np.arange(densmat.shape[1])
     X, Y = np.meshgrid(x, y) 
 
-    dx = dy = 0.5 # width of the bars
+    dx = dy = 0.5   # width of the bars
 
     # when values are 0 in the matrix they get plotted in grey. Below zero in red, above in blue.
     is_zero = (abs(densmat.flatten()) == 0.0)
@@ -922,7 +944,7 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
     - This function does not recompute time evolution; it uses the cached
       ``spinsys.timeEvolution_result``.
     """
-    # TODO units amplitude
+    # TODO units amplitude/normalize it?
 
     # calculate the time evolution result to be Fourier transformed if necessary or wanted
     if not hasattr(spinsys, 'timeEvolution_result') or spinsys.timeEvolution_result == None:
@@ -963,6 +985,15 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
     for freqs_i, amps_i in zip(freqs, amps):
         peak_idx, _ = scipy.signal.find_peaks(np.abs(amps_i))
         freq_peaks.append(freqs_i[peak_idx])
+    
+    # calculate frequency axis limits for plotting
+    max_peak_freq = [max(peaks) for peaks in freq_peaks if len(peaks) > 0]  # get maximum peak frequencies across all spectra
+    if max_peak_freq:   # if peaks were found, set x_limit to 3 times the maximum peak frequency, but not exceeding the maximum frequency in the spectra
+        x_limit = 3 * max(max_peak_freq)  # 3 times the maximum peak frequency
+        if x_limit > max(freq[-1] for freq in freqs):  # if calculated x_limit exceeds the maximum frequency in the spectra
+            x_limit = max(freq[-1] for freq in freqs)  # set x_limit to maximum frequency in the spectra
+    else:   # if no peaks were found
+        x_limit = max(freq[-1] for freq in freqs)  # set x_limit to maximum frequency in the spectra
 
     # plot frequency spectrum
     fig, ax = plt.subplots()
@@ -970,7 +1001,7 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
         ax.plot(freqs[spectrum_idx], abs(amps[spectrum_idx]), label=f'n={labels[spectrum_idx]}')
     ax.set_xlabel("Frequency (Hz)")  
     ax.set_ylabel("Amplitude")
-    # ax.vlines(freq_peaks, 0, 50, color='r')
+    ax.set_xlim(0, x_limit)
     plt.title("Fourier transformation")
     plt.legend()
     plt.show()
