@@ -32,7 +32,7 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 
 
 # region Lindblad solving
-def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
+def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcRates: bool =True):
     """
     Builds Lindblad relaxation operators from the system's rates. 
     Adds attribute collapse_ops to spinsys.
@@ -56,8 +56,11 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     ValueError
         If threshold_percent is not between 0 and 1 (exclusive).
     """ 
-    # define rates for the operator's prefactors
-    if not hasattr(spinsys, 'Rates_Summed') or spinsys.Rates_Summed is None:
+    # define rates for the operator's prefactors if specified
+    if recalcRates:
+        bath.calcRates(spinsys)
+        hamil.calcEigStates(spinsys)
+    elif not hasattr(spinsys, 'Rates_Summed') or spinsys.Rates_Summed is None:
         bath.calcRates(spinsys)
 
     Rates_Summed = spinsys.Rates_Summed
@@ -82,8 +85,6 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
             if abs(Rates_Summed[i_initial][j_final]) < threshold_value:
                 continue   # skip too small rates
 
-            ##E_op = np.zeros((N_levels, N_levels))    # matrix filled with zeros of dimension NxN as base for Lindblad hopping operators
-            ##E_op[j_final][i_initial] = 1    # hopping operator from energy i (column) to j (row)
             E_op = Qobj(spinsys.eigVectors[:, j_final]) * Qobj(spinsys.eigVectors[:, i_initial]).dag()  # define hopping operator from eigenstate i to j
 
             L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor            
@@ -95,7 +96,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01):
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict ={'store_states':True, 'nsteps':1000}):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict =None):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -121,13 +122,13 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         Default is ``"z"``.
     options: dict, optional
         Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation
-        Default is {'store_states':True, 'nsteps':1000}. 'store_states' needs to be True to plot density matrices, 
-        otherwise it is not needed.
+        Default is None which is changed to {'store_states':True, 'nsteps':1000} in the code the avoid mutable default argument. 
+        'store_states' needs to be True to plot density matrices, otherwise it can be set to False to use less memory.
 
     Returns
     -------
     qutip.solver.Result
-        QuTiP result object with ``expect`` and ``states``.
+        QuTiP result object with ``expect`` and ``states`` if 'store_states':True in options.
 
     Raises
     ------
@@ -136,12 +137,14 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     Notes
     ------
-    If you get an 'IntegratorException', try increasing N_times or nsteps in the options.
+    If you get an 'IntegratorException', try increasing N_times or nsteps in the options. TODO edit
     This function adds the following attributes to the given spinsys:
     - spinsys.timeEvolution_result : the QuTiP result of mesolve
     - spinsys.timeEvolution_spinidx : spin_idx
     - spinsys.timeEvolution_Saxis : Saxis
     """
+    # TODO add option to recalculate collapse operators? 
+
     # convert Ntimes and timeRange to list with time values
     times = np.linspace(timeRange[0], timeRange[1], N_times, dtype=float)
 
@@ -152,6 +155,12 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
     # Ensure the Lindblad collapse operators are calculated before using mesolve
     if not hasattr(spinsys, 'collapse_ops') or spinsys.collapse_ops is None:
         collapseOperators(spinsys)
+    
+    # set default options for mesolve if not specified otherwise
+    if options is None:
+        solver_options = {'store_states': False, 'nsteps': 1000}  # default options for mesolve. Set here to avoid mutable default argument.
+    else:
+        solver_options = options
 
     # convert spinsys Hamiltonian into Qobj with unit 1/s
     meV_to_J = 1e-3 * const.e
@@ -169,11 +178,23 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         spin_idx = np.arange(0, spinsys.NSpins, 1)  # use all spins in spinsys
     
     for spin in spin_idx:   
-        E_z = 2*S[spin]   
-        e_ops.append(Qobj(E_z))
+        S_spin = 2*S[spin]   
+        e_ops.append(Qobj(S_spin))
 
-    # solve Lindblad equation
-    result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=options)  
+    # solve Lindblad equation, and retry with increased nsteps if needed
+    try:
+        result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=solver_options)
+    except Exception as exc:
+        if 'Excess work done on this call' not in str(exc): 
+            raise   # show original QuTiP error message
+
+        retry_options = dict(solver_options)
+        retry_options['method'] = retry_options.get('method', 'bdf')    # default method is 'adams'. 'bdf' is more stable for stiff problems but also slower.
+        retry_options['nsteps'] = max(int(retry_options.get('nsteps', 1000)), 20000)    # increase nsteps to 20000 to have higher chance to get a result from the solver.
+        if len(times) > 1:
+            retry_options.setdefault('max_step', float(times[1] - times[0]))
+
+        result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=retry_options)
 
     # add results as attributes to spinsys object
     spinsys.timeEvolution_result = result
@@ -286,7 +307,7 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
 # endregion Lindblad solver
 
 # region tip field sweep
-def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options: dict ={'store_states':False, 'nsteps':1000}):
+def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options: dict =None):
     """
     Calculates <Sz>(t) of a selected spin at different tip fields. 
     Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
@@ -320,8 +341,9 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         Which single spin of the spinsys is plotted.
         Default is 0 (which is typically the readout spin)
     options: dict, optional
-        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation
-        Default is {'store_states':False, 'nsteps':1000}. 'nsteps' can be increased if you get an 'IntegratorException'. 
+        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation.
+        Default is None and changed to {'store_states':False, 'nsteps':1000} to avoid mutable default argument. 
+        'nsteps' can be increased if you get an 'IntegratorException'. 
     
     Returns
     -------
@@ -366,6 +388,12 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         S = Qobj(2*spinsys.Sz[spinidx])   # *2 to have values from -1 to 1
     else: 
         raise ValueError('Saxis must be "x", "y" or "z" and the angular momentum matrices must have been calculated.')
+    
+    # set default options for mesolve if not specified otherwise
+    if options is None:
+        solver_options = {'store_states': False, 'nsteps': 1000}  # default options for mesolve.
+    else:
+        solver_options = options
 
     resulti = []  # initialize array to store <S> results
 
@@ -379,7 +407,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         meV_to_J = 1e-3 * const.e
         H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
 
-        result = mesolve(H_q, psi_0, times, L_operators, [S])  # calculate S expectation values for given tip field
+        result = mesolve(H_q, psi_0, times, L_operators, [S], options=solver_options)  # calculate S expectation values for given tip field
 
         resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
         
@@ -465,7 +493,7 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         ax.set_xlabel("time/s")
         ax.set_ylabel(f"BTip_{Baxis}/T")
         cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label(f'< S{Saxis} >')
+        cbar.set_label(f'<S{Saxis}>')
         plt.show()
 
         returndict = {
