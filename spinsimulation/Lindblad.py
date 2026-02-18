@@ -41,10 +41,13 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
     ----------
     spinsys : SpinSys
         The spin system object containing eigenvectors, spin operators, rates and populations.
-
     threshold_percent : float, Optional
         Threshold in [0, 1] for filtering rates. If a rate is less than threshold_percent * the highest rate, it will not be considered in the operators.
         Default is 0.01.
+    recalcRates : bool, Optional
+        Whether to recalculate the rates with bath.calcRates as well as the eigenstates with hamil.calcEigStates before calculating 
+        the collapse operators.
+        Default is True. 
 
     Returns
     -------
@@ -121,8 +124,8 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         Axis along which the expectation value should be computed. The expectation value of Sx, Sy or Sz are computed depending on axis.
         Default is ``"z"``.
     options: dict, optional
-        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation
-        Default is None which is changed to {'store_states':True, 'nsteps':1000} in the code the avoid mutable default argument. 
+        Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation.
+        Default is None which is changed to {'store_states':True, 'nsteps':1000} in the code to avoid a mutable default argument. 
         'store_states' needs to be True to plot density matrices, otherwise it can be set to False to use less memory.
 
     Returns
@@ -137,7 +140,10 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     Notes
     ------
-    If you get an 'IntegratorException', try increasing N_times or nsteps in the options. TODO edit
+    To avoid 'IntegratorException', 'nsteps' gets set to 20000 and the solver method to 'bdf' if such an exception occurs. This can take up 
+    some calculation time.
+    You can also increase 'nsteps' manually with the options parameter or increase N_times.
+
     This function adds the following attributes to the given spinsys:
     - spinsys.timeEvolution_result : the QuTiP result of mesolve
     - spinsys.timeEvolution_spinidx : spin_idx
@@ -158,7 +164,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
     
     # set default options for mesolve if not specified otherwise
     if options is None:
-        solver_options = {'store_states': False, 'nsteps': 1000}  # default options for mesolve. Set here to avoid mutable default argument.
+        solver_options = {'store_states': True, 'nsteps': 1000}  # default options for mesolve. Set here to avoid mutable default argument.
     else:
         solver_options = options
 
@@ -198,7 +204,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     # add results as attributes to spinsys object
     spinsys.timeEvolution_result = result
-    spinsys.timeEvolution_spinidx = spin_idx
+    spinsys.timeEvolution_spinidx = spin_idx.copy()
     spinsys.timeEvolution_Saxis = Saxis
 
     return result
@@ -232,8 +238,8 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
             Axis along which the expectation value <S_Saxis> was computed.
         ``spin_idx_plotted``
             Positions of the plotted spins within ``spinsys.timeEvolution_spinidx``.
-    The returned expectation_values, time_values, QuTiP_result and state_values are the ones calculated 
-    in calcTimeEvolution. In order to replicate the plot yourself, plot expectation_values[spin_idx_plotted] 
+    The returned expectation_values, time_values and Saxis are the ones calculated in calcTimeEvolution and already 
+    stored in the SpinSys object. In order to replicate the plot yourself, plot expectation_values[spin_idx_plotted] 
     and limit the time axis to your desired time range.
 
     Raises
@@ -309,8 +315,8 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
 # region tip field sweep
 def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip:int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options: dict =None):
     """
-    Calculates <Sz>(t) of a selected spin at different tip fields. 
-    Sweeps through one tip field component over a specified range and computes the expectation value of Sz of a specified spin
+    Calculates <S>(t) of a selected spin at different tip fields. 
+    Sweeps through one tip field component over a specified range and computes the expectation value of S_{Saxis} of one specified spin.
     at each time step.
     
     Parameters
@@ -348,7 +354,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     Returns
     -------
     resulti: numpy.ndarray
-        2D array of shape (len(BTip_values), len(times)) containing ⟨Sz⟩(t) for each time and tip field value.
+        2D array of shape (len(BTip_values), len(times)) containing <S_{Saxis}>(t) for each time and tip field value.
 
     Raises
     -------
@@ -421,7 +427,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     return resulti
 
 
-def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0):
+def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options:dict =None):
         """
         Plots a colormap of <S>(t) at different tip fields over time. 
         Sweeps through one tip field component over a specified range, computes the expectation value of Sx, Sy or Sz of a specified spin
@@ -464,16 +470,17 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         ``time_values`` : numpy.ndarray
             Time values used for the plot.
         ``BTip_values`` : numpy.ndarray
-            Expectation values for each requested spin index.
+            Tip field values used for the plot (BTip_values = np.linspace(BTipRange[0], BTipRange[1], N_BTip))
         ``S`` : numpy.ndarray
-            2D array of shape (len(BTip_values), len(times)) containing ⟨S_{Saxis}⟩(t) for each time and tip field value.
+            2D array of shape (len(BTip_values), len(times)) containing the expectation value ⟨S_{Saxis}⟩ 
+            for each time and tip field value.
 
         Notes
         -------
         The <S> values are computed with calcDecayTipfieldsweep.
         """
         # calculate <S> at each time and BTip field step with calcDecayTipfieldsweep
-        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, Saxis=Saxis, spinidx=spinidx)
+        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, Saxis=Saxis, spinidx=spinidx, options=options)
 
         resulti = np.real(resulti)
 
@@ -605,9 +612,9 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTipRange: list[float] = [-0.1, 0.1]
 # endregion tip field sweep
 
 # region density matrix
-def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, time_value: float =None):
+def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =None, time_values: list[float] =None):
     """
-    Return the density matrix at a selected time (value or index) from a QuTiP result. 
+    Return the density matrices at selected times (values or indices) from a QuTiP result. 
 
     Parameters
     ----------
@@ -617,71 +624,85 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
         Selects whether the time is given by an explicit index or by a
         floating-point time value to be matched to the closest entry in
         ``result.times``.
-    time_index : int, optional
-        Index to ``result.times`` when ``time_type == "index"``.
-    time_value : float, optional
-        Time value (in seconds) used to find the closest entry in
+    time_index : list[int], optional
+        Indices to ``result.times`` when ``time_type == "index"``.
+    time_values : list[float], optional
+        Time values (in seconds) used to find the closest entry in
         ``result.times`` when ``time_type == "value"``.
 
     Returns
     -------
-    time : float
-        Time value selected from ``result.times``.
-    densmat : np.ndarray
-        Density matrix corresponding to the selected time.
+    times_densmats : float
+        Time values selected from ``result.times``.
+    densmats : np.ndarray
+        Density matrices corresponding to the selected times.
 
     Raises
     ------
     ValueError
         If ``time_type`` is "index" and ``time_index`` is not provided, or if
-        ``time_type`` is "value" and ``time_value`` is not provided.
+        ``time_type`` is "value" and ``time_values`` is not provided.
     ValueError
         If time_type is not "value" or "index".
 
     """
-    # TODO take last time step if time_value is bigger than all times in result.times, take first time step if time_value is smaller than all times in result.times
-
+    
     # get time evolution result stored in spinsys
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
     result = spinsys.timeEvolution_result
-    times = result.times
+    times_result = result.times
+
+    times_densmats = []   # initialize list to store time values for which density matrices are calculated
+    densmats = []    # initialize list to store density matrices for each requested time value
 
     # choose state and time of result corresponding to time_index
     if time_type == "index":  
         if time_index is None:  # make sure a time_index is given
             raise ValueError('time_index must be provided when time_type == "index"')
-        state = result.states[time_index]
-        time = times[time_index]
+        for time_index_i in time_index:
+            densmat = result.states[time_index_i].full()
+            time = times_result[time_index_i]
+            times_densmats.append(time)
+            densmats.append(densmat)
 
     # choose state and time at the time closest to time_value
     elif time_type == "value":
-        if time_value is None:   # make sure a time_value is given
+        if time_values is None:   # make sure a time_value is given
             raise ValueError('time_value must be provided when time_type == "value"')
         
-        time_index = np.searchsorted(times, time_value, side='left')   # time_index is index at which times[time_index-1] < time_value <= times[time_index]
+        for time_value_i in time_values:    # loop through time_values and find closest times in result.times 
+
+            # find indices corresponding to time_value_i in times_result.
+            if time_value_i < times_result[0]:     # take first time step if time_value is smaller than the first time in result.times
+                time_index = 0
+
+            elif time_value_i > times_result[-1]:        # take last time step if time_value is higher than the last time in result.times
+                time_index = len(times_result) - 1
+
+            else:
+                time_index = np.searchsorted(times_result, time_value_i, side='left')   # time_index is index at which times_result[time_index-1] < time_value_i <= times_result[time_index]
         
-        if abs(times[time_index]-time_value) > abs(time_value-times[time_index-1]) and time_index != 0:
-            time_index-=1     # take time_index-1 in case times[time_index-1] is closer to time_value than times[time_index]
-        
-        state = result.states[time_index]
-        time = times[time_index]
+                if abs(times_result[time_index]-time_value_i) > abs(time_value_i-times_result[time_index-1]) and time_index != 0:
+                    time_index-=1     # take time_index-1 in case times_result[time_index-1] is closer to time_value_i than times_result[time_index]
+            
+            # add density matrix and corresponding time to the lists
+            densmat = result.states[time_index].full() 
+            time = times_result[time_index]
+            times_densmats.append(time)
+            densmats.append(densmat)
 
     else: 
         raise ValueError('time_type must be "value" or "index"')
 
-
-    # Get the full density matrix as a numpy array (not Qobj)
-    densmat = state.full()  
-
-    return time, densmat
+    return times_densmats, densmats
 
 
 
-def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, time_value: float =None):
+def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =None, time_value: list[float] =None):
     """
     Plots real parts of the density matrix at a selected time (value or index) as a 3D bar chart.
-    The density matrix is extracted of spinsys.timeEvolution_result in calc_densmat.
+    The density matrix is extracted of spinsys.timeEvolution_result in calcDensityMatrix.
 
     Parameters
     ----------
@@ -703,56 +724,67 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: int =None, t
     return_dict : dict
     A dictionary containing:
     - 'fig': matplotlib figure
-    - 'time': np.ndarray
-        The time at which the density matrix is plotted.
-    - 'density_matrix': np.ndarray
-        The density matrix that is plotted.
+    - 'times': np.ndarray
+        The times at which the density matrices are plotted.
+    - 'density_matrices': list of np.ndarray
+        The density matrices that are plotted.
     """
     # TODO center state labels, make prettier
 
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
-    time, densmat = calcDensityMatrix(spinsys, time_type, time_index, time_value)
+    
+    times, densmats = calcDensityMatrix(spinsys, time_type, time_index, time_value)
 
-    fig = plt.figure()  # wider so that z axis label also gets displayed
-    ax = fig.add_subplot(111, projection='3d')
+    # plot as grid of 3d bar plots
+    n = len(densmats)
+    ncols = min(3, n)    # max 3 plots per row
+    nrows = int(np.ceil(n / ncols))
+    fig = plt.figure(figsize=(6*n, 4*n))
+    ##fig = plt.figure()
 
-    # Create grid for plotting in 3d
-    x = np.arange(densmat.shape[0])
-    y = np.arange(densmat.shape[1])
-    X, Y = np.meshgrid(x, y) 
+    # for time, densmat in zip(times, densmats):  # plot all density matrices in case multiple time values/indices were given
+    #     ax = fig.add_subplot(111, projection='3d')
+    for k, (time, densmat) in enumerate(zip(times, densmats), start=1):
+        ax = fig.add_subplot(nrows, ncols, k, projection='3d')
+        densmat = np.real(densmat)   # take real part of density matrix for plotting
 
-    dx = dy = 0.5   # width of the bars
+        # Create grid for plotting in 3d
+        x = np.arange(densmat.shape[0])
+        y = np.arange(densmat.shape[1])
+        X, Y = np.meshgrid(x, y) 
 
-    # when values are 0 in the matrix they get plotted in grey. Below zero in red, above in blue.
-    is_zero = (abs(densmat.flatten()) == 0.0)
-    is_neg = np.real(densmat.flatten()) < 0
-    colors = np.where(is_zero, "lightgrey",
-          np.where(is_neg, "tab:red", "tab:blue"))
+        dx = dy = 0.5   # width of the bars
 
-    # get the x and y axis labels (eigenstates of H) in the format |0>, |1> etc.
-    xy_axtext = spinsys.statesWithoutE
+        # when values are 0 in the matrix they get plotted in grey. Below zero in red, above in blue.
+        is_zero = (densmat.flatten() == 0.0)
+        is_neg = (densmat.flatten() < 0)
+        colors = np.where(is_zero, "lightgrey",
+            np.where(is_neg, "tab:red", "tab:blue"))
 
-    # Plot the real part of the density matrix
-    ax.bar3d(X.flatten()-dx/2, Y.flatten()-dy/2, np.zeros_like(densmat.flatten()), 0.5, 0.5, np.real(densmat.flatten()), shade=True, color=colors)
-    ax.set_xlabel('State')
-    ax.set_ylabel('State')
-    ax.set_zlabel('Real Part of Density Matrix')
-    ax.set_box_aspect(None, zoom=0.85)
-    ax.set_xticks(x)
-    ax.set_yticks(y)
-    ax.set_xlim(-0.5, len(x) - 0.5)
-    ax.set_ylim(-0.5, len(y) - 0.5)
-    ax.set_zlim(0, 1)
-    ax.set_xticklabels(xy_axtext)
-    ax.set_yticklabels(xy_axtext)
-    plt.title(f'Density Matrix at t = {time:.2} s')
+        # get the x and y axis labels (eigenstates of H) in the format |0>, |1> etc.
+        xy_axtext = spinsys.statesWithoutE
+
+        # Plot the real part of the density matrix
+        ax.bar3d(X.flatten()-dx/2, Y.flatten()-dy/2, np.zeros_like(densmat.flatten()), 0.5, 0.5, densmat.flatten(), shade=True, color=colors)
+        ax.set_xlabel('State')
+        ax.set_ylabel('State')
+        ax.set_zlabel('Real Part of Density Matrix')
+        ax.set_box_aspect(None, zoom=0.85)
+        ax.set_xticks(x)
+        ax.set_yticks(y)
+        ax.set_xlim(-0.5, len(x) - 0.5)
+        ax.set_ylim(-0.5, len(y) - 0.5)
+        ax.set_zlim(0, 1)
+        ax.set_xticklabels(xy_axtext)
+        ax.set_yticklabels(xy_axtext)
+        plt.title(f'Density Matrix at t = {time:.2} s', fontsize=18)
     plt.show()
 
     return_dict = {
         'fig': fig,
-        'time': time,
-        'density_matrix': densmat,
+        'times': times,
+        'density_matrices': densmats,
         }
     
     return return_dict
@@ -773,7 +805,7 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
 
     Returns
     -------
-    I : list[float]
+    I : np.ndarray
         Current values at each time point in ``result.times``.
 
     Raises
@@ -785,7 +817,7 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
     Notes
     -----
     - The function assumes that required attribute `Rates` are available in the provided `spinsys` object.
-    - A possibility to get the QuTiP result is using the function calc_time_evolution
+    - A possibility to get the QuTiP result is using the function calcTime_Evolution
 
     """
     if not hasattr(spinsys, 'timeEvolution_result'):
@@ -840,8 +872,8 @@ def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str
             The created figure.
         ``time_values`` : numpy.ndarray
             Time values used on the x-axis.
-        ``I_values`` : list
-            Current values at each time point.
+        ``I_values`` : np.ndarray
+            Current values corresponding to the time values in ``time_values``.
         ``Approach`` : str
             The approach used for the current calculation.
 
@@ -960,7 +992,7 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
         - ``amplitudes`` : list[numpy.ndarray]
             Fourier amplitudes corresponding to ``frequencies``.
         - ``frequency_peaks`` : list[numpy.ndarray]
-            Peak frequencies for each plotted spin.
+            Peak frequencies for each plotted spin. Only peaks with an amplitude of at least 1% of the maximum amplitude are considered.
         - ``spin_indices`` : list[int]
             Spin indices corresponding to each spectrum in the plot.
 
@@ -1011,7 +1043,10 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
     # calculate frequency peaks
     freq_peaks = []
     for freqs_i, amps_i in zip(freqs, amps):
-        peak_idx, _ = scipy.signal.find_peaks(np.abs(amps_i))
+        peak_idx, _ = scipy.signal.find_peaks(
+            np.abs(amps_i),
+            height=0.01*np.max(np.abs(amps_i))  # only consider peaks that are at least 1% of the maximum amplitude
+            )##, distance=freqs_i[2]-freqs_i[0])  # find peaks in amplitude spectrum, distance ensures that peaks at least one frequency bin apart
         freq_peaks.append(freqs_i[peak_idx])
     
     # calculate frequency axis limits for plotting
@@ -1019,7 +1054,7 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
     if max_peak_freq:   # if peaks were found, set x_limit to 3 times the maximum peak frequency, but not exceeding the maximum frequency in the spectra
         x_limit = 3 * max(max_peak_freq)  # 3 times the maximum peak frequency
         if x_limit > max(freq[-1] for freq in freqs):  # if calculated x_limit exceeds the maximum frequency in the spectra
-            x_limit = max(freq[-1] for freq in freqs)  # set x_limit to maximum frequency in the spectra
+            x_limit = max(freq[-1] for freq in freqs)  # set x_limit to maximum frequency in the spectra (plot whole spectrum)
     else:   # if no peaks were found
         x_limit = max(freq[-1] for freq in freqs)  # set x_limit to maximum frequency in the spectra
 
