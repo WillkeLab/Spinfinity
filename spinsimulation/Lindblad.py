@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
+from copy import deepcopy
+from joblib import Parallel, delayed
+
 
 # import other SpinFinity packages
 from spinsimulation.SpinSys import SpinSys
@@ -400,7 +403,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         solver_options = {'store_states': False, 'nsteps': 1000}  # default options for mesolve.
     else:
         solver_options = options
-
+    
     resulti = []  # initialize array to store <S> results
 
     # get decay values for spin spinidx. Store result of each tip field step in resulti.
@@ -636,6 +639,9 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =N
         Time values selected from ``result.times``.
     densmats : np.ndarray
         Density matrices corresponding to the selected times.
+    result_indices : list[int]
+        The indices in ``result.times`` and ``result.states`` corresponding to the returned density matrices.
+        If time_type = "index", they are equivalent to time_index.
 
     Raises
     ------
@@ -665,9 +671,12 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =N
             time = times_result[time_index_i]
             times_densmats.append(time)
             densmats.append(densmat)
+        result_indices = time_index
 
     # choose state and time at the time closest to time_value
     elif time_type == "value":
+        result_indices = []  # initialize list to store indices corresponding to time_values
+
         if time_values is None:   # make sure a time_value is given
             raise ValueError('time_value must be provided when time_type == "value"')
         
@@ -691,11 +700,12 @@ def calcDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =N
             time = times_result[time_index]
             times_densmats.append(time)
             densmats.append(densmat)
+            result_indices.append(time_index)
 
     else: 
         raise ValueError('time_type must be "value" or "index"')
 
-    return times_densmats, densmats
+    return times_densmats, densmats, result_indices
 
 
 
@@ -728,13 +738,15 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =N
         The times at which the density matrices are plotted.
     - 'density_matrices': list of np.ndarray
         The density matrices that are plotted.
+    - 'result_indices': list[int]
+        The indices in ``result.times`` and ``result.states`` corresponding to the plotted density matrices.
     """
     # TODO center state labels, make prettier
 
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
     
-    times, densmats = calcDensityMatrix(spinsys, time_type, time_index, time_value)
+    times, densmats, result_indices = calcDensityMatrix(spinsys, time_type, time_index, time_value)
 
     # plot as grid of 3d bar plots
     n = len(densmats)
@@ -785,6 +797,7 @@ def plotDensityMatrix(spinsys: SpinSys, time_type: str, time_index: list[int] =N
         'fig': fig,
         'times': times,
         'density_matrices': densmats,
+        'result_indices': result_indices,
         }
     
     return return_dict
@@ -817,8 +830,7 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
     Notes
     -----
     - The function assumes that required attribute `Rates` are available in the provided `spinsys` object.
-    - A possibility to get the QuTiP result is using the function calcTime_Evolution
-
+    - The current is calculated from the SpinSys attribute timeEvolution_result that needs to be calculated in calcTime_Evolution first.
     """
     if not hasattr(spinsys, 'timeEvolution_result'):
         raise AttributeError("The SpinSys object is missing the attribute timeEvolution_result. Run lind.calcTimeEvolution first.")
@@ -849,20 +861,21 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
 
     return I
 
-def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str ="Tunneling current"):
+def plotTunnelCurrent_time(spinsys: SpinSys, timeRange: list[float] = "all", Approach: str = "Loth"):
     """
-    Plot the tunneling current as a function of time.
+    Plot the tunneling current as a function of time. It is calculated in calcTunnelCurrent_time from the populations of the states 
+    (diagonal entries of the density matrix) and the rates.
 
     Parameters
     ----------
     spinsys : SpinSys
         Spin system containing rate matrices, tunneling parameters and timeEvolution_result containing
-        a QuTiP result object returned by ``mesolve`` with ``states`` and ``times``..
+        a QuTiP result object returned by ``mesolve`` with ``states`` and ``times``.
+    timeRange: list[float] or "all", optional 
+        Time interval [t_min, t_max] for which to plot the current. If "all", the full simulated time interval is used.
     Approach : {"Loth", "Ternes"}, optional
         Current calculation approach passed through to `calcTunnelCurrent_time`. 
         Default is ``"Loth"``.
-    title : str, optional
-        Title for the plot. Default is ``Tunneling current``.
 
     Returns
     -------
@@ -871,7 +884,7 @@ def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str
         ``fig`` : matplotlib.figure.Figure
             The created figure.
         ``time_values`` : numpy.ndarray
-            Time values used on the x-axis.
+            Time values of the whole simulated time interval (not only the selected timeRange if it is not "all").
         ``I_values`` : np.ndarray
             Current values corresponding to the time values in ``time_values``.
         ``Approach`` : str
@@ -880,7 +893,6 @@ def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str
     Notes
     -----
     The unit of the y-axis label depends on the selected approach. 
-
     """
 
     # TODO check units Ternes
@@ -890,6 +902,10 @@ def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str
     result = spinsys.timeEvolution_result
     times = result.times
     I = calcTunnelCurrent_time(spinsys, Approach=Approach)
+
+    # select time range to plot
+    if timeRange == "all":
+        timeRange = [times[0], times[-1]]
 
     # set y label (different units depending on Approach)
     if Approach == "Ternes":
@@ -902,7 +918,8 @@ def plotTunnelCurrent_time(spinsys: SpinSys,  Approach: str = "Loth", title: str
     ax.set_xlabel("Time (s)")
     
     ax.set_ylabel(ylabel)
-    plt.title(title)
+    ax.set_xlim(timeRange)
+    plt.title("Tunneling current")
     plt.show()
 
     return_dict = {
