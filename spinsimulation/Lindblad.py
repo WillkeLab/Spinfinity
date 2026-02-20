@@ -64,8 +64,9 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
     """ 
     # define rates for the operator's prefactors if specified
     if recalcRates:
-        bath.calcRates(spinsys)
+        hamil.calcEigEnergies(spinsys)
         hamil.calcEigStates(spinsys)
+        bath.calcRates(spinsys)
     elif not hasattr(spinsys, 'Rates_Summed') or spinsys.Rates_Summed is None:
         bath.calcRates(spinsys)
 
@@ -403,7 +404,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         solver_options = {'store_states': False, 'nsteps': 1000}  # default options for mesolve.
     else:
         solver_options = options
-    
+
     resulti = []  # initialize array to store <S> results
 
     # get decay values for spin spinidx. Store result of each tip field step in resulti.
@@ -1063,7 +1064,7 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
         peak_idx, _ = scipy.signal.find_peaks(
             np.abs(amps_i),
             height=0.01*np.max(np.abs(amps_i))  # only consider peaks that are at least 1% of the maximum amplitude
-            )##, distance=freqs_i[2]-freqs_i[0])  # find peaks in amplitude spectrum, distance ensures that peaks at least one frequency bin apart
+            )##  distance=freqs_i[2]-freqs_i[0])  # find peaks in amplitude spectrum, distance ensures that peaks at least one frequency bin apart TODO delete
         freq_peaks.append(freqs_i[peak_idx])
     
     # calculate frequency axis limits for plotting
