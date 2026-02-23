@@ -367,9 +367,13 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     ValueError
         If Saxis is not "x", "y" or "z" or spinsys.S(x, y or z) are not defined.
 
+    Notes
+    -------
+    The time evolution results for the different tip field strengths are calculated in parallel using _calcDecayParallelHelper.
+
     """
-    # save initial value for later
-    BTip_initial = spinsys.BTip.copy()   
+    # # save initial value for later
+    # BTip_initial = spinsys.BTip.copy()   
 
     # define BTip and time values arrays
     times = np.linspace(timeRange[0], timeRange[1], N_times)
@@ -405,30 +409,84 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     else:
         solver_options = options
 
-    resulti = []  # initialize array to store <S> results
+    # resulti = []  # initialize array to store <S> results
 
-    # get decay values for spin spinidx. Store result of each tip field step in resulti.
-    for BTip_value in BTip_values:
-        spinsys.BTip[Bidx] = BTip_value 
-        hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
+    # # get decay values for spin spinidx. Store result of each tip field step in resulti.
+    # for BTip_value in BTip_values:
+    #     spinsys.BTip[Bidx] = BTip_value 
+    #     hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
     
-        L_operators = collapseOperators(spinsys)  # calculate new collapse operators with new Hamiltonian
+    #     L_operators = collapseOperators(spinsys)  # calculate new collapse operators with new Hamiltonian
 
-        meV_to_J = 1e-3 * const.e
-        H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
+    #     meV_to_J = 1e-3 * const.e
+    #     H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
 
-        result = mesolve(H_q, psi_0, times, L_operators, [S], options=solver_options)  # calculate S expectation values for given tip field
+    #     result = mesolve(H_q, psi_0, times, L_operators, [S], options=solver_options)  # calculate S expectation values for given tip field
 
-        resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
+    #     resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
         
+    # resulti = np.stack(resulti)
+
+    # calculate S expectation value for all BTip values in parallel. 
+    resulti = Parallel(n_jobs=-1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
+                                  for BTip_value in BTip_values)
+    
     resulti = np.stack(resulti)
     
     # Restore original BTip and attributes that were changed
-    spinsys.BTip = BTip_initial 
-    hamil.calcEigEnergies(spinsys);
-    collapseOperators(spinsys);
+    # spinsys.BTip = BTip_initial 
+    # hamil.calcEigEnergies(spinsys);
+    # collapseOperators(spinsys);
 
     return resulti
+
+
+def _calcDecayParallelHelper(spinsys: SpinSys, S: Qobj, BTip_value: float, Bidx: int, psi_0: Qobj, times: list[float], solver_options: dict):
+    """
+    Calculates the expectation value of S over time using QuTip mesolve. 
+    It is calculated for a specific spin system and changes one component of the tip field locally.
+    
+    Parameters
+    -------
+    spinsys : SpinSys
+        The spin system object. 
+    S: Qobj
+        Spin matrix (Sx, Sy or Sz) of the spin of which the expectation value over time should be calculated.
+    BTip_value: float
+        Tip field strength that should be inserted into the component along the axis Bidx
+    Bidx: int {0, 1, 2}
+        Index of the BTip axis along which the value will be changed to BTip_value.
+        0 corresponds to x, 1 to y and 2 to z.
+    psi_0 : Qobj
+        Initial state or density matrix of spinsys.
+    times : list of float
+        Time values in seconds for which the Lindblad equation should be solved.
+    solver_options: dict
+        Options to give to the QuTiP mesolve solver.
+    
+    Returns
+    -------
+    resulti: numpy.ndarray
+        Array containing <S>(t) for each time value.
+
+    Notes
+    -------
+    This function is designed to be used for parallel computation in calcDecayTipfieldSweep. It creates a local deepcopy of spinsys.
+    """
+    local_spinsys = deepcopy(spinsys)   # create copy of spinsys to change its BTip only locally
+    local_spinsys.BTip[Bidx] = BTip_value   # change BTip value along Bidx axis
+
+    hamil.calcEigEnergies(local_spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
+    L_operators = collapseOperators(local_spinsys)  # calculate new collapse operators with new Hamiltonian
+
+    meV_to_J = 1e-3 * const.e
+    H_q = Qobj(local_spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
+
+    result = mesolve(H_q, psi_0, times, L_operators, [S], options=solver_options)  # calculate time evolution for given tip field
+    result_expval = np.real(result.expect[0])    # calculated S expectation value
+
+    return result_expval
+
 
 
 def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options:dict =None):
