@@ -31,7 +31,6 @@ from qutip.solver.result import Result as QuTiPResult  # to be able to make sure
 # -  
 
 # TODO matplotlib to Plotly
-# TODO example notebook
 
 
 # region Lindblad solving
@@ -370,7 +369,6 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     Notes
     -------
     The time evolution results for the different tip field strengths are calculated in parallel using _calcDecayParallelHelper.
-
     """
     # # save initial value for later
     # BTip_initial = spinsys.BTip.copy()   
@@ -409,34 +407,10 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
     else:
         solver_options = options
 
-    # resulti = []  # initialize array to store <S> results
-
-    # # get decay values for spin spinidx. Store result of each tip field step in resulti.
-    # for BTip_value in BTip_values:
-    #     spinsys.BTip[Bidx] = BTip_value 
-    #     hamil.calcEigEnergies(spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
-    
-    #     L_operators = collapseOperators(spinsys)  # calculate new collapse operators with new Hamiltonian
-
-    #     meV_to_J = 1e-3 * const.e
-    #     H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
-
-    #     result = mesolve(H_q, psi_0, times, L_operators, [S], options=solver_options)  # calculate S expectation values for given tip field
-
-    #     resulti.append(result.expect[0])  # add expectation values with BTip_value to resulti
-        
-    # resulti = np.stack(resulti)
-
-    # calculate S expectation value for all BTip values in parallel. 
+    # compute <Sz(t)> for each tip field strength
     resulti = Parallel(n_jobs=-1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
                                   for BTip_value in BTip_values)
-    
     resulti = np.stack(resulti)
-    
-    # Restore original BTip and attributes that were changed
-    # spinsys.BTip = BTip_initial 
-    # hamil.calcEigEnergies(spinsys);
-    # collapseOperators(spinsys);
 
     return resulti
 
@@ -667,7 +641,6 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTipRange: list[float] = [-0.1, 0.1]
         'E_array': E}
 
     return return_dict
-
 
 
 
