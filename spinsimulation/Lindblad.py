@@ -3,6 +3,7 @@ import numpy as np
 import scipy
 import scipy.constants as const
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcol
 import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
@@ -102,7 +103,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
     return collapse_ops 
 
 
-def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict =None):
+def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =500,  spin_idx: list[int] ="all", Saxis: str ="z", options: dict =None, sparse: bool =False):
     """
     Solve the Lindblad master equation with QuTiP and return mesolve result.
 
@@ -130,6 +131,10 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         Options to give to the QuTiP mesolve solver. See possible options in the QuTiP documentation.
         Default is None which is changed to {'store_states':True, 'nsteps':1000} in the code to avoid a mutable default argument. 
         'store_states' needs to be True to plot density matrices, otherwise it can be set to False to use less memory.
+    sparse : bool, optional
+        If ``True``, the Hamiltonian and collapse operators are converted
+        to sparse ``qutip.Qobj`` objects before solving.  This can reduce
+        memory usage for large systems.  Default is ``False``.
 
     Returns
     -------
@@ -173,7 +178,28 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     # convert spinsys Hamiltonian into Qobj with unit 1/s
     meV_to_J = 1e-3 * const.e
-    H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
+
+    if sparse:  # TODO delete or test and edit
+        # build sparse Hamiltonian Qobj; Qobj will infer dims from the matrix shape
+        H_sparse = scipy.sparse.csr_matrix(spinsys.H * (meV_to_J / const.hbar))  # convert to CSR
+        H_q = Qobj(H_sparse)
+        # convert each collapse operator to a sparse Qobj as well
+        c_ops = []
+        for op in spinsys.collapse_ops:
+            if isinstance(op, Qobj):
+                mat = op.data
+                if not scipy.sparse.issparse(mat):
+                    mat = scipy.sparse.csr_matrix(op.full())
+                c_ops.append(Qobj(mat))
+            else:
+                # fall back for raw arrays
+                mat = op
+                if not scipy.sparse.issparse(mat):
+                    mat = scipy.sparse.csr_matrix(mat)
+                c_ops.append(Qobj(mat))
+    else:
+        H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
+        c_ops = spinsys.collapse_ops
 
     # calculate list of operators e_ops for which the Lindblad equation will be solved
     S = getattr(spinsys, f"S{Saxis}", None)   # gets Sx, Sy or Sz depending on Saxis
@@ -192,7 +218,7 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
 
     # solve Lindblad equation, and retry with increased nsteps if needed
     try:
-        result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=solver_options)
+        result = mesolve(H_q, psi_0, times, c_ops, e_ops, options=solver_options)
     except Exception as exc:
         if 'Excess work done on this call' not in str(exc): 
             raise   # show original QuTiP error message
@@ -203,7 +229,8 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         if len(times) > 1:
             retry_options.setdefault('max_step', float(times[1] - times[0]))
 
-        result = mesolve(H_q, psi_0, times, spinsys.collapse_ops, e_ops, options=retry_options)
+        # use the same collapse operators as originally passed (may be sparse)
+        result = mesolve(H_q, psi_0, times, c_ops, e_ops, options=retry_options)
 
     # add results as attributes to spinsys object
     spinsys.timeEvolution_result = result
@@ -529,6 +556,7 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         im = ax.imshow(
             resulti,
             aspect="auto",
+            norm = mcol.Normalize(vmin=-1, vmax=1, clip=False),     # Sz from -1 to 1
             origin="lower",
             extent=[times[0], times[-1], BTip_values[0], BTip_values[-1]],
             cmap="managua_r",
@@ -1095,9 +1123,9 @@ def plotFourierFreqs(spinsys: SpinSys, spin_idxToPlot: list[int] ="all"):
         peak_idx, _ = scipy.signal.find_peaks(
             np.abs(amps_i),
             height=0.01*np.max(np.abs(amps_i))  # only consider peaks that are at least 1% of the maximum amplitude
-            )##  distance=freqs_i[2]-freqs_i[0])  # find peaks in amplitude spectrum, distance ensures that peaks at least one frequency bin apart TODO delete
+            )
         freq_peaks.append(freqs_i[peak_idx])
-    
+                
     # calculate frequency axis limits for plotting
     max_peak_freq = [max(peaks) for peaks in freq_peaks if len(peaks) > 0]  # get maximum peak frequencies across all spectra
     if max_peak_freq:   # if peaks were found, set x_limit to 3 times the maximum peak frequency, but not exceeding the maximum frequency in the spectra
