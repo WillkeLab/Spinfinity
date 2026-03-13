@@ -76,6 +76,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
     if threshold_percent > 1 or threshold_percent < 0:
         raise ValueError('threshold_percent should be between 0 and 1')
     max_rate = np.nanmax(Rates_Summed)   # find maximum value in Rates_Summed while ignoring Nan entries
+    max_rate = np.max(Rates_Summed[np.isfinite(Rates_Summed) & (Rates_Summed > 0)])     # find maximum value in Rates_Summed
     threshold_value = threshold_percent * max_rate
 
     N_levels = spinsys.dimensionOfMatrix    # number of energy levels (NxN: dimension of Lindblad operators)
@@ -92,9 +93,12 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
             if abs(Rates_Summed[i_initial][j_final]) < threshold_value:
                 continue   # skip too small rates
 
-            E_op = Qobj(spinsys.eigVectors[:, j_final]) * Qobj(spinsys.eigVectors[:, i_initial]).dag()  # define hopping operator from eigenstate i to j
+            if not np.isfinite(Rates_Summed[i_initial][j_final]) or Rates_Summed[i_initial][j_final] <= 0:
+                continue
 
-            L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor            
+            E_op = Qobj(spinsys.eigVectors[:, j_final]) * Qobj(spinsys.eigVectors[:, i_initial]).dag()  # define hopping operator from eigenstate i to j
+            
+            L_ij = np.sqrt(Rates_Summed[i_initial][j_final]) * E_op    # multiply E_op with rates/thermal prefactor          
 
             collapse_ops.append(Qobj(L_ij))  # append new L_ij to the list of collapse operators
 
@@ -186,17 +190,10 @@ def calcTimeEvolution(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0,
         # convert each collapse operator to a sparse Qobj as well
         c_ops = []
         for op in spinsys.collapse_ops:
-            if isinstance(op, Qobj):
-                mat = op.data
-                if not scipy.sparse.issparse(mat):
-                    mat = scipy.sparse.csr_matrix(op.full())
-                c_ops.append(Qobj(mat))
-            else:
-                # fall back for raw arrays
-                mat = op
-                if not scipy.sparse.issparse(mat):
-                    mat = scipy.sparse.csr_matrix(mat)
-                c_ops.append(Qobj(mat))
+            mat = op.data
+            if not scipy.sparse.issparse(mat):
+                mat = scipy.sparse.csr_matrix(op.full())
+            c_ops.append(Qobj(mat))
     else:
         H_q = Qobj(spinsys.H * (meV_to_J / const.hbar))
         c_ops = spinsys.collapse_ops
@@ -435,7 +432,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         solver_options = options
 
     # compute <Sz(t)> for each tip field strength
-    resulti = Parallel(n_jobs=-1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
+    resulti = Parallel(n_jobs=1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
                                   for BTip_value in BTip_values)
     resulti = np.stack(resulti)
 
@@ -478,7 +475,7 @@ def _calcDecayParallelHelper(spinsys: SpinSys, S: Qobj, BTip_value: float, Bidx:
     local_spinsys.BTip[Bidx] = BTip_value   # change BTip value along Bidx axis
 
     hamil.calcEigEnergies(local_spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
-    L_operators = collapseOperators(local_spinsys)  # calculate new collapse operators with new Hamiltonian
+    L_operators = collapseOperators(local_spinsys, threshold_percent=0.2)  # calculate new collapse operators with new Hamiltonian
 
     meV_to_J = 1e-3 * const.e
     H_q = Qobj(local_spinsys.H * (meV_to_J / const.hbar))  # convert from meV to rad/s
