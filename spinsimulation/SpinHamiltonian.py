@@ -551,7 +551,7 @@ def calcDipolarCoupling(spinsys: SpinSys):
                         (4 * np.pi * distance_temp ** 3) *
                         spinsys.JtomeVConversion
                     )
-                    index_counter += 1
+                index_counter += 1
 
     return
 

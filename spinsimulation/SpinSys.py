@@ -405,14 +405,15 @@ class SpinSys:
         
         Parameters
         ----------
+        filename : str
+            Name of the pickle file to load.
         filepath : str
-            Full path to the pickle file containing the SpinSys object.
+            Directory path where the file is located.
             
         Returns
         -------
         SpinSys
             The loaded SpinSys object.
-            
         """
 
         full_path = os.path.join(filepath, filename)
