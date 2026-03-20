@@ -337,6 +337,67 @@ def plotTimeEvolution(spinsys: SpinSys, timeRange: list[float] = "all", spin_idx
     
     return return_dict
 
+
+def plotTimeEvolution_thesis(spinsys: SpinSys, timeRange: list[float] = "all", spin_idxToPlot: list[int] ="all", savetitle: str = None):  # TODO delete
+    """
+    Plot spin expectation values over time from a previously computed time evolution.
+    """
+
+    # check if the time evolution was calculated
+    if not hasattr(spinsys, 'timeEvolution_result') or spinsys.timeEvolution_result is None:
+        raise AttributeError('timeEvolution_result is not defined. The time evolution must first be calculated via calcTimeEvolution.')
+    
+    result = spinsys.timeEvolution_result
+    times_calc = result.times   # times for which the time evolution was calculated
+    spin_idx_calc = spinsys.timeEvolution_spinidx    # indices of the spins for which the time evolution was calculated
+    Saxis = spinsys.timeEvolution_Saxis
+
+    fig, ax = plt.subplots()
+
+    # set timeRange to the time range for which the time evolution was calculated if not specified otherwise.
+    if timeRange == "all":
+        timeRange = [times_calc[0], times_calc[-1]]
+
+    # check that timeRange is not bigger than the time range for which the expectation values were calculated
+    if timeRange[-1] > times_calc[-1]:
+        raise ValueError('The time range upper bound exceeds the time range for which the time evolution was calculated.')
+    if timeRange[0] < times_calc[0]:
+        raise ValueError('The time range lower bound is below the time range for which the time evolution was calculated.')
+
+    # select spins to plot and check if their time evolutions were calculated
+    if spin_idxToPlot == "all":
+        spin_idxToPlot = spin_idx_calc    # If not specified, the expectation values of all spins for which the time evolution was calculated are plotted.
+
+    # check that requested spin indices exist in result and map to positions in spin_idx_calc
+    missing = [s for s in spin_idxToPlot if s not in spin_idx_calc]   # list that contains missing spin indices
+    if missing:     # non-empty list is considered True
+        raise ValueError(f"spin_idxToPlot contains indices not present in timeEvolution_spinidx: {missing}")
+
+    plot_idx = [i for i, s in enumerate(spin_idx_calc) if s in spin_idxToPlot]   # indices of spin_idxToPlot values in spin_idx_calc
+    for i in plot_idx:    # plot expectation value for each spin
+        ax.plot(times_calc, result.expect[i])
+
+    ax.legend()
+    ax.set_ylim([-1, 1])   # <S> from -1 to 1
+    ax.set_xlim(timeRange)
+    ax.set_xlabel('t/s')
+    ax.set_ylabel(f'<S{Saxis}>')
+    ax.set_title("Time evolution")
+    plt.tight_layout()
+    if savetitle:
+        plt.savefig(savetitle+".pdf")
+    plt.show()
+
+    return_dict = {
+        'fig': fig,
+        'time_values': times_calc,
+        'expectation_values': result.expect,
+        'Saxis': Saxis,
+        'spin_idx_plotted': plot_idx
+        }
+    
+    return return_dict
+
 # endregion Lindblad solver
 
 # region tip field sweep
@@ -432,7 +493,7 @@ def calcDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         solver_options = options
 
     # compute <Sz(t)> for each tip field strength
-    resulti = Parallel(n_jobs=1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
+    resulti = Parallel(n_jobs=-1)(delayed(_calcDecayParallelHelper)(spinsys, S, BTip_value, Bidx, psi_0, times, solver_options)
                                   for BTip_value in BTip_values)
     resulti = np.stack(resulti)
 
@@ -562,6 +623,70 @@ def plotDecayTipfieldsweep(spinsys: SpinSys, psi_0: list, timeRange: list[float]
         ax.set_ylabel(f"BTip_{Baxis}/T")
         cbar = plt.colorbar(im, ax=ax)
         cbar.set_label(f'<S{Saxis}>')
+        plt.show()
+
+        returndict = {
+            'fig': fig,
+            'time_values': times,
+            'BTip_values': BTip_values,
+            'S': resulti
+        }
+
+        return returndict
+
+
+def plotDecayTipfieldsweep_thesis(spinsys: SpinSys, psi_0: list, timeRange: list[float] =[0, 1e-7], N_times: int =100, BTipRange: list[float] =[-0.1, 0.1], N_BTip: int =100, Baxis: str ="z", Saxis: str ="z", spinidx: int=0, options:dict =None, savetitle: str =None, timescale: str ="s"):
+        """
+        Plots a colormap of <S>(t) at different tip fields over time. 
+        Sweeps through one tip field component over a specified range, computes the expectation value of Sx, Sy or Sz of a specified spin
+        at each time step. 
+        """
+        # calculate <S> at each time and BTip field step with calcDecayTipfieldsweep
+        resulti = calcDecayTipfieldsweep(spinsys, psi_0,  timeRange=timeRange, N_times=N_times, BTipRange=BTipRange, N_BTip=N_BTip, Baxis=Baxis, Saxis=Saxis, spinidx=spinidx, options=options)
+
+        resulti = np.real(resulti)
+
+        # define BTip and time values arrays
+        times = np.linspace(timeRange[0], timeRange[1], N_times)    # in s
+
+        if timescale=="s":
+            times_plot = np.linspace(timeRange[0], timeRange[1], N_times)
+        elif timescale=="millis":
+            times_plot = np.linspace(timeRange[0], timeRange[1], N_times)*1e3
+        elif timescale=="mus":
+            times_plot = np.linspace(timeRange[0], timeRange[1], N_times)*1e6
+        elif timescale=="ns":
+            times_plot = np.linspace(timeRange[0], timeRange[1], N_times)*1e9
+        else:
+            print("wrong timescale string")
+        
+        BTip_values = np.linspace(BTipRange[0], BTipRange[1], N_BTip)
+
+        # Plot as a 2D colormap: x=time, y=tip field values
+        fig, ax = plt.subplots()
+        im = ax.imshow(
+            resulti,
+            aspect="auto",
+            norm = mcol.Normalize(vmin=-1, vmax=1, clip=False),     # Sz from -1 to 1
+            origin="lower",
+            extent=[times_plot[0], times_plot[-1], BTip_values[0], BTip_values[-1]],
+            cmap="managua_r",
+        )
+        if timescale=="s":
+            ax.set_xlabel(r"time (s)")
+        elif timescale=="millis":
+            ax.set_xlabel(r"time (ms)")
+        elif timescale=="mus":
+            ax.set_xlabel(r"time ($\mu$s)")
+        elif timescale=="ns":
+            ax.set_xlabel(r"time (ns)")
+        
+        ax.set_ylabel(rf'$B_{{\mathrm{{Tip}},{Baxis}}}$ (T)')
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label(rf'$\langle S_{{{Saxis}}} \rangle$')
+        plt.tight_layout()
+        if savetitle:
+            plt.savefig(savetitle+".pdf")
         plt.show()
 
         returndict = {
