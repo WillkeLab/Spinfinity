@@ -1,18 +1,17 @@
 import numpy as np
-import scipy as sp
+import plotly.colors
+import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
-import plotly.graph_objects as go
-import plotly.colors
-from plotly.subplots import make_subplots
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcBath as bath
+import spinsimulation.SpinHamiltonian as hamil
+from spinsimulation.SpinSys import SpinSys
 
 # region 2nd Order
 
-def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: bool = False):
+
+def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: bool = False):
     """
     Calculate the second derivative of the tunneling current (dI/dV) for a given spin system  in 2nd Order.
 
@@ -104,6 +103,7 @@ def tunnelingBroadenedStepFunction(x_V):
 
 # region 2nd Order + Rate
 
+
 def calcIETS_2ndR(
     spinsys: SpinSys,
     Vrange: list = [-30, 30],
@@ -167,13 +167,13 @@ def calcIETS_2ndR(
     RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-    RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
+    RateFactor_tt = spinsys.G_st**2 / spinsys.G_ss[spinsys.ReadoutSpin] / (const.e * Rate_0) / 1e3 * spinsys.G_tt  # Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
 
     # Calculate the rates that stem from Tip tip and sample sample scattering, since they are not affected by the voltage
     RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
     RateIntegrals_tt = RateIntegrals_ss
     Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
-    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt*spinsys.G_tt
+    Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt * spinsys.G_tt
 
     # This part happens now as often as we need it
     for I_index in range(N):
@@ -193,8 +193,8 @@ def calcIETS_2ndR(
             Rates[0, :, :] + Rates[1, :, :] +
             Rates[2, :, :] + Rates[3, :, :] 
         )
-        #print(f"Calculated Rates at V={V_DC} mV")
-        #print(Rates_Summed[0,1])
+        # print(f"Calculated Rates at V={V_DC} mV")
+        # print(Rates_Summed[0,1])
         # Build the Rate-Equation matrix
         K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
         for i in range(spinsys.dimensionOfMatrix):
@@ -202,7 +202,7 @@ def calcIETS_2ndR(
                 if i != j:
                     K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
                     K[i, j] = Rates_Summed[j, i]   # Rates leading to state i
-        #print(K)
+        # print(K)
         # Calculate the thermal population (Boltzmann distribution)
         p0 = np.exp(-spinsys.E_All / (spinsys.kB * spinsys.T))
         pTot = np.sum(p0)
@@ -242,7 +242,7 @@ def calcIETS_2ndR(
 
     # Normalize dI/dV if required
     if norm:
-        dIdV = (dIdV / dIdV[0]) # Normalize to the first value
+        dIdV = (dIdV / dIdV[0])  # Normalize to the first value
 
     return V_array, dIdV, P
 
@@ -282,10 +282,11 @@ def calculate_derivative(I: list, V: list):
 
     return dIdV
 
+
 # endregion 2nd Order + Rate
 
 # region Visualization
-def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd', plotAllSpins: bool=False):
+def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: bool = False, order: str = '2nd', plotAllSpins: bool = False):
     """
     Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
 
@@ -317,6 +318,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
             The voltage values used in the spectrum.
         - 'dIdVsignal': numpy.ndarray
             The calculated dI/dV signal values.
+
     Notes
     -----
     - the dimension of the dIdVsignal changes when plotAllSpins=True
@@ -327,11 +329,11 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
     else:
         y_label = 'dI/dV (S)'
 
-    if plotAllSpins==False:
+    if plotAllSpins == False:
 
         # Initialize x and y arrays
-        x = np.zeros(N) # Voltage 
-        y = np.zeros(N) # dI/dV Signal
+        x = np.zeros(N)  # Voltage 
+        y = np.zeros(N)  # dI/dV Signal
         # Calculate the IETS spectrum for the specified order
         if order == '2nd':
             x, y = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
@@ -387,25 +389,25 @@ def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=Fa
 
         fig.show()
 
-    elif plotAllSpins==True:
+    elif plotAllSpins == True:
 
         # Initialize x and y arrays
         x = np.zeros(N)
-        y = np.zeros((len(spinsys.Spins),N))
+        y = np.zeros((len(spinsys.Spins), N))
 
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
-            #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            # print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
             if order == '2nd':
-                x, y[i,:] = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i, :] = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '2ndR':
-                x, y[i,:], _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+                x, y[i, :], _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
             else:
                 raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
             
             # Plot all IETS spectra in the same figure on top of each other
             # Only create the figure once, before the loop
-            #if i == 0:
+            # if i == 0:
         # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
         color_list = plotly.colors.qualitative.Plotly
         fig = go.Figure()

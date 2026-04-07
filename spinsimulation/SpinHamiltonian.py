@@ -41,14 +41,10 @@ using Kronecker products to embed single-spin operators into the full Hilbert sp
 """
 
 import numpy as np
-import scipy as sp
-import scipy.constants as const
-from numpy import eye
-from scipy.linalg import fractional_matrix_power
 import plotly.graph_objects as go
-import plotly.colors
-from plotly.subplots import make_subplots
+
 from spinsimulation.SpinSys import SpinSys
+
 
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
@@ -112,7 +108,8 @@ def calcSpinOperators(spinsys: SpinSys):
             spinsys.Sy[i_spin, :, :] = SyTemp
             spinsys.Sz[i_spin, :, :] = SzTemp
 
-        return    
+        return 
+
 
 def calcAngMomMatrices(s: float):
     """
@@ -161,6 +158,7 @@ def calcAngMomMatrices(s: float):
 # endregion SpinOperators
 
 # region Hamiltonian
+
 
 def calcEigStates(spinsys: SpinSys):
     """
@@ -225,8 +223,8 @@ def calcEigStates(spinsys: SpinSys):
 
     # Construct states in bracket notation
     for i in range(spinsys.dimensionOfMatrix):
-        states[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)}) = "
-        statesOnlyLHS[i] = f"|{i}> (E = {round(spinsys.E_All[i],4)})"
+        states[i] = f"|{i}> (E = {round(spinsys.E_All[i], 4)}) = "
+        statesOnlyLHS[i] = f"|{i}> (E = {round(spinsys.E_All[i], 4)})"
         statesWithoutE[i] = f"|{i}>"
         statesOnlyRHS[i] = ""
 
@@ -246,6 +244,7 @@ def calcEigStates(spinsys: SpinSys):
     spinsys.basisStates = basisStates
 
     return
+
 
 def calcEigEnergies(spinsys: SpinSys):
     """
@@ -279,7 +278,7 @@ def calcEigEnergies(spinsys: SpinSys):
     addZeroField(spinsys)
     addExchangeInteraction(spinsys)
     addExchangeOffDiagonal(spinsys)
-    #calcDipolarCoupling(spinsys) # This two functions are split because one may also want to change the D0 entries himself
+    # calcDipolarCoupling(spinsys) # This two functions are split because one may also want to change the D0 entries himself
     addDipolarCoupling(spinsys)
 
     # Solving the Hamiltonian and Sorting its Result 
@@ -296,15 +295,16 @@ def calcEigEnergies(spinsys: SpinSys):
     # E_b,Evec_b = np.linalg.eigh(-Sz_Operator)
     
     # sort them via the eigenvalue
-    #Eindex_b = np.argsort(E_b)
-    #self.basisVectors = Evec_b[:, Eindex_b]
+    # Eindex_b = np.argsort(E_b)
+    # self.basisVectors = Evec_b[:, Eindex_b]
 
     # Ensure the first component of the lowest energy eigenvector is positive
     # for i in range(self.dimensionOfMatrix):
     #     if np.real(self.eigVectors[0, i]) < 0:
     #         self.eigVectors[:, i] = -self.eigVectors[:, i]
 
-    #self.calcEigStates()
+    # self.calcEigStates()
+
 
 def addZeeman(spinsys: SpinSys):
     """
@@ -332,11 +332,12 @@ def addZeeman(spinsys: SpinSys):
     for i_spin in range(spinsys.NSpins): 
 
         # Apply Zeeman interaction to Hamiltonian H
-        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[0] * spinsys.Sx[i_spin,:, :]
-        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[1] * spinsys.Sy[i_spin,:, :]
-        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[2] * spinsys.Sz[i_spin,:, :]
+        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[0] * spinsys.Sx[i_spin, :, :]
+        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[1] * spinsys.Sy[i_spin, :, :]
+        spinsys.H += - spinsys.gfactorvector[i_spin] * spinsys.muB * spinsys.B[2] * spinsys.Sz[i_spin, :, :]
 
     return
+
 
 def addTipField(spinsys: SpinSys):
     """
@@ -365,14 +366,14 @@ def addTipField(spinsys: SpinSys):
     # Adding the Tipfield to the Readout Spin only
     if spinsys.tip == 'a':
         # Add the tip field contribution to the Hamiltonian H
-        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[0] * spinsys.Sx[spinsys.ReadoutSpin,:, :]
-        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[1] * spinsys.Sy[spinsys.ReadoutSpin,:, :]
-        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[2] * spinsys.Sz[spinsys.ReadoutSpin,:, :]
+        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[0] * spinsys.Sx[spinsys.ReadoutSpin, :, :]
+        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[1] * spinsys.Sy[spinsys.ReadoutSpin, :, :]
+        spinsys.H += spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[2] * spinsys.Sz[spinsys.ReadoutSpin, :, :]
     else:
         # Subtract the tip field contribution to the Hamiltonian H
-        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[0] * spinsys.Sx[spinsys.ReadoutSpin,:, :]
-        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[1] * spinsys.Sy[spinsys.ReadoutSpin,:, :]
-        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[2] * spinsys.Sz[spinsys.ReadoutSpin,:, :]
+        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[0] * spinsys.Sx[spinsys.ReadoutSpin, :, :]
+        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[1] * spinsys.Sy[spinsys.ReadoutSpin, :, :]
+        spinsys.H += - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.BTip[2] * spinsys.Sz[spinsys.ReadoutSpin, :, :]
 
     return
 
@@ -404,6 +405,7 @@ def addTipField(spinsys: SpinSys):
 
 #     return
 
+
 def addZeroField(spinsys: SpinSys):
     """
     Build and add the anisotropy Hamiltonian for the spin system.
@@ -417,7 +419,7 @@ def addZeroField(spinsys: SpinSys):
     if not use_stevens:
         # D * Sz^2 + E(Sx^2 - Sy^2)
         for i_spin in range(spinsys.NSpins):
-            spinsys.H += spinsys.Dvector[i_spin]*(spinsys.Sz[i_spin,:,:] @ spinsys.Sz[i_spin,:,:])+ spinsys.Evector[i_spin]*(spinsys.Sx[i_spin,:,:] @ spinsys.Sx[i_spin,:,:] - spinsys.Sy[i_spin,:,:] @ spinsys.Sy[i_spin,:,:])
+            spinsys.H += spinsys.Dvector[i_spin] * (spinsys.Sz[i_spin, :, :] @ spinsys.Sz[i_spin, :, :]) + spinsys.Evector[i_spin] * (spinsys.Sx[i_spin, :, :] @ spinsys.Sx[i_spin, :, :] - spinsys.Sy[i_spin, :, :] @ spinsys.Sy[i_spin, :, :])
             
     else:
         for i_spin in range(spinsys.NSpins):
@@ -442,6 +444,7 @@ def addZeroField(spinsys: SpinSys):
                             Oab_full = np.kron(Oab_full, np.eye(dim))
                     # Add to the Hamiltonian
                     spinsys.H += coeff * Oab_full
+
 
 def addExchangeInteraction(spinsys: SpinSys):
     """
@@ -476,6 +479,7 @@ def addExchangeInteraction(spinsys: SpinSys):
                 # Increment the index counter
                 index_counter += 1
     return
+
 
 def addExchangeOffDiagonal(spinsys: SpinSys):
     """
@@ -513,6 +517,7 @@ def addExchangeOffDiagonal(spinsys: SpinSys):
                 index_counter += 1
     return
     
+
 def calcDipolarCoupling(spinsys: SpinSys):
     """
     Calculate the dipolar coupling constants for each spin pair in the given spin system.
@@ -555,6 +560,7 @@ def calcDipolarCoupling(spinsys: SpinSys):
                 index_counter += 1
 
     return
+
 
 def addDipolarCoupling(spinsys: SpinSys):
     """
@@ -615,6 +621,7 @@ def addDipolarCoupling(spinsys: SpinSys):
 # endregion Hamiltonian
 
 # region StevensOperators
+
 
 def anticommutator(A, B):
     """
@@ -813,21 +820,21 @@ def stevens_operator(S, k, q, return_latex=False):
     if k == 2:
         if abs(q) == 0:
             e = 3 * Sz_ @ Sz_ - ss * I
-            #latex = "$3\\hat{S}_z^2$"
+            # latex = "$3\\hat{S}_z^2$"
         elif abs(q) == 1:
             if q > 0:
-                e = 0.25 * (Sz_@(Sp + Sm) + (Sp + Sm)@Sz_)
-                #latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
+                e = 0.25 * (Sz_ @ (Sp + Sm) + (Sp + Sm) @ Sz_)
+                # latex = "$1/2 [\\hat{S}_x, \\hat{S}_z]_+$"
             else:
-                e = -0.25j * (Sz_@(Sp - Sm) + (Sp - Sm)@Sz_)
-                #latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
+                e = -0.25j * (Sz_ @ (Sp - Sm) + (Sp - Sm) @ Sz_)
+                # latex = "$1/2 [\\hat{S}_y, \\hat{S}_z]_+$"
         elif abs(q) == 2:
             if q > 0:
                 e = 0.5 * (np.linalg.matrix_power(Sp, 2) + np.linalg.matrix_power(Sm, 2))
-                #latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
+                # latex = "$1/2 (\\hat{S}_+^2 + \\hat{S}_-^2)$"
             else:
                 e = -0.5j * (np.linalg.matrix_power(Sp, 2) - np.linalg.matrix_power(Sm, 2))
-                #latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
+                # latex = "$-i/2 (\\hat{S}_+^2 - \\hat{S}_-^2)$"
 
     elif k == 4:
         z2 = Sz_ @ Sz_
@@ -836,7 +843,7 @@ def stevens_operator(S, k, q, return_latex=False):
         ss2 = ss ** 2
         if abs(q) == 0:
             e = 35 * z4 - (30 * ss * I - 25 * I) * z2 + (3 * ss2 - 6 * ss) * I
-            #latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
+            # latex = "$35 S_z^4 - (30 S(S+1)-25) S_z^2$"
         elif abs(q) == 1:
             pm = Sp + Sm if q > 0 else Sp - Sm
             ppm = (7 * z3 - (3 * ss * I + 1 * I) * Sz_)
@@ -873,8 +880,8 @@ def stevens_operator(S, k, q, return_latex=False):
             )
         elif abs(q) == 1:
             pm = (Sp + Sm) 
-            ppm = (33 * Sz_ @ Sz_ @Sz_ @ Sz_ @Sz_ - 30 * ss * I * Sz_ @ Sz_ @ Sz_ + 15 * Sz_ @ Sz_ @ Sz_ + 5 * ss ** 2 * I * Sz_ - 10 * ss * I * Sz_ + 12 * Sz_)
-            pm = pm if q > 0 else  (Sp - Sm) 
+            ppm = (33 * Sz_ @ Sz_ @ Sz_ @ Sz_ @ Sz_ - 30 * ss * I * Sz_ @ Sz_ @ Sz_ + 15 * Sz_ @ Sz_ @ Sz_ + 5 * ss ** 2 * I * Sz_ - 10 * ss * I * Sz_ + 12 * Sz_)
+            pm = pm if q > 0 else (Sp - Sm) 
             c = 1 if q > 0 else -1j
             e = 0.25 * c * anticommutator(pm, ppm)
         elif abs(q) == 2:
@@ -905,17 +912,17 @@ def stevens_operator(S, k, q, return_latex=False):
             e = 0.25 * c * anticommutator(pm, Sz_)
         elif abs(q) == 6:
             pm = Sp @ Sp @ Sp @ Sp @ Sp @ Sp + Sm @ Sm @ Sm @ Sm @ Sm @ Sm
-            pm = pm if q > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp- Sm @ Sm @ Sm @ Sm @ Sm @ Sm
+            pm = pm if q > 0 else Sp @ Sp @ Sp @ Sp @ Sp @ Sp - Sm @ Sm @ Sm @ Sm @ Sm @ Sm
             c = 1 if q > 0 else -1j
             e = 0.5 * c * pm
         
-
     else:
         raise ValueError("Invalid a value. Allowed: 2, 4, 6")
 
     if return_latex:
         return e, latex
     return e
+
 
 def setStevens(spinsys, i_spin, k, q, value):
     """
@@ -947,10 +954,11 @@ def setStevens(spinsys, i_spin, k, q, value):
 
     spinsys.Stevens[i_spin][(k, q)] = value
 
+
 # endregion StevensOperators
 
 # region Visualization
-def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
+def plotEigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
         """
         Visualize the eigenstate matrix of the spin system as a heatmap.
 
@@ -985,7 +993,7 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
         if not hasattr(spinsys, 'states') or spinsys.eigVectors is None:
             calcEigStates(spinsys)
                
-        projection = np.zeros([spinsys.dimensionOfMatrix,spinsys.dimensionOfMatrix],dtype=complex)
+        projection = np.zeros([spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix], dtype=complex)
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
                 projection[i, j] = np.dot(spinsys.eigVectors[:, i].conj().T, np.identity(spinsys.dimensionOfMatrix)[:, j])
@@ -1089,7 +1097,8 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
         
         return return_dict
     
-def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energyscale: str='meV'):
+
+def plotZeemanDiagramm(spinsys: SpinSys, Brange: list = [0, 1], N: int = 200, energyscale: str = 'meV'):
     """
     Plot the Zeeman diagram for a given spin system over a specified magnetic field range.
 
@@ -1119,13 +1128,13 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
     """
     # Save the initial B-Vector
     Binitial = spinsys.B
-    B = np.linspace(Brange[0],Brange[1],N)
-    E = np.zeros((N,spinsys.dimensionOfMatrix))
+    B = np.linspace(Brange[0], Brange[1], N)
+    E = np.zeros((N, spinsys.dimensionOfMatrix))
     
     for i in range(N):
-        spinsys.B = [0,0,B[i]]
+        spinsys.B = [0, 0, B[i]]
         calcEigEnergies(spinsys)
-        E[i,:] = spinsys.E_sort
+        E[i, :] = spinsys.E_sort
 
     # Resotre the initial solution
     spinsys.B = Binitial
@@ -1161,7 +1170,8 @@ def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energysc
 
     return return_dict
 
-def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
+
+def plotEnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     """
     Plot the energy eigenvalues of a spin system versus the expectation values of a spin operator (Sx, Sy, or Sz).
 
@@ -1238,7 +1248,8 @@ def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
     
     return return_dict
 
-def plotAll(spinsys: SpinSys, type: str='z', energyscale: str='meV'):
+
+def plotAll(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     """
     Plot all relevant information for the spin system, including energy levels, Zeeman diagram, and energy vs spin expectation values.
 

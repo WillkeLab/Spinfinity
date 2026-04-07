@@ -1,14 +1,12 @@
 import numpy as np
-import scipy as sp
-import scipy.constants as const
-from scipy.linalg import null_space
-import plotly.graph_objects as go
 import plotly.colors
+import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil
 import spinsimulation.calcBath as bath
+import spinsimulation.SpinHamiltonian as hamil
+from spinsimulation.SpinSys import SpinSys
+
 
 # region Calculations
 def split_Populations(spinsys: SpinSys, subspin: SpinSys):
@@ -39,16 +37,16 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
     The function modifies the populations of `spinsys` in-place before projection.
     """
     # First we calculate the Rates and Populations of the whole system
-    #hamil.calcEigEnergies(subspin)
-    #hamil.calcEigEnergies(spinsys)
-    #hamil.calcEigStates(spinsys)
-    #hamil.calcEigStates(subspin)
+    # hamil.calcEigEnergies(subspin)
+    # hamil.calcEigEnergies(spinsys)
+    # hamil.calcEigStates(spinsys)
+    # hamil.calcEigStates(subspin)
     bath.calcRates(spinsys)
     bath.calcPopulations(spinsys, AllowPumping=True)
 
     # Initialize 
-    Populations_A=np.zeros(subspin.dimensionOfMatrix)
-    Populations_B=np.zeros(subspin.dimensionOfMatrix)
+    Populations_A = np.zeros(subspin.dimensionOfMatrix)
+    Populations_B = np.zeros(subspin.dimensionOfMatrix)
 
     for idx in range(subspin.dimensionOfMatrix):
         overlap_A = calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='BA')
@@ -58,7 +56,8 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
 
     return Populations_A, Populations_B
 
-def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str='z'):
+
+def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str = 'z'):
     """
     Compute magnetization contributions from two population partitions of a subsystem.
 
@@ -103,6 +102,7 @@ def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str='z'):
 
     return Mag_A, Mag_B
 
+
 def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     """
     Calculate the overlap between a given state and the eigenvectors of a spin system.
@@ -134,21 +134,22 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     of subsystem B and computes the overlap for each eigenvector.
     """
     EV = np.asarray(spinsys.eigVectors)
-    stateB  = np.asarray(stateB).reshape(-1)
+    stateB = np.asarray(stateB).reshape(-1)
     if order.upper() == 'AB':
         V = EV.reshape(nA, nB, -1)               # (dA, dB, n)
-        PhiA = np.tensordot(V, np.conj(stateB), axes=([1],[0]))  # (dA, n)
+        PhiA = np.tensordot(V, np.conj(stateB), axes=([1], [0]))  # (dA, n)
     else:
         V = EV.reshape(nB, nA, -1)               # (dB, dA, n)
-        PhiA = np.tensordot(V.transpose(1,0,2), np.conj(stateB), axes=([1],[0]))  # (dA, n)
+        PhiA = np.tensordot(V.transpose(1, 0, 2), np.conj(stateB), axes=([1], [0]))  # (dA, n)
     O = np.einsum('in,in->n', np.conj(PhiA), PhiA).real
     
     return O
 
+
 # endregion Calculations
 
 # region Visualization
-def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100, type: str='z', spins: list=[0], norm: bool=True, total: bool=True):
+def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100, type: str = 'z', spins: list = [0], norm: bool = True, total: bool = True):
     """
     Plot the magnetization of specified spins and the total magnetization as a function of voltage.
 
@@ -193,7 +194,7 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
     
     # Initialize arrays to store voltage and magnetization data
     V_array = np.linspace(Vrange[0], Vrange[1], N)
-    M_array = np.zeros((N, spinsys.NSpins+1)) 
+    M_array = np.zeros((N, spinsys.NSpins + 1)) 
 
     for idx, V in enumerate(V_array):
         spinsys.V_DC = V
@@ -202,12 +203,12 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
         bath.calcMagnetization(spinsys, type=type, AllowPumping=True)
         for i in range(spinsys.NSpins):
             if norm:
-                M_array[idx, i] = spinsys.Mag[i]/spinsys.Mag_max[i]
+                M_array[idx, i] = spinsys.Mag[i] / spinsys.Mag_max[i]
             else:
                 M_array[idx, i] = spinsys.Mag[i]
         
         if norm:
-            M_array[idx, -1] = spinsys.Mag_tot/spinsys.Mag_tot_max
+            M_array[idx, -1] = spinsys.Mag_tot / spinsys.Mag_tot_max
         else:
             M_array[idx, -1] = spinsys.Mag_tot
 
@@ -286,6 +287,7 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
         'M_array': M_array}
 
     return return_dict
+
 
 def plotPopulations_Voltage(
         spinsys: SpinSys,
@@ -371,7 +373,8 @@ def plotPopulations_Voltage(
 
     return return_dict
 
-def plotRates_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
+
+def plotRates_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100):
     """
     Plot the transition rates between spin states as a function of applied voltage.
     
@@ -415,7 +418,7 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
         for i in range(spinsys.dimensionOfMatrix):
             for f in range(spinsys.dimensionOfMatrix):
                 if i != f:
-                    R_array[idx, i, f] = spinsys.Rates_Summed[i,f]
+                    R_array[idx, i, f] = spinsys.Rates_Summed[i, f]
 
     # Plotting
     # Plot with Plotly (white background)
@@ -463,7 +466,8 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int=100):
 
     return return_dict
 
-def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list=[-200,200], N: int=100, type: str='z', normVal: float=None):
+
+def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list = [-200, 200], N: int = 100, type: str = 'z', normVal: float = None):
     """
     Plot the split magnetization of two sub-systems as a function of DC bias voltage.
 
@@ -524,8 +528,8 @@ def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: l
         Mag_B[idx] = mB
     
     if normVal is not None:
-        Mag_A = Mag_A/normVal
-        Mag_B = Mag_B/normVal
+        Mag_A = Mag_A / normVal
+        Mag_B = Mag_B / normVal
 
     # Plotting with Plotly (white background)
     color_list = plotly.colors.qualitative.Plotly
@@ -574,7 +578,8 @@ def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: l
 
     return return_dict
 
-def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list=[-200,200], N: int=100):
+
+def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list = [-200, 200], N: int = 100):
     """
     Plot split populations as a function of voltage for a given spin subsystem.
 
@@ -677,6 +682,7 @@ def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: lis
 
     return return_dict
 
+
 def plotSplitPopulations(spinsys: SpinSys, subspin: SpinSys):
     """
     Plot horizontal bar charts of split populations for two sub-spins using Plotly.
@@ -715,8 +721,8 @@ def plotSplitPopulations(spinsys: SpinSys, subspin: SpinSys):
         If required plotting dependencies (Plotly) or the split_Populations call
         fail.
     """
-    Populations_A = np.zeros((subspin.dimensionOfMatrix))
-    Populations_B = np.zeros((subspin.dimensionOfMatrix))
+    Populations_A = np.zeros(subspin.dimensionOfMatrix)
+    Populations_B = np.zeros(subspin.dimensionOfMatrix)
     
     Populations_A, Populations_B = split_Populations(spinsys, subspin)
     

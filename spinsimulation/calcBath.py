@@ -1,17 +1,15 @@
 import numpy as np
-import scipy as sp
+import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
-import plotly.graph_objects as go
-import plotly.colors
-from plotly.subplots import make_subplots
 
+import spinsimulation.SpinHamiltonian as hamil
 from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
 
 # region Physical Quantities
 
-def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True):
+
+def calcMagnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = True):
     """
     Calculate the magnetization of a spin system along a specified axis.
 
@@ -47,9 +45,9 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
         calcPopulations(spinsys, AllowPumping=True)
     
     if AllowPumping:
-        Populations=spinsys.Populations
+        Populations = spinsys.Populations
     else:
-        Populations=spinsys.pop_0
+        Populations = spinsys.pop_0
 
     # Choose the Operator based on the type of magnetization
     if type == 'z':
@@ -64,9 +62,9 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
     S_Operator = np.sum(S, axis=0)
     
     # Initialize the magnetization arrays
-    S_elements = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix)) #Individual projection 
-    S_elements_tot = np.zeros(spinsys.dimensionOfMatrix) # Projection of the total spin system
-    Mag = np.zeros((spinsys.NSpins))
+    S_elements = np.zeros((spinsys.NSpins, spinsys.dimensionOfMatrix))  # Individual projection 
+    S_elements_tot = np.zeros(spinsys.dimensionOfMatrix)  # Projection of the total spin system
+    Mag = np.zeros(spinsys.NSpins)
     Mag_tot = 0
 
     # Itterate through every eigenstate and each spin 
@@ -75,7 +73,7 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
             Mag_tot += S_elements_tot[i] * Populations[i]
             for j in range(spinsys.NSpins):
                 S_elements[j, i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S[j, :, :] @ spinsys.eigVectors[:, i])
-                Mag[j] += S_elements[j,i] * Populations[i]
+                Mag[j] += S_elements[j, i] * Populations[i]
     
     # Remember the maximum value for each spin to have the opportunity to normalize
     Mag_tot_max = S_elements_tot.max()
@@ -89,6 +87,7 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
     spinsys.Magtype = type  # Store the type of magnetization calculated
 
     return Mag
+
 
 def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     """
@@ -125,16 +124,17 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     R1_ss = np.zeros(spinsys.dimensionOfMatrix)
 
     # Summing up all rates that leave the state
-    for i in range(spinsys.dimensionOfMatrix): # i is the initial state
-        for j in range(spinsys.dimensionOfMatrix): # j is the final state
+    for i in range(spinsys.dimensionOfMatrix):  # i is the initial state
+        for j in range(spinsys.dimensionOfMatrix):  # j is the final state
             if i != j:
                 R1_tot[i] += spinsys.Rates_Summed[i, j]  # Summing up all the rates
-                R1_ss[i] = spinsys.Rates[2, i, j] # Just sample sample scattering
+                R1_ss[i] = spinsys.Rates[2, i, j]  # Just sample sample scattering
 
     spinsys.T1_tot = 1 / R1_tot  # Total lifetime
     spinsys.T1_ss = 1 / R1_ss  # natural lifetime
 
     return
+
 
 def calcSplitLifetimes(spinsys: SpinSys, subspin: SpinSys):
     """
@@ -176,13 +176,13 @@ def calcSplitLifetimes(spinsys: SpinSys, subspin: SpinSys):
         overlap_A = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='BA')
         overlap_B = hamil.calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='AB')
         # Compute the rates projected onto the overlaps
-        for i in range(spinsys.dimensionOfMatrix): # i is the initial state
-            for j in range(spinsys.dimensionOfMatrix): # j is the final state
+        for i in range(spinsys.dimensionOfMatrix):  # i is the initial state
+            for j in range(spinsys.dimensionOfMatrix):  # j is the final state
                 if i != j:
-                    R_A_tot[idx] += overlap_A[i] * spinsys.Rates_Summed[i, j] * (1-overlap_A[j])  # Summing up all the rates
-                    R_B_tot[idx] += overlap_B[i] * spinsys.Rates_Summed[i, j] * (1-overlap_B[j])  # Summing up all the rates
-                    R_A_ss[idx] += overlap_A[i] * spinsys.Rates[2, i, j] * (1-overlap_A[j])  # Summing up sample-sample rates
-                    R_B_ss[idx] += overlap_B[i] * spinsys.Rates[2, i, j] * (1-overlap_B[j])  # Summing up sample-sample rates
+                    R_A_tot[idx] += overlap_A[i] * spinsys.Rates_Summed[i, j] * (1 - overlap_A[j])  # Summing up all the rates
+                    R_B_tot[idx] += overlap_B[i] * spinsys.Rates_Summed[i, j] * (1 - overlap_B[j])  # Summing up all the rates
+                    R_A_ss[idx] += overlap_A[i] * spinsys.Rates[2, i, j] * (1 - overlap_A[j])  # Summing up sample-sample rates
+                    R_B_ss[idx] += overlap_B[i] * spinsys.Rates[2, i, j] * (1 - overlap_B[j])  # Summing up sample-sample rates
 
     spinsys.T1_A_tot = 1 / R_A_tot  # Total lifetime
     spinsys.T1_B_tot = 1 / R_B_tot  # Total lifetime
@@ -190,6 +190,7 @@ def calcSplitLifetimes(spinsys: SpinSys, subspin: SpinSys):
     spinsys.T1_B_ss = 1 / R_B_ss  # Substrate lifetime
 
     return
+
 
 def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
     """
@@ -228,7 +229,8 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
 
     return spinsys.I
 
-def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True):
+
+def calcPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Calculate the population distribution of spin states in a given spin system.
 
@@ -295,6 +297,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True):
 
 # region Rate Calculations
 
+
 def calcRates(spinsys: SpinSys):
     """
     Calculate transition rates for a given spin system.
@@ -322,17 +325,17 @@ def calcRates(spinsys: SpinSys):
     - The function assumes that required attributes and methods (such as `calcEigEnergies`, `calcTunnelingMatrixElements`, and `calcRateIntegrals`) are available in the provided `spinsys` object.
     """
     # Initialize the Rates matrix
-    spinsys.Rates = np.zeros((4,spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+    spinsys.Rates = np.zeros((4, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
      # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
 
     # Getting the relevant matrix elements
-    spinsys.MatrixST = calcTunnelingMatrixElements(spinsys,"st")[0]
+    spinsys.MatrixST = calcTunnelingMatrixElements(spinsys, "st")[0]
     spinsys.MatrixTS = spinsys.MatrixST.T
-    spinsys.MatrixSS = calcTunnelingMatrixElements(spinsys,"ss")
-    spinsys.MatrixTT = calcTunnelingMatrixElements(spinsys,"tt")[0]
+    spinsys.MatrixSS = calcTunnelingMatrixElements(spinsys, "ss")
+    spinsys.MatrixTT = calcTunnelingMatrixElements(spinsys, "tt")[0]
     
     MatrixSS_summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
@@ -343,30 +346,31 @@ def calcRates(spinsys: SpinSys):
     RateIntegrals_ts = calcRateIntegrals(spinsys, 'ts')
     RateIntegrals_st = calcRateIntegrals(spinsys, 'st')
     RateIntegrals_ss = calcRateIntegrals(spinsys, 'ss')
-    #RateIntegrals_tt = spinsys.calcRateIntegrals(spinsys.V_DC, 'tt')
+    # RateIntegrals_tt = spinsys.calcRateIntegrals(spinsys.V_DC, 'tt')
 
     Rate_0 = spinsys.MatrixST[0][0]  # Transition matrix element of the ground state
 
-    ### Rate-Factors using Loth 2010
+    # Rate-Factors using Loth 2010
     spinsys.G_st = (1 - spinsys.b0) * spinsys.G
 
     RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
     # The G_ss value might be different for every spin thats why we previously incorpareted it when we summed the Matrix
     RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-    RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
+    RateFactor_tt = spinsys.G_st**2 / spinsys.G_ss[spinsys.ReadoutSpin] / (const.e * Rate_0) / 1e3 * spinsys.G_tt  # Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
 
     # Calculate rates based on rate factors and integrals
-    spinsys.Rates[0, :, :] = RateFactor_ts * spinsys.MatrixTS *  RateIntegrals_ts
-    spinsys.Rates[1, :, :] = RateFactor_st * spinsys.MatrixST *  RateIntegrals_st
-    spinsys.Rates[2, :, :] = RateFactor_ss * MatrixSS_summed *  RateIntegrals_ss
-    spinsys.Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT *  RateIntegrals_ss
+    spinsys.Rates[0, :, :] = RateFactor_ts * spinsys.MatrixTS * RateIntegrals_ts
+    spinsys.Rates[1, :, :] = RateFactor_st * spinsys.MatrixST * RateIntegrals_st
+    spinsys.Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
+    spinsys.Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_ss
     
     # Sum the rates
-    spinsys.Rates_Summed = (spinsys.Rates[0,:, :] + spinsys.Rates[1, :, :] + 
+    spinsys.Rates_Summed = (spinsys.Rates[0, :, :] + spinsys.Rates[1, :, :] + 
                         spinsys.Rates[2, :, :] + spinsys.Rates[3, :, :])
 
     return 
+
 
 def calcRateIntegrals(spinsys: SpinSys, type: str):
     """
@@ -409,12 +413,11 @@ def calcRateIntegrals(spinsys: SpinSys, type: str):
                 RateIntegrals[i, j] = abs((delta_E - V_DC) / (np.exp((delta_E - V_DC) / (spinsys.kB * spinsys.T)) - 1))
             elif type == 'st':
                 RateIntegrals[i, j] = abs((delta_E + V_DC) / (np.exp((delta_E + V_DC) / (spinsys.kB * spinsys.T)) - 1))
-            elif type == 'ss':
-                RateIntegrals[i, j] = abs(delta_E / (np.exp(delta_E / (spinsys.kB * spinsys.T)) - 1))
-            elif type == 'tt':
+            elif type == 'ss' or type == 'tt':
                 RateIntegrals[i, j] = abs(delta_E / (np.exp(delta_E / (spinsys.kB * spinsys.T)) - 1))
 
     return RateIntegrals
+
 
 def calcTunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
     """
@@ -467,6 +470,7 @@ def calcTunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
                 RateMatrix[k][:][:] += np.abs(MatrixX * x_el[i][j] + MatrixY * y_el[i][j] + MatrixZ * z_el[i][j] + MatrixU * u_el[i][j]) ** 2
 
     return RateMatrix
+
 
 def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
     """
@@ -556,6 +560,7 @@ def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
     else:
         return x_st, y_st, z_st, u_st
 
+
 # endregion Rate Calculations
 
 # region Visualization
@@ -582,7 +587,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     - The function assumes that the `spinsys` object has the necessary attributes and methods for rate calculations.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-            calcPopulations(spinsys,AllowPumping=AllowPumping)
+            calcPopulations(spinsys, AllowPumping=AllowPumping)
     if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
             hamil.calcEigStates(spinsys)
     
@@ -622,7 +627,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     )
     fig.update_xaxes(showgrid=True, gridcolor='lightgray')
     # show first state at top (matches typical horizontal-bar plotting)
-    #fig.update_yaxes(autorange='reversed')
+    # fig.update_yaxes(autorange='reversed')
 
     fig.show()
 
@@ -631,7 +636,8 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
 
     return return_dict
 
-def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: list=None):
+
+def plotRateContributions(spinsys: SpinSys, yscale: str = 'linear', N=None, ylim: list = None):
     """
     Plot the contributions of the highest N transition rates between spin states.
 
@@ -660,7 +666,7 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
     hamil.calcEigStates(spinsys)
     calcRates(spinsys)
 
-    labels = ['ts', 'st', 'ss','tt']
+    labels = ['ts', 'st', 'ss', 'tt']
     colors = ['blue', 'orange', 'green', 'red']
 
     # Build a list of all transitions (i -> f) for i != f
@@ -770,7 +776,8 @@ def plotRateContributions(spinsys: SpinSys, yscale: str='linear', N=None, ylim: 
     
     return return_dict
 
-def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
+
+def plotRatesTo(spinsys: SpinSys, state: int, yscale: str = 'linear', N: int = None):
     """
     Plot the rate contributions to a specified state in a spin system.
 
@@ -896,12 +903,13 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None)
         )
         fig.show()
 
-        return_dict = { 
+        return_dict = {
             'fig': fig}
 
         return return_dict
 
-def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=None):
+
+def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str = 'linear', N: int = None):
     """
     Plot the rate contributions from a specified state in a spin system.
 
@@ -934,7 +942,7 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str='linear', N: int=Non
     hamil.calcEigStates(spinsys)
     calcRates(spinsys)
 
-    labels = ['ts', 'st', 'ss','tt']
+    labels = ['ts', 'st', 'ss', 'tt']
     colors = ['blue', 'orange', 'green', 'red']
 
     def safe_rate(r):

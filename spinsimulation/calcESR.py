@@ -1,14 +1,12 @@
 import numpy as np
-import scipy as sp
+import plotly.colors
+import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
-import plotly.graph_objects as go
-import plotly.colors
-from plotly.subplots import make_subplots
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
 import spinsimulation.calcBath as bath
+import spinsimulation.SpinHamiltonian as hamil
+from spinsimulation.SpinSys import SpinSys
 
 
 def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
@@ -44,7 +42,7 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     - The ESR signal is constructed as a sum of Lorentzian lines for each allowed transition.
     """
     # Initialize
-    spinsys.ESRshift = 0 # Dont remember what thuis is for
+    spinsys.ESRshift = 0  # Dont remember what thuis is for
     freq = np.linspace(FreqRange[0], FreqRange[1], N)  # Frequency array
     ESRsignal = np.zeros(len(freq))
 
@@ -53,7 +51,6 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
                                     (1 + (x1 - para[0]) / (0.5 * para[2]) * para[3])**2 / 
                                     (1 + ((x1 - para[0]) / (0.5 * para[2]))**2))
 
-
     # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
@@ -61,7 +58,7 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     bath.calcPopulations(spinsys, AllowPumping=AllowPumping)
 
     # Look at transitions
-    spinsys.RecordedTransitions = calcRecordedTransitions(spinsys,freq[0],freq[-1])
+    spinsys.RecordedTransitions = calcRecordedTransitions(spinsys, freq[0], freq[-1])
     spinsys.ResonanceFrequencies = np.zeros(len(spinsys.RecordedTransitions))
 
     for i in range(len(spinsys.RecordedTransitions)):
@@ -74,7 +71,7 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
             print(f"Found {len(spinsys.RecordedTransitions)} potential transitions:")
             for i in range(len(spinsys.RecordedTransitions)):
                 print(f"|{spinsys.RecordedTransitions[i][0]}> -> |{spinsys.RecordedTransitions[i][1]}>; "
-                    f"f = {np.round(spinsys.ResonanceFrequencies[i],4)} GHz")
+                    f"f = {np.round(spinsys.ResonanceFrequencies[i], 4)} GHz")
         else:
             print(f"There were {len(spinsys.RecordedTransitions)} potential transitions in the specified frequency range")
 
@@ -88,9 +85,9 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
         # Rabi rate factor
         rabiRateFactor = 1
 
-        spinsys.M_x = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sx[spinsys.ReadoutSpin,:, :] @ spinsys.eigVectors[:, i])
-        spinsys.M_y = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sy[spinsys.ReadoutSpin,:, :] @ spinsys.eigVectors[:, i])
-        spinsys.M_z = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sz[spinsys.ReadoutSpin,:, :] @ spinsys.eigVectors[:, i])
+        spinsys.M_x = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sx[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors[:, i])
+        spinsys.M_y = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sy[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors[:, i])
+        spinsys.M_z = rabiRateFactor * (spinsys.eigVectors[:, j].T.conj() @ spinsys.Sz[spinsys.ReadoutSpin, :, :] @ spinsys.eigVectors[:, i])
 
         spinsys.Amp = spinsys.dp * (spinsys.BTip[0] * spinsys.M_x + spinsys.BTip[1] * spinsys.M_y + spinsys.BTip[2] * spinsys.M_z)**2
 
@@ -100,8 +97,8 @@ def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     if norm == 1:
         ESRsignal = (ESRsignal - ESRsignal.min()) / (ESRsignal.max() - ESRsignal.min())
 
-
     return freq, ESRsignal
+
 
 def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     """
@@ -146,6 +143,7 @@ def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     RecordedTransitions.pop(0)
 
     return RecordedTransitions 
+
 
 def calcESR_FreqSweep_ESRrate(
         spinsys: SpinSys, 
@@ -193,7 +191,7 @@ def calcESR_FreqSweep_ESRrate(
 
     # Calculate the RF off tunnel current via the rates
 
-    #if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
+    # if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
     bath.calcPopulations(spinsys)
     
     I_off = 0
@@ -214,7 +212,7 @@ def calcESR_FreqSweep_ESRrate(
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
                 if i != j:
-                    spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq[freq_index]-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
+                    spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq[freq_index] - abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
 
         # Sum the rates including the ESR rates
         Rates_Summed = (
@@ -230,7 +228,6 @@ def calcESR_FreqSweep_ESRrate(
                 if i != j:
                     K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
                     K[i, j] = Rates_Summed[j, i]   # Rates leading to state i
-
 
         # Solve the Rate-Equation if non-thermal population is desired
         
@@ -255,6 +252,7 @@ def calcESR_FreqSweep_ESRrate(
         ESRsignal = abs(ESRsignal) / abs(ESRsignal).max()
 
     return freq, ESRsignal
+
 
 def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
     """
@@ -303,6 +301,7 @@ def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
 
     return spinsys.Populations_ESR
 
+
 def addESRrate(spinsys: SpinSys, freq: float = 14):
     """
     Add the ESR (Electron Spin Resonance) transition rates to the given spin system.
@@ -339,7 +338,8 @@ def addESRrate(spinsys: SpinSys, freq: float = 14):
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
             if i != j:
-                spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
+                spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq - abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
+
     
 # region Visualization
 def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = False):
@@ -381,13 +381,12 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
     # calculate the ESR spectrum
-    Freq_array, ESRsignal = calcESR_FreqSweep(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
+    Freq_array, ESRsignal = calcESR_FreqSweep(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping, N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
     Nc = len(spinsys.ResonanceFrequencies)
     color_list = cm.jet(np.linspace(0, 1, Nc))
-    color_list = [f'rgb({int(c[0]*255)},{int(c[1]*255)},{int(c[2]*255)})' for c in color_list]
-
+    color_list = [f'rgb({int(c[0] * 255)},{int(c[1] * 255)},{int(c[2] * 255)})' for c in color_list]
 
     # Create the main ESR signal trace
     fig = go.Figure()
@@ -409,7 +408,7 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
         amp = ESRsignal[index]
         if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
             transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
-                             f"f = {np.round(freq_res,4)} GHz")
+                             f"f = {np.round(freq_res, 4)} GHz")
             fig.add_trace(go.Scatter(
                 x=[freq_res],
                 y=[amp],
@@ -435,7 +434,8 @@ def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping
     
     return return_dict
 
-def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 200, norm: bool = True):
+
+def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange=[10, 20], N: int = 200, norm: bool = True):
     """
     Compute and plot the ESR spectrum based on the ESR driving rate for a given spin system over a specified frequency range.
 
@@ -474,7 +474,7 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
     Freq_array, ESRsignal = calcESR_FreqSweep_ESRrate(spinsys, FreqRange=FreqRange, N=N, norm=norm)
     
     # Record the transitions
-    spinsys.RecordedTransitions = calcRecordedTransitions(spinsys,Freq_array[0],Freq_array[-1])
+    spinsys.RecordedTransitions = calcRecordedTransitions(spinsys, Freq_array[0], Freq_array[-1])
     spinsys.ResonanceFrequencies = np.zeros(len(spinsys.RecordedTransitions))
     for i in range(len(spinsys.RecordedTransitions)):
         spinsys.ResonanceFrequencies[i] = abs(spinsys.E_All_inGHz[spinsys.RecordedTransitions[i][1]] - 
@@ -503,7 +503,7 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
         amp = ESRsignal[index]
         if amp > 0.01 * np.max(ESRsignal):  # Filter very small peaks
             transition_str = (f"|{spinsys.RecordedTransitions[i][0]}> → |{spinsys.RecordedTransitions[i][1]}>; "
-                             f"f = {np.round(freq_res,4)} GHz")
+                             f"f = {np.round(freq_res, 4)} GHz")
             fig.add_trace(go.Scatter(
                 x=[freq_res],
                 y=[amp],
@@ -528,6 +528,7 @@ def plotESR_FreqSweep_ESRrate(spinsys: SpinSys, FreqRange = [10, 20], N: int = 2
         'ESRsignal': ESRsignal}
     
     return return_dict
+
 
 def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: int = 500, lw: float = 0.02, norm: bool = True, BTipRange: list = [-0.05, 0.05], N_B: int = 100, AllowPumping: bool = False, Angle: float = 0):  
     """
@@ -577,21 +578,21 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     BTip_initial = spinsys.BTip.copy()
 
     # Predefine Arrays
-    BTip_array = np.linspace(BTipRange[0],BTipRange[1],N_B,dtype=float)
-    Freq_array = np.linspace(FreqRange[0],FreqRange[1],N_Freq,dtype=float)
+    BTip_array = np.linspace(BTipRange[0], BTipRange[1], N_B, dtype=float)
+    Freq_array = np.linspace(FreqRange[0], FreqRange[1], N_Freq, dtype=float)
 
     ESRsignal = np.zeros((N_B, N_Freq), dtype=float)
     
     # calculating the ESR signal for each Field 
     for i in range(N_B):
-        spinsys.BTip[2]=BTip_array[i]*np.cos(Angle*np.pi/180) # BTip[2] is the z-component of the tip field
-        spinsys.BTip[0]=BTip_array[i]*np.sin(Angle*np.pi/180)+1e-6 # BTip[0] is the x-component of the tip field
-        spinsys.BTip[1]=0  # BTip[0] is the y-component of the tip field
+        spinsys.BTip[2] = BTip_array[i] * np.cos(Angle * np.pi / 180)  # BTip[2] is the z-component of the tip field
+        spinsys.BTip[0] = BTip_array[i] * np.sin(Angle * np.pi / 180) + 1e-6  # BTip[0] is the x-component of the tip field
+        spinsys.BTip[1] = 0  # BTip[0] is the y-component of the tip field
         hamil.calcEigEnergies(spinsys)
-        f , ESRsignal[i][:] = calcESR_FreqSweep(spinsys, norm=norm,N=N_Freq,lw=lw,FreqRange=FreqRange,AllowPumping=AllowPumping, output=False)
+        f, ESRsignal[i][:] = calcESR_FreqSweep(spinsys, norm=norm, N=N_Freq, lw=lw, FreqRange=FreqRange, AllowPumping=AllowPumping, output=False)
         
     # Calculating the Detuning from the Tipfield
-    Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
+    Detuning = spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
 
     # Plot the ESR Signal as a color plot
     fig = go.Figure(data=go.Heatmap(
@@ -643,6 +644,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
         'ESRsignal': ESRsignal}
     
     return return_dict
+
 
 def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None):
     """
@@ -734,7 +736,7 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
                     tickvals=positions,
                     ticktext=labels
                 ),
-                title=f'Population of Spin States',
+                title='Population of Spin States',
                 legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
         )
 
@@ -746,7 +748,7 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
 
         filtered_indices = np.where(mask)[0]
         if len(filtered_indices) == 0:
-            print(f"No states with population greater than {filter*100}%.")
+            print(f"No states with population greater than {filter * 100}%.")
         else:
             labels = np.array(spinsys.statesWithoutE)[mask]
             positions = np.arange(len(filtered_indices))
@@ -796,7 +798,7 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
                     tickvals=positions,
                     ticktext=labels
                 ),
-                title=f'Population of Spin States (> {filter*100}%)',
+                title=f'Population of Spin States (> {filter * 100}%)',
                 legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
             )
 
