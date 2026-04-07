@@ -109,8 +109,7 @@ def calcIETS_2ndR(
     Vrange: list = [-30, 30],
     N: int = 200,
     AllowPumping: bool = True,
-    norm: bool = True,
-    Approach: str = "Loth"
+    norm: bool = True
 ):
     """
     Calculate the IETS (Inelastic Electron Tunneling Spectroscopy) spectrum using the rate equation approach.
@@ -127,8 +126,6 @@ def calcIETS_2ndR(
         If True, allows for non-thermal population of spin states (pumping). If False, uses thermal (Boltzmann) population. Default is True.
     norm : bool, optional
         If True, normalizes the resulting dI/dV spectrum to the range [0, 1]. Default is True.
-    Approach : {'Loth', 'Ternes'}, optional
-        The approach used for rate factor calculation. "Loth" uses the Loth 2010 method, "Ternes" uses the Ternes 2010 method. Default is "Loth".
     
     Returns
     -------
@@ -165,20 +162,12 @@ def calcIETS_2ndR(
    
     Rate_0 = spinsys.Matrix[0][0]  # Transition matrix element of the ground state
 
-    # Rate-Factors using Loth 2010
-    if Approach == "Loth":
-        spinsys.G_st = (1 - spinsys.b0) * spinsys.G
-        RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
-        RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
-        RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-        RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
-
-    # Rate-Factors using Ternes 2010 (not default)
-    if Approach == "Ternes":
-        RateFactor_ts = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
-        RateFactor_st = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
-        RateFactor_ss = 2 * np.pi / spinsys.hbar_meV * spinsys.Jrs**2
-        RateFactor_tt = 2 * np.pi / spinsys.hbar_meV * spinsys.T02**2 / (spinsys.Jrs**2)
+    # Using the approach of Loth 2010 (default)
+    spinsys.G_st = (1 - spinsys.b0) * spinsys.G
+    RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
+    RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
+    RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
+    RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
 
     # Calculate the rates that stem from Tip tip and sample sample scattering, since they are not affected by the voltage
     RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
@@ -242,11 +231,8 @@ def calcIETS_2ndR(
                 I_temp = const.e * Populations[i] * (Rates[0, i, j] - Rates[1, i, j])
                 I_value += I_temp
 
-        # Adjust current calculation based on approach
-        if Approach == "Ternes":
-            I_value = I_value / (const.e**2 * spinsys.T02 / spinsys.h_meV)
-        if Approach == "Loth":
-            I_value += spinsys.b0 * spinsys.G * spinsys.V_DC
+        # Adjust current calculation
+        I_value += spinsys.b0 * spinsys.G * spinsys.V_DC
 
         I[I_index] = I_value
         P[:, I_index] = Populations    

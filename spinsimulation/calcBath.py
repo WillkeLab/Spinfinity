@@ -11,7 +11,7 @@ import spinsimulation.SpinHamiltonian as hamil
 
 # region Physical Quantities
 
-def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True, Approach: str = "Loth"):
+def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True):
     """
     Calculate the magnetization of a spin system along a specified axis.
 
@@ -23,9 +23,7 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
         The axis along which to calculate magnetization ('x', 'y', or 'z'). Default is 'z'.
     AllowPumping : bool, optional
         Whether to allow population pumping during calculation. Default is True.
-    Approach : str, optional
-        The approach used for population calculation. Default is "Loth".
-
+    
     Raises
     ------
     ValueError
@@ -46,7 +44,7 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
         The results are stored in the `spinsys` object.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-        calcPopulations(spinsys, AllowPumping=True, Approach=Approach)
+        calcPopulations(spinsys, AllowPumping=True)
     
     if AllowPumping:
         Populations=spinsys.Populations
@@ -92,13 +90,13 @@ def calcMagnetization(spinsys: SpinSys, type: str='z', AllowPumping: bool = True
 
     return Mag
 
-def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Calculate the lifetimes (T1) for each state in a spin system.
 
     This function computes the total and natural lifetimes for each state in the given spin system
     by summing the transition rates out of each state. If the rate matrix is not already calculated,
-    it will be computed using the specified approach.
+    it will be computed.
 
     Parameters
     ----------
@@ -106,8 +104,6 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "
         The spin system object containing state information and rate matrices.
     AllowPumping : bool, optional
         Whether to allow pumping effects in the calculation (default is True).
-    Approach : str, optional
-        The approach used to calculate the rate matrix if not already present (default is "Loth").
 
     Returns
     -------
@@ -122,7 +118,7 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "
     """
     # Check whether the RateMatrix is already calculated
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-        calcRates(spinsys, Approach=Approach)
+        calcRates(spinsys)
 
     # Initialize the Rate array that somes up all rates that leave the state
     R1_tot = np.zeros(spinsys.dimensionOfMatrix)
@@ -195,7 +191,7 @@ def calcSplitLifetimes(spinsys: SpinSys, subspin: SpinSys):
 
     return
 
-def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Calculate the tunneling current for the given spin system.
 
@@ -205,8 +201,6 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str
         The spin system object containing energy levels, populations, rates, and other relevant parameters.
     AllowPumping : bool, optional
         If True, allows for non-thermal population effects (default is True).
-    Approach : str, optional
-        The approach used for calculating rates and current, e.g., "Loth" or "Ternes" (default is "Loth").
 
     Returns
     -------
@@ -218,10 +212,9 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str
     - The function updates the `I` attribute of the `spinsys` object in-place.
     - The current is calculated using the populations and transition rates between spin states.
     - If populations are not available, they are calculated using `calcPopulations`.
-    - The calculation method depends on the specified approach.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-            calcPopulations(spinsys, AllowPumping=AllowPumping, Approach=Approach)
+            calcPopulations(spinsys, AllowPumping=AllowPumping)
 
     # Deriving the tunneling current using Equation 41 from Ternes paper
     spinsys.I = 0
@@ -230,21 +223,18 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True, Approach: str
             I_temp = const.e * spinsys.Populations[i] * (spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j])
             spinsys.I += I_temp
 
-    # Adjust current calculation based on approach
-    if Approach == "Ternes":
-        spinsys.I = spinsys.I / (const.e**2 * spinsys.T02 / spinsys.h_meV)
-    if Approach == "Loth":
-        spinsys.I += spinsys.b0 * spinsys.G * spinsys.V_DC
+    # Adjust current calculation
+    spinsys.I += spinsys.b0 * spinsys.G * spinsys.V_DC
 
     return spinsys.I
 
-def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = "Loth"):
+def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True):
     """
     Calculate the population distribution of spin states in a given spin system.
 
     Computes the thermal population distribution based on Boltzmann statistics.
     If pumping is allowed, calculates the non-thermal population by solving the steady-state
-    of the rate equations using the specified approach.
+    of the rate equations.
 
     Parameters
     ----------
@@ -252,8 +242,6 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
         The spin system object containing energy levels, temperature, and other relevant parameters.
     AllowPumping : bool, optional
         If True, calculates the non-thermal population considering pumping effects (default is True).
-    Approach : str, optional
-        The approach used for calculating rates, e.g., "Loth" (default is "Loth").
 
     Returns
     -------
@@ -279,7 +267,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
     if AllowPumping:
         # Calculate the rates if not already done
         if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-            calcRates(spinsys, Approach=Approach)
+            calcRates(spinsys)
         spinsys.K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
         for i in range(spinsys.dimensionOfMatrix):
@@ -307,7 +295,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping:bool = True, Approach: str = 
 
 # region Rate Calculations
 
-def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
+def calcRates(spinsys: SpinSys):
     """
     Calculate transition rates for a given spin system.
 
@@ -315,8 +303,6 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
     ----------
     spinsys : SpinSys
         The spin system object containing all relevant parameters and matrices.
-    Approach : str, optional
-        The approach used for rate calculation. Can be "Loth" (default) or "Ternes".
 
     Returns
     -------
@@ -330,7 +316,7 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
     Notes
     -----
     - The function initializes and calculates various tunneling matrix elements and rate integrals.
-    - The rate factors are computed based on the selected approach.
+    - The rate factors are computed.
     - The rates are calculated for different tunneling and scattering processes and stored in `spinsys.Rates`.
     - The summed rates are stored in `spinsys.Rates_Summed`.
     - The function assumes that required attributes and methods (such as `calcEigEnergies`, `calcTunnelingMatrixElements`, and `calcRateIntegrals`) are available in the provided `spinsys` object.
@@ -362,21 +348,13 @@ def calcRates(spinsys: SpinSys, Approach: str = "Loth"):
     Rate_0 = spinsys.MatrixST[0][0]  # Transition matrix element of the ground state
 
     ### Rate-Factors using Loth 2010
-    if Approach == "Loth":
-        spinsys.G_st = (1 - spinsys.b0) * spinsys.G
+    spinsys.G_st = (1 - spinsys.b0) * spinsys.G
 
-        RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
-        RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
-        # The G_ss value might be different for every spin thats why we previously incorpareted it when we summed the Matrix
-        RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-        RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
-
-    ### Rate-Factors using Ternes 2010 (not default)
-    if Approach == "Ternes":
-        RateFactor_ts = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
-        RateFactor_st = 2 * np.pi / spinsys.hbar_meV * spinsys.T02
-        RateFactor_ss = 2 * np.pi / spinsys.hbar_meV * spinsys.Jrs**2
-        RateFactor_tt = 2 * np.pi / spinsys.hbar_meV * spinsys.T02**2 / (spinsys.Jrs**2) * spinsys.G_tt
+    RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
+    RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
+    # The G_ss value might be different for every spin thats why we previously incorpareted it when we summed the Matrix
+    RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
+    RateFactor_tt = spinsys.G_st**2/spinsys.G_ss[spinsys.ReadoutSpin]/(const.e*Rate_0)/1e3*spinsys.G_tt; #Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
 
     # Calculate rates based on rate factors and integrals
     spinsys.Rates[0, :, :] = RateFactor_ts * spinsys.MatrixTS *  RateIntegrals_ts
@@ -581,7 +559,7 @@ def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
 # endregion Rate Calculations
 
 # region Visualization
-def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str = "Loth"):
+def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Plot the thermal populations of the spin system's states.
 
@@ -591,8 +569,6 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
         The spin system object containing the necessary parameters and methods.
     AllowPumping : bool, optional
         Whether to allow pumping effects in the calculation (default is True).
-    Approach : str, optional
-        The approach to use for calculating populations (default is "Loth").
 
     Returns
     -------
@@ -606,7 +582,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True, Approach: str =
     - The function assumes that the `spinsys` object has the necessary attributes and methods for rate calculations.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-            calcPopulations(spinsys,AllowPumping=AllowPumping, Approach=Approach)
+            calcPopulations(spinsys,AllowPumping=AllowPumping)
     if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
             hamil.calcEigStates(spinsys)
     

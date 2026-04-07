@@ -198,8 +198,8 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
     for idx, V in enumerate(V_array):
         spinsys.V_DC = V
         bath.calcRates(spinsys)
-        bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
-        bath.calcMagnetization(spinsys, type=type, AllowPumping=True, Approach= "Loth")
+        bath.calcPopulations(spinsys, AllowPumping=True)
+        bath.calcMagnetization(spinsys, type=type, AllowPumping=True)
         for i in range(spinsys.NSpins):
             if norm:
                 M_array[idx, i] = spinsys.Mag[i]/spinsys.Mag_max[i]
@@ -277,8 +277,8 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list=[-200, 200], N: int
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
-    bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
-    bath.calcMagnetization(spinsys, type=type, AllowPumping=True, Approach= "Loth")
+    bath.calcPopulations(spinsys, AllowPumping=True)
+    bath.calcMagnetization(spinsys, type=type, AllowPumping=True)
     
     return_dict = {
         'fig': fig,
@@ -327,7 +327,7 @@ def plotPopulations_Voltage(
     for idx, V in enumerate(V_array):
         spinsys.V_DC = V
         bath.calcRates(spinsys)
-        bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+        bath.calcPopulations(spinsys, AllowPumping=True)
         P_array[idx, :] = spinsys.Populations
 
     # Plotting
@@ -362,7 +362,7 @@ def plotPopulations_Voltage(
     # Restore the initial voltage value
     spinsys.V_DC = V_initial
     bath.calcRates(spinsys)
-    bath.calcPopulations(spinsys, AllowPumping=True, Approach="Loth")
+    bath.calcPopulations(spinsys, AllowPumping=True)
 
     return_dict = {
         'fig': fig,
