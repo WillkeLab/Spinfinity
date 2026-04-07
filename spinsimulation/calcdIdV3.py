@@ -7,6 +7,9 @@ import spinsimulation.calcdIdV as dIdV
 import matplotlib.pyplot as plt
 import spinsimulation.calcBath as bath 
 from scipy.signal import convolve
+import plotly.graph_objects as go
+import plotly.colors
+from plotly.subplots import make_subplots
 
 
 def e_epsilon(SpinSys: SpinSys):
@@ -446,4 +449,185 @@ def calcFrota(SpinSys: SpinSys, V_array):
     frota = SpinSys.AmpFrota * np.imag(-1j * np.exp(1j * SpinSys.theta_rFrota) * sqrt_term)
     return frota + SpinSys.BkgndLinFrota * V_array + SpinSys.OffsetFrota
 
+# region Visualization
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd', plotAllSpins: bool=False):
+    """
+    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
 
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object for which the IETS spectrum is to be calculated.
+    Vrange : list, optional
+        The voltage range [min, max] in millivolts over which to calculate the spectrum (default is [-30, 30]).
+    N : int, optional
+        Number of points in the voltage range for the spectrum calculation (default is 400).
+    norm : bool, optional
+        If True, normalize the calculated spectrum (default is False).
+    order : str, optional
+        The order of the IETS calculation. Supported orders are '3rd' and '3rdR'.
+
+    Raises
+    ------
+    ValueError
+        If an unsupported order is specified.
+
+    Returns
+    -------
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The voltage values used in the spectrum.
+        - 'dIdVsignal': numpy.ndarray
+            The calculated dI/dV signal values.
+    Notes
+    -----
+    - the dimension of the dIdVsignal changes when plotAllSpins=True
+    """
+    # Define y-axis label according to normalization 
+    if norm:
+        y_label = 'Normalized dI/dV (a.u.)'
+    else:
+        y_label = 'dI/dV (S)'
+
+    if plotAllSpins==False:
+
+        # Initialize x and y arrays
+        x = np.zeros(N) # Voltage 
+        y = np.zeros(N) # dI/dV Signal
+
+        # Calculate the IETS spectrum for the specified order
+        if order == '3rd':
+            x, y = calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        elif order == '3rdR':
+            x, y = calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm) # Not implemented yet!
+        else:
+            raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+    
+        # Plot the IETS spectrum using Plotly with white background and black border
+        y_max = np.max(y)
+        if y_max == 0:
+            y_max = 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y,
+            mode='lines',
+            name='IETS Spectrum',
+            line=dict(color='black', width=2)
+        ))
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order)',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title=y_label,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        # set explicit axis ranges and add a black rectangle border around the plotting area
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    elif plotAllSpins==True:
+
+        # Initialize x and y arrays
+        x = np.zeros(N)
+        y = np.zeros((len(spinsys.Spins),N))
+
+        for i in range(len(spinsys.Spins)):
+            spinsys.ReadoutSpin = i
+            #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            if order == '3rd':
+                x, y[i,:] = calcIETS_3rd(spinsys, Vrange=Vrange, N=N, norm=norm)
+            elif order == '3rdR':
+                x, y[i,:] = calcIETS_3rdR(spinsys, Vrange=Vrange, N=N, norm=norm)
+            else:
+                raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
+            
+            # Plot all IETS spectra in the same figure on top of each other
+            # Only create the figure once, before the loop
+            #if i == 0:
+        # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
+        color_list = plotly.colors.qualitative.Plotly
+        fig = go.Figure()
+
+        # Add one trace per spin (overlayed)
+        nspins = y.shape[0]
+        for i in range(nspins):
+            fig.add_trace(go.Scatter(
+            x=x,
+            y=y[i, :],
+            mode='lines',
+            line=dict(color=color_list[i % len(color_list)], width=2),
+            name=f'Spin {i}'
+            ))
+
+        # Determine axis ranges similar to single-spin branch
+        y_max = np.max(y) if np.max(y) != 0 else 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order) for All Spins',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title=y_label,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        # add a black rectangle border around the plotting area
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'V_array': x,
+        'dIdVsignal': y}      
+        
+    return return_dict
+
+# endregion Visualization

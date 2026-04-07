@@ -2,6 +2,9 @@ import numpy as np
 import scipy as sp
 import scipy.constants as const
 from scipy.linalg import null_space
+import plotly.graph_objects as go
+import plotly.colors
+from plotly.subplots import make_subplots
 
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
@@ -39,7 +42,6 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
     - The tunneling rate matrix is computed using the `calcTunnelingMatrixElements` function.
     - The output can be normalized for easier comparison between different systems or parameters.
     """
-    
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
     dIdV_array = np.zeros(N, dtype=float)
@@ -75,6 +77,7 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30,30], N: int = 100, norm: 
 def tunnelingBroadenedStepFunction(x_V):
     """
     Compute the tunneling broadened step function.
+
     This function calculates a broadened step function commonly used in tunneling spectroscopy.
 
     Parameters
@@ -92,13 +95,12 @@ def tunnelingBroadenedStepFunction(x_V):
     -----
     The function uses an exponential transformation and handles potential NaN values gracefully.
     """
-    
     z = np.exp(x_V)
     y = (1 + (x_V - 1) * z) / ((z - 1) ** 2)
     y = np.nan_to_num(y, nan=0.0)
     return y
 
-# end
+# endregion 2nd Order
 
 # region 2nd Order + Rate
 
@@ -142,7 +144,6 @@ def calcIETS_2ndR(
     - The calculation is based on the rate equation approach and supports both thermal and non-thermal
       population distributions.
     """
-
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
     I = np.zeros((N), dtype=float)
@@ -280,7 +281,6 @@ def calculate_derivative(I: list, V: list):
     -----
     Assumes that `I` and `V` are one-dimensional arrays of equal length.
     """
-
     n = len(I)  # Length of the array
     dIdV = np.zeros(n)  # Initialize the output array for derivative
 
@@ -297,3 +297,185 @@ def calculate_derivative(I: list, V: list):
     return dIdV
 
 # endregion 2nd Order + Rate
+
+# region Visualization
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd', plotAllSpins: bool=False):
+    """
+    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object for which the IETS spectrum is to be calculated.
+    Vrange : list, optional
+        The voltage range [min, max] in millivolts over which to calculate the spectrum (default is [-30, 30]).
+    N : int, optional
+        Number of points in the voltage range for the spectrum calculation (default is 400).
+    norm : bool, optional
+        If True, normalize the calculated spectrum (default is False).
+    order : str, optional
+        The order of the IETS calculation. Supported orders are '2nd' and '2ndR'.
+
+    Raises
+    ------
+    ValueError
+        If an unsupported order is specified.
+
+    Returns
+    -------
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'V_array': numpy.ndarray
+            The voltage values used in the spectrum.
+        - 'dIdVsignal': numpy.ndarray
+            The calculated dI/dV signal values.
+    Notes
+    -----
+    - the dimension of the dIdVsignal changes when plotAllSpins=True
+    """
+    # Define y-axis label according to normalization 
+    if norm:
+        y_label = 'Normalized dI/dV (a.u.)'
+    else:
+        y_label = 'dI/dV (S)'
+
+    if plotAllSpins==False:
+
+        # Initialize x and y arrays
+        x = np.zeros(N) # Voltage 
+        y = np.zeros(N) # dI/dV Signal
+        # Calculate the IETS spectrum for the specified order
+        if order == '2nd':
+            x, y = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+        elif order == '2ndR':
+            x, y, _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+        else:
+            raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+    
+        # Plot the IETS spectrum using Plotly with white background and black border
+        y_max = np.max(y)
+        if y_max == 0:
+            y_max = 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=y,
+            mode='lines',
+            name='IETS Spectrum',
+            line=dict(color='black', width=2)
+        ))
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order)',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title=y_label,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        # set explicit axis ranges and add a black rectangle border around the plotting area
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    elif plotAllSpins==True:
+
+        # Initialize x and y arrays
+        x = np.zeros(N)
+        y = np.zeros((len(spinsys.Spins),N))
+
+        for i in range(len(spinsys.Spins)):
+            spinsys.ReadoutSpin = i
+            #print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            if order == '2nd':
+                x, y[i,:] = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
+            elif order == '2ndR':
+                x, y[i,:], _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
+            else:
+                raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
+            
+            # Plot all IETS spectra in the same figure on top of each other
+            # Only create the figure once, before the loop
+            #if i == 0:
+        # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
+        color_list = plotly.colors.qualitative.Plotly
+        fig = go.Figure()
+
+        # Add one trace per spin (overlayed)
+        nspins = y.shape[0]
+        for i in range(nspins):
+            fig.add_trace(go.Scatter(
+            x=x,
+            y=y[i, :],
+            mode='lines',
+            line=dict(color=color_list[i % len(color_list)], width=2),
+            name=f'Spin {i}'
+            ))
+
+        # Determine axis ranges similar to single-spin branch
+        y_max = np.max(y) if np.max(y) != 0 else 1.0
+        x0, x1 = float(np.min(x)), float(np.max(x))
+        y0, y1 = 0.0, float(y_max * 1.1)
+
+        fig.update_layout(
+            title=f'IETS Spectrum ({order} Order) for All Spins',
+            xaxis_title='Bias Voltage (mV)',
+            yaxis_title=y_label,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            width=800,
+            height=500,
+            margin=dict(l=60, r=20, t=60, b=60)
+        )
+
+        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+
+        # add a black rectangle border around the plotting area
+        fig.update_layout(
+            shapes=[dict(
+            type="rect",
+            xref="x",
+            yref="y",
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+            line=dict(color="black", width=2),
+            fillcolor="rgba(0,0,0,0)"
+            )]
+        )
+
+        fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'V_array': x,
+        'dIdVsignal': y}      
+        
+    return return_dict
+
+# endregion Visualization
