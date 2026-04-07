@@ -450,7 +450,7 @@ def calcFrota(SpinSys: SpinSys, V_array):
     return frota + SpinSys.BkgndLinFrota * V_array + SpinSys.OffsetFrota
 
 # region Visualization
-def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='2nd', plotAllSpins: bool=False):
+def plotIETS(spinsys: SpinSys, Vrange: list=[-30, 30], N: int=100, norm: bool=False, order: str='3rd', plotAllSpins: bool=False):
     """
     Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
 

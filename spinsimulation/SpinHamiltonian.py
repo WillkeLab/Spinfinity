@@ -35,8 +35,6 @@ Stevens Operators
     - stevens_operator: Generates Stevens operator matrices for magnetic anisotropy
     - setStevens: Sets Stevens operator coefficients
     - anticommutator: Computes anticommutator of two operators
-Overlap Calculations
-    - calcOverlap: Calculates overlap between states and eigenvectors
 The module assumes spin systems are represented using the basis of eigenstates of Sz,
 with states ordered from m = -s to m = +s. All interaction matrices are constructed
 using Kronecker products to embed single-spin operators into the full Hilbert space.
@@ -950,52 +948,6 @@ def setStevens(spinsys, i_spin, k, q, value):
     spinsys.Stevens[i_spin][(k, q)] = value
 
 # endregion StevensOperators
-
-# region OverlapFunctions
-
-def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
-    """
-    Calculate the overlap between a given state and the eigenvectors of a spin system.
-
-    Parameters
-    ----------
-    spinsys : SpinSys
-        The spin system object containing eigenvectors as an attribute `eigVectors`.
-    nA : int
-        Dimension of subsystem A.
-    nB : int
-        Dimension of subsystem B.
-    stateB : list or array-like
-        State vector for subsystem B.
-    order : {'AB', 'BA'}, optional
-        Specifies the ordering of the subsystems in the eigenvector reshaping.
-        If 'AB', eigenvectors are reshaped as (nA, nB, -1).
-        If 'BA', eigenvectors are reshaped as (nB, nA, -1).
-        Default is 'AB'.
-
-    Returns
-    -------
-    O : numpy.ndarray
-        Array of overlaps between the projected state and the eigenvectors, shape (n,).
-
-    Notes
-    -----
-    This function projects the eigenvectors of the composite system onto a given state
-    of subsystem B and computes the overlap for each eigenvector.
-    """
-    EV = np.asarray(spinsys.eigVectors)
-    stateB  = np.asarray(stateB).reshape(-1)
-    if order.upper() == 'AB':
-        V = EV.reshape(nA, nB, -1)               # (dA, dB, n)
-        PhiA = np.tensordot(V, np.conj(stateB), axes=([1],[0]))  # (dA, n)
-    else:
-        V = EV.reshape(nB, nA, -1)               # (dB, dA, n)
-        PhiA = np.tensordot(V.transpose(1,0,2), np.conj(stateB), axes=([1],[0]))  # (dA, n)
-    O = np.einsum('in,in->n', np.conj(PhiA), PhiA).real
-    
-    return O
-
-# endregion OverlapFunctions
 
 # region Visualization
 def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
