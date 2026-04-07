@@ -45,9 +45,12 @@ using Kronecker products to embed single-spin operators into the full Hilbert sp
 import numpy as np
 import scipy as sp
 import scipy.constants as const
-from spinsimulation.SpinSys import SpinSys
 from numpy import eye
 from scipy.linalg import fractional_matrix_power
+import plotly.graph_objects as go
+import plotly.colors
+from plotly.subplots import make_subplots
+from spinsimulation.SpinSys import SpinSys
 
 # region SpinOperators
 def calcSpinOperators(spinsys: SpinSys):
@@ -993,3 +996,319 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     return O
 
 # endregion OverlapFunctions
+
+# region Visualization
+def plotEigenMatrix(spinsys: SpinSys, plot_type: str='p'):
+        """
+        Visualize the eigenstate matrix of the spin system as a heatmap.
+
+        Parameters
+        ----------
+        spinsys : SpinSys
+            The spin system object containing eigenvectors, basis states, and other relevant properties.
+        plot_type : str, optional
+            Type of plot to generate:
+            - 'p': Probability (default), displays the probability matrix using the 'hot' colormap.
+            - 'a': Amplitude, displays the amplitude matrix using the 'coolwarm' colormap.
+
+        Returns
+        -------
+        return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'm': numpy.ndarray
+            The matrix used for the heatmap visualization. Containing the projection values according to p/a.
+
+        Raises
+        ------
+        ValueError
+            If `plot_type` is not 'p' or 'a'.
+            
+        Notes
+        -----
+        - The function checks if the eigenvectors are already calculated; if not, it computes them.
+        """
+        # Check if eigVectors are calculated, if not calculate them. They are needed for the projection matrix.
+        if not hasattr(spinsys, 'states') or spinsys.eigVectors is None:
+            calcEigStates(spinsys)
+               
+        projection = np.zeros([spinsys.dimensionOfMatrix,spinsys.dimensionOfMatrix],dtype=complex)
+        for i in range(spinsys.dimensionOfMatrix):
+            for j in range(spinsys.dimensionOfMatrix):
+                projection[i, j] = np.dot(spinsys.eigVectors[:, i].conj().T, np.identity(spinsys.dimensionOfMatrix)[:, j])
+
+        if plot_type == 'p':
+            m = abs(np.conjugate(projection) * projection)
+            name0, colormap = 'Probability', 'hot'
+        elif plot_type == 'a':
+            m = np.real(projection) + np.imag(projection)
+            name0, colormap = 'Amplitude', 'coolwarm'
+        else:
+            raise ValueError("Invalid plot_type. Use 'p' for probability or 'a' for amplitude.")
+
+        # Generate the figure and axes
+        # Build a Plotly heatmap with square cells (equal aspect ratio)
+        x_vals = list(range(spinsys.dimensionOfMatrix))
+        y_vals = list(range(spinsys.dimensionOfMatrix))
+
+        # Use the same flipped matrix and labels as the matplotlib version
+        z_vals = np.flipud(m).tolist()
+        x_ticktext = spinsys.basisStates
+        y_ticktext = spinsys.statesOnlyLHS[::-1]
+
+        # Map matplotlib-like colormaps to plotly colorscales
+        if colormap == 'hot':
+            plotly_cmap = 'Hot'
+        elif colormap == 'coolwarm':
+            plotly_cmap = 'RdBu'
+        else:
+            plotly_cmap = colormap  # fallback to whatever plotly accepts
+
+        zmin = 0 if plot_type == 'p' else -1
+        zmax = 1 if plot_type == 'p' else 1
+
+        fig = go.Figure(
+            data=go.Heatmap(
+            z=z_vals,
+            x=x_vals,
+            y=y_vals,
+            colorscale=plotly_cmap,
+            zmin=zmin,
+            zmax=zmax,
+            colorbar=dict(title=name0),
+            hoverongaps=False
+            )
+        )
+        # make sure the heatmap uses the matrix origin at the bottom-left
+        # ensure heatmap uses our explicit x/y arrays and tick labels, then flip y-axis so row 0 is at bottom
+        fig.update_traces(x=x_vals, y=y_vals, selector=dict(type='heatmap'))
+        fig.update_xaxes(tickmode='array', tickvals=x_vals, ticktext=x_ticktext)
+        fig.update_yaxes(tickmode='array', tickvals=y_vals, ticktext=y_ticktext, autorange='reversed')
+        # Make cells square by anchoring y-axis scale to x-axis
+        fig.update_layout(
+            width=800,
+            height=600,
+            title=f"System Eigenstates, B = [{spinsys.B[0]}, {spinsys.B[1]}, {spinsys.B[2]}]",
+            xaxis=dict(
+            title='Basis States',
+            tickmode='array',
+            tickvals=x_vals,
+            ticktext=x_ticktext,
+            constrain='domain'
+            ),
+            yaxis=dict(
+            title='Eigenstates',
+            tickmode='array',
+            tickvals=y_vals,
+            ticktext=y_ticktext,
+            scaleanchor="x",
+            scaleratio=1
+            ),
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        # ensure colorbar is shown with an outline and ticks outside
+        fig.data[0].update(colorbar=dict(title=name0, outlinecolor='black', outlinewidth=1, ticks='outside'))
+
+        # add a black rectangle around the heatmap cells to serve as a border
+        dim = spinsys.dimensionOfMatrix
+        fig.update_layout(
+            shapes=[
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="y",
+                    x0=-0.5,
+                    x1=dim - 0.5,
+                    y0=-0.5,
+                    y1=dim - 0.5,
+                    line=dict(color="black", width=2),
+                    fillcolor="rgba(0,0,0,0)"
+                )
+            ]
+        )
+        fig.show()
+        
+        return_dict = {
+            'fig': fig,
+            'm': m
+        }
+        
+        return return_dict
+    
+def plotZeemanDiagramm(spinsys: SpinSys,Brange: list=[0,1], N: int=200, energyscale: str='meV'):
+    """
+    Plot the Zeeman diagram for a given spin system over a specified magnetic field range.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing all relevant parameters and methods, including the magnetic field vector and energy levels.
+    Brange : list of float, optional
+        The range of magnetic field values (in Tesla) to sweep, given as [B_min, B_max]. Default is [0, 1].
+    N : int, optional
+        The number of points in the magnetic field sweep. Default is 200.
+
+    Returns
+    -------
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'B_array': numpy.ndarray
+            The array of magnetic field values used in the sweep.
+        - 'E_array': numpy.ndarray
+            The array of energy eigenvalues corresponding to each magnetic field value.
+    
+    Notes
+    -----
+    - The function restores the original field value afterwards.
+    """
+    # Save the initial B-Vector
+    Binitial = spinsys.B
+    B = np.linspace(Brange[0],Brange[1],N)
+    E = np.zeros((N,spinsys.dimensionOfMatrix))
+    
+    for i in range(N):
+        spinsys.B = [0,0,B[i]]
+        calcEigEnergies(spinsys)
+        E[i,:] = spinsys.E_sort
+
+    # Resotre the initial solution
+    spinsys.B = Binitial
+    calcEigEnergies(spinsys)
+        
+    # Build a Plotly figure with white background
+    fig = go.Figure()
+    for i in range(spinsys.dimensionOfMatrix):
+        if energyscale == 'GHz':
+            y = E[:, i] * spinsys.meVtoGHzConversion
+        else:
+            y = E[:, i]
+        fig.add_trace(go.Scatter(x=B, y=y, mode='lines', name=f"E_{i}"))
+
+    fig.update_layout(
+        title='Zeeman Diagramm',
+        xaxis_title='Magnetic Field (T)',
+        yaxis_title=f'Energy ({energyscale})',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        width=600,
+        height=500,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    fig.update_xaxes(showgrid=True, gridcolor='lightgray')
+    fig.update_yaxes(showgrid=True, gridcolor='lightgray')
+    fig.show()
+    
+    return_dict = {
+        'fig': fig,
+        'B_array': B,
+        'E_array': E}
+
+    return return_dict
+
+def plotEnergyVsS(spinsys: SpinSys, type: str='z',energyscale: str='meV'):
+    """
+    Plot the energy eigenvalues of a spin system versus the expectation values of a spin operator (Sx, Sy, or Sz).
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing Hamiltonian, eigenvectors, and energies.
+    type : str, optional
+        The spin operator to use for the expectation value ('x', 'y', or 'z'). Default is 'z'.
+
+    Returns
+    -------
+    return_dict : dict
+        A dictionary containing:
+        - 'fig': plotly.graph_objects.Figure
+            The plotly figure object containing the ESR spectrum plot.
+        - 'E_array': numpy.ndarray
+            The array of energy eigenvalues.
+        - 'S_elements': numpy.ndarray
+            The array of expectation values of the selected spin operator.
+        
+    Notes
+    -----
+    If the eigenvectors of the spin system are not already calculated, the function will compute them.
+    """
+    if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
+        calcEigEnergies(spinsys)
+
+    if type == 'z':
+        S_Operator = np.sum(spinsys.Sz, axis=0)
+    elif type == 'x':
+        S_Operator = np.sum(spinsys.Sx, axis=0)
+    elif type == 'y':
+        S_Operator = np.sum(spinsys.Sy, axis=0)
+
+    # Calculate the Sz matrix elements for each state
+    S_elements = np.zeros(spinsys.dimensionOfMatrix)
+    for i in range(spinsys.dimensionOfMatrix):
+        S_elements[i] = np.real(spinsys.eigVectors[:, i].T.conj() @ S_Operator @ spinsys.eigVectors[:, i])
+
+    # Prepare the energy values
+    if energyscale == 'GHz':
+        energies = spinsys.E_All_inGHz
+    elif energyscale == 'meV':
+        energies = spinsys.E_All
+    else:
+        raise ValueError("energyscale must be 'meV' or 'GHz'")
+
+    # Create the figure and axes
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=S_elements,
+        y=energies,
+        mode='markers',
+        marker=dict(symbol='line-ew', color='black', size=40, line=dict(width=5)),
+        hovertemplate='S: %{x}<br>Energy: %{y}<extra></extra>'
+    ))
+    fig.update_layout(
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        title=f'Energy vs S_{type} Matrix Elements',
+        xaxis=dict(title=f'm_{type}', showgrid=True, gridcolor='lightgray'),
+        yaxis=dict(title=f'Energy ({energyscale})', showgrid=True, gridcolor='lightgray'),
+        width=700,
+        height=500
+    )
+    fig.show()
+
+    return_dict = {
+        'fig': fig,
+        'E_array': energies,
+        'S_elements': S_elements
+    }
+    
+    return return_dict
+
+def plotAll(spinsys: SpinSys, type: str='z', energyscale: str='meV'):
+    """
+    Plot all relevant information for the spin system, including energy levels, Zeeman diagram, and energy vs spin expectation values.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing Hamiltonian, eigenvectors, and energies.
+    type : str, optional
+        The spin operator to use for the expectation value ('x', 'y', or 'z'). Default is 'z'.
+    energyscale : str, optional
+        The energy scale to use for the plots ('meV' or 'GHz'). Default is 'meV'.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It displays several plots.
+    """
+    # make them all plot next to each other
+    plotEigenMatrix(spinsys, plot_type='p')
+    plotEnergyVsS(spinsys, type=type, energyscale=energyscale)
+    plotZeemanDiagramm(spinsys, energyscale=energyscale)
+
+    return 
+
+# endregion Visualization
