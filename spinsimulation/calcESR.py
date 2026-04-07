@@ -11,7 +11,7 @@ import spinsimulation.SpinHamiltonian as hamil
 import spinsimulation.calcBath as bath
 
 
-def calcESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
+def calcESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = True):
     """
     Calculate the Electron Spin Resonance (ESR) spectrum for a given spin system.
 
@@ -58,7 +58,7 @@ def calcESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
 
-    bath.calcPopulations(spinsys, AllowPumping=AllowPumping, Approach="Loth")
+    bath.calcPopulations(spinsys, AllowPumping=AllowPumping)
 
     # Look at transitions
     spinsys.RecordedTransitions = calcRecordedTransitions(spinsys,freq[0],freq[-1])
@@ -194,7 +194,7 @@ def calcESR_FreqSweep_ESRrate(
     # Calculate the RF off tunnel current via the rates
 
     #if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-    bath.calcPopulations(spinsys, AllowPumping = True) # Here we do not care about the approach yet
+    bath.calcPopulations(spinsys)
     
     I_off = 0
     for i in range(spinsys.dimensionOfMatrix):
@@ -342,7 +342,7 @@ def addESRrate(spinsys: SpinSys, freq: float = 14):
                 spinsys.ESRRates[i, j] = 0.5 * spinsys.RabiRate**2 * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / ((freq-abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2 * spinsys.T2**2 + 1)
     
 # region Visualization
-def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = False):
+def plotESR_FreqSweep(spinsys: SpinSys, FreqRange: list = [10, 20], AllowPumping: bool = False, N: int = 1000, lw: float = 0.02, norm: bool = True, output: bool = False):
     """
     Plot the ESR (Electron Spin Resonance) spectrum for a given spin system over a specified frequency range.
 
@@ -377,11 +377,11 @@ def plotESR_FreqSweep_Benjamin(spinsys: SpinSys, FreqRange: list = [10, 20], All
 
     Notes
     -----
-    - The ESR spectrum is calculated using `calcESR_Benjamin`.
+    - The ESR spectrum is calculated using `calcESR_FreqSweep`.
     - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
     # calculate the ESR spectrum
-    Freq_array, ESRsignal = calcESR_FreqSweep_Benjamin(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
+    Freq_array, ESRsignal = calcESR_FreqSweep(spinsys, FreqRange=FreqRange, AllowPumping=AllowPumping,N=N, lw=lw, norm=norm, output=output)
 
     # Make the plot
     Nc = len(spinsys.ResonanceFrequencies)
@@ -571,7 +571,7 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
     -----
     - The initial tip magnetic field of the spin system is restored after the calculation.
     - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
-    - The ESR spectrum is calculated using `calcESR_FreqSweep_Benjamin`.
+    - The ESR spectrum is calculated using `calcESR_FreqSweep`.
     """
     # Save previous BTip value
     BTip_initial = spinsys.BTip.copy()
@@ -588,12 +588,10 @@ def plotESR_Tipfieldsweep(spinsys: SpinSys, FreqRange: list = [10, 20], N_Freq: 
         spinsys.BTip[0]=BTip_array[i]*np.sin(Angle*np.pi/180)+1e-6 # BTip[0] is the x-component of the tip field
         spinsys.BTip[1]=0  # BTip[0] is the y-component of the tip field
         hamil.calcEigEnergies(spinsys)
-        f , ESRsignal[i][:] = calcESR_FreqSweep_Benjamin(spinsys, norm=norm,N=N_Freq,lw=lw,FreqRange=FreqRange,AllowPumping=AllowPumping, output=False)
+        f , ESRsignal[i][:] = calcESR_FreqSweep(spinsys, norm=norm,N=N_Freq,lw=lw,FreqRange=FreqRange,AllowPumping=AllowPumping, output=False)
         
-
     # Calculating the Detuning from the Tipfield
     Detuning=spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * (BTip_array + spinsys.B[2]) * spinsys.meVtoGHzConversion - spinsys.gfactorvector[spinsys.ReadoutSpin] * spinsys.muB * spinsys.B[2] * spinsys.meVtoGHzConversion
-
 
     # Plot the ESR Signal as a color plot
     fig = go.Figure(data=go.Heatmap(
