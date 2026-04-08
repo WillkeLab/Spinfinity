@@ -12,7 +12,6 @@ Notes
 - The routines build on rate, population, and magnetization utilities
   defined in the surrounding simulation package.
 """
-
 from collections.abc import Sequence
 
 import numpy as np
@@ -343,8 +342,8 @@ def plotMagnetization_Voltage(
 
 def plotPopulations_Voltage(
         spinsys: SpinSys,
-        Vrange: Sequence[float] = (-200, 200),
-        N: int = 200):
+        V_array: np.ndarray = None,
+        ):
     """
     Plot the populations of spin states as a function of applied voltage.
     
@@ -352,11 +351,9 @@ def plotPopulations_Voltage(
     ----------
     spinsys : SpinSys
         The spin system object containing the current state and parameters.
-    Vrange : list, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep.
-        Default is [-200, 200].
-    N : int, optional
-        The number of voltage points to evaluate. Default is 200.
+    V_array : numpy.ndarray, optional
+        An array of voltage points (in mV) at which to calculate the populations.
+        If None, a default range from -200 to 200 mV with 100 points will be used.
 
     Returns
     -------
@@ -377,7 +374,9 @@ def plotPopulations_Voltage(
     V_initial = spinsys.V_DC
 
     # Initialize arrays to store voltage and population data
-    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    if V_array is None:
+        V_array = np.linspace(-200, 200, 100)  # Default voltage range and points
+    N = len(V_array)
     P_array = np.zeros((N, spinsys.dimensionOfMatrix))
     for idx, V in enumerate(V_array):
         spinsys.V_DC = V
@@ -427,8 +426,9 @@ def plotPopulations_Voltage(
     return return_dict
 
 
-def plotRates_Voltage(spinsys: SpinSys, Vrange: Sequence[float] = (-200, 200),
-                       N: int = 100):
+def plotRates_Voltage(spinsys: SpinSys,
+                        V_array: np.ndarray = None
+                        ):
     """
     Plot the transition rates between spin states as a function of applied voltage.
     
@@ -438,11 +438,9 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: Sequence[float] = (-200, 200),
         The spin system object containing the current state and
         parameters, including the voltage (`V_DC`) and the rates matrix
         (`Rates_Summed`).
-    Vrange : list of float, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep.
-        Default is [-200, 200].
-    N : int, optional
-        The number of voltage points to evaluate. Default is 100.
+    V_array : numpy.ndarray, optional
+        An array of voltage points (in mV) at which to calculate the rates.
+        If None, a default range from -200 to 200 mV with 100 points will be used.
 
     Returns
     -------
@@ -465,7 +463,9 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: Sequence[float] = (-200, 200),
     V_initial = spinsys.V_DC
 
     # Initialize arrays to store voltage and rate data
-    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    if V_array is None:
+        V_array = np.linspace(-200, 200, 100)  # Default voltage range and points
+    N = len(V_array)
     R_array = np.zeros((N, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
     
     for idx, V in enumerate(V_array):
@@ -526,8 +526,7 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: Sequence[float] = (-200, 200),
 def plotSplitMagnetization_Voltage(
     spinsys: SpinSys,
     subspin: SpinSys,
-    Vrange: Sequence[float] = (-200, 200),
-    N: int = 100,
+    V_array: np.ndarray = None,
     type: str = 'z',
     normVal: float = None,
 ):
@@ -545,12 +544,9 @@ def plotSplitMagnetization_Voltage(
     subspin : SpinSys
         The sub-system passed to split_Magnetization to compute the split
         magnetizations.
-    Vrange : list, optional
-        Two-element sequence [Vmin, Vmax] specifying the voltage sweep range in
-        millivolts (mV). Default is [-200, 200].
-    N : int, optional
-        Number of voltage points to evaluate in the sweep (linearly spaced).
-        Default is 100.
+    V_array : numpy.ndarray, optional
+        An array of voltage points (in mV) at which to calculate the magnetization.
+        If None, a default range from -200 to 200 mV with 100 points will be used.
     type : str, optional
         Component/type of magnetization to compute (passed through to
         split_Magnetization). Default is 'z'.
@@ -580,7 +576,9 @@ def plotSplitMagnetization_Voltage(
     V_initial = spinsys.V_DC
 
     # Initialize arrays to store voltage and rate data
-    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    if V_array is None:
+        V_array = np.linspace(-200, 200, 100)  # Default voltage range and points
+    N = len(V_array)
     Mag_A = np.zeros(N)
     Mag_B = np.zeros(N)
 
@@ -645,8 +643,7 @@ def plotSplitMagnetization_Voltage(
 def plotSplitPopulations_Voltage(
     spinsys: SpinSys,
     subspin: SpinSys,
-    Vrange: Sequence[float] = (-200, 200),
-    N: int = 100,
+    V_array: np.ndarray = None,
 ):
     """
     Plot split populations as a function of voltage for a given spin subsystem.
@@ -662,11 +659,9 @@ def plotSplitPopulations_Voltage(
     subspin : SpinSys
         Subsystem for which eigenenergies/eigenstates are computed and populations
         are evaluated.
-    Vrange : list, optional
-        Two-element list [V_min, V_max] specifying the voltage sweep range in mV.
-        Default is [-200, 200].
-    N : int, optional
-        Number of voltage points in the sweep. Default is 100.
+    V_array : numpy.ndarray, optional
+        1D array of voltage points (in mV) at which to compute the split populations.
+        If None, a default range from -200 to 200 mV with 100 points will be used.
 
     Returns
     -------
@@ -693,7 +688,9 @@ def plotSplitPopulations_Voltage(
     hamil.calcEigStates(subspin)
 
     # Initialize arrays to store voltage and rate data
-    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    if V_array is None:
+        V_array = np.linspace(-200, 200, 100)  # Default voltage range and points
+    N = len(V_array)
     Populations_A = np.zeros((N, subspin.dimensionOfMatrix))
     Populations_B = np.zeros((N, subspin.dimensionOfMatrix))
 
