@@ -40,8 +40,8 @@ def calcMagnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = Tr
     
     Returns
     -------
-    None
-        The results are stored in the `spinsys` object.
+    Mag : np.ndarray
+        A 1D array containing the magnetization for each individual spin.
 
     Raises
     ------
@@ -112,7 +112,7 @@ def calcMagnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = Tr
     return Mag
 
 
-def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
+def calcLifetimes(spinsys: SpinSys):
     """
     Calculate the lifetimes (T1) for each state in a spin system.
 
@@ -125,8 +125,6 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     ----------
     spinsys : SpinSys
         The spin system object containing state information and rate matrices.
-    AllowPumping : bool, optional
-        Whether to allow pumping effects in the calculation (default is True).
 
     Notes
     -----
@@ -138,7 +136,7 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     """
     # Check whether the RateMatrix is already calculated
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-        calcRates(spinsys, AllowPumping=AllowPumping)
+        calcRates(spinsys)
 
     # Initialize the Rate array that somes up all rates that leave the state
     R1_tot = np.zeros(spinsys.dimensionOfMatrix)
@@ -313,7 +311,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     if AllowPumping:
         # Calculate the rates if not already done
         if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-            calcRates(spinsys, AllowPumping=AllowPumping)
+            calcRates(spinsys)
         spinsys.K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
         for i in range(spinsys.dimensionOfMatrix):
@@ -713,7 +711,7 @@ def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
     
     Notes
     -----
@@ -800,7 +798,7 @@ def plotRateContributions(
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
     """
     hamil.calcEigStates(spinsys)
     calcRates(spinsys)
@@ -967,7 +965,7 @@ def plotRatesTo(spinsys: SpinSys, state: int, yscale: str = 'linear', N: int = N
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
 
     Notes
     -----
@@ -1130,7 +1128,7 @@ def plotRatesFrom(spinsys: SpinSys, state: int, yscale: str = 'linear', N: int =
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
 
     Notes
     -----

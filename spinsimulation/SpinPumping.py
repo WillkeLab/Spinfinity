@@ -51,8 +51,6 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
 
     Notes
     -----
-    This function assumes that `calcRates`, `calcPopulations`, and
-    `calcOverlap` are defined elsewhere.
     The function modifies the populations of `spinsys` in-place before projection.
     """
     # First we calculate the Rates and Populations of the whole system
@@ -186,8 +184,7 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
 # region Visualization
 def plotMagnetization_Voltage(
     spinsys: SpinSys,
-    Vrange: Sequence[float] = (-200, 200),
-    N: int = 100,
+    V_array: np.ndarray = None,
     type: str = 'z',
     spins: Sequence[int] = (0,),
     norm: bool = True,
@@ -200,11 +197,9 @@ def plotMagnetization_Voltage(
     ----------
     spinsys : SpinSys
         The spin system object containing the spin configuration and state.
-    Vrange : list of float, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep.
-        Default is [-200, 200].
-    N : int, optional
-        Number of voltage points in the sweep. Default is 100.
+    V_array : numpy.ndarray, optional
+        An array of voltage points (in mV) at which to calculate the magnetization.
+            If None, a default range from -200 to 200 mV with 100 points will be used.
     type : str, optional
         The type of magnetization component to calculate ('x', 'y', or
         'z'). Default is 'z'.
@@ -220,7 +215,7 @@ def plotMagnetization_Voltage(
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
         - 'V_array': numpy.ndarray
             The array of voltage points in mV.
         - 'M_array': numpy.ndarray
@@ -239,7 +234,9 @@ def plotMagnetization_Voltage(
         return
     
     # Initialize arrays to store voltage and magnetization data
-    V_array = np.linspace(Vrange[0], Vrange[1], N)
+    if V_array is None:
+        V_array = np.linspace(-200, 200, 100)  # Default voltage range and points
+    N = len(V_array)
     M_array = np.zeros((N, spinsys.NSpins + 1)) 
 
     for idx, V in enumerate(V_array):
@@ -360,7 +357,7 @@ def plotPopulations_Voltage(
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
         - 'V_array': numpy.ndarray
             The array of voltage points in mV.
         - 'P_array': numpy.ndarray
@@ -447,7 +444,7 @@ def plotRates_Voltage(spinsys: SpinSys,
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
         - 'V_array': numpy.ndarray
             The array of voltage points in mV.
         - 'R_array': numpy.ndarray
@@ -562,7 +559,7 @@ def plotSplitMagnetization_Voltage(
             The Plotly figure containing the magnetization vs voltage traces.
             The figure is shown (fig.show()) before the function returns.
         - 'V_array': numpy.ndarray
-            The 1D array of voltage values (length N) used for the sweep (units mV).
+            The 1D array of voltage values used for the sweep (units mV).
         - 'Mag_A': numpy.ndarray
             Computed magnetization values for subsystem A corresponding to V_array.
         - 'Mag_B': numpy.ndarray
@@ -670,11 +667,13 @@ def plotSplitPopulations_Voltage(
         - 'fig': plotly.graph_objs.Figure
             Plotly figure containing two subplots (Populations A and B vs Voltage).
         - 'V_array': ndarray
-            1D array of voltages used in the sweep (length N).
+            1D array of voltages used in the sweep.
         - 'Populations_A': ndarray
-            Array of shape (N, subspin.dimensionOfMatrix) containing populations for A.
+            Array of shape (len(V_array), subspin.dimensionOfMatrix)
+            containing populations for A.
         - 'Populations_B': ndarray
-            Array of shape (N, subspin.dimensionOfMatrix) containing populations for B.
+            Array of shape (len(V_array), subspin.dimensionOfMatrix)
+            containing populations for B.
 
     Notes
     -----

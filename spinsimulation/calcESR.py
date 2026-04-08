@@ -181,7 +181,7 @@ def calcESR_FreqSweep(
 
 def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     """
-    Calculate and record all transitions between quantum states within an energy range. 
+    Calculate and record transitions between quantum states within an energy range. 
     
     Parameters
     ----------
@@ -200,8 +200,8 @@ def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
 
     Notes
     -----
-    Here no selection rules are applied, 
-    so all transitions within the specified energy range are recorded.
+    Here no selection rules are applied, transitions within the specified energy range 
+    which initial states fulfill Population > 10e-5 are recorded.
     """
     # This function calculates the recorded transitions based on the occupation
     # and the energy differences between states. It records transitions where the state
@@ -231,6 +231,8 @@ def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
 def calcESR_FreqSweep_ESRrate(
         spinsys: SpinSys, 
         freq_array: np.ndarray = None,
+        RabiRate: float = 1,
+        T2: float = 200,
         norm: bool = True,
     ):
     """
@@ -249,6 +251,10 @@ def calcESR_FreqSweep_ESRrate(
     freq_array : np.ndarray, optional
         An array of frequency points (in GHz) at which the ESR spectrum is calculated.
         If None, a default range from 10 to 20 GHz and 200 points will be used.
+    RabiRate : float, optional
+        The Rabi rate for the ESR transition (in GHz, default is 1).
+    T2 : float, optional
+        The coherence time (in ns) for the ESR transition (default is 200).
     norm : bool, optional
         If True, normalizes the ESR signal to its maximum value (default is True).
 
@@ -308,7 +314,7 @@ def calcESR_FreqSweep_ESRrate(
                 if i != j:
                     spinsys.ESRRates[i, j] = (
                         0.5
-                        * spinsys.RabiRate**2
+                        * RabiRate**2
                         * abs(TransitionMatrixElement[i, j])**2
                         * spinsys.T2
                         / (
@@ -319,7 +325,7 @@ def calcESR_FreqSweep_ESRrate(
                                     - spinsys.E_All_inGHz[j]
                                 )
                             )**2
-                            * spinsys.T2**2
+                            * T2**2
                             + 1
                         )
                     )
@@ -416,7 +422,8 @@ def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
     return spinsys.Populations_ESR
 
 
-def addESRrate(spinsys: SpinSys, freq: float = 14):
+def addESRrate(spinsys: SpinSys, freq: float = 14,
+                RabiRate: float = 1, T2: float = 200):
     """
     Add the ESR (Electron Spin Resonance) transition rates to the given spin system.
 
@@ -434,14 +441,17 @@ def addESRrate(spinsys: SpinSys, freq: float = 14):
         `ReadoutSpin`, `E_All_inGHz`, `dimensionOfMatrix`, and `Rates`.
     freq : float, optional
         The frequency (in GHz) of the driving field (default is 14).
+    RabiRate : float, optional
+        The Rabi rate for the ESR transition (default is 1).
+    T2 : float, optional
+        The coherence time (in microseconds) for the ESR transition (default is 200).
         
     Notes
     -----
     - If the `Rates` attribute of `spinsys` is not present or is
       `None`, the function calls `bath.calcRates(spinsys)` to
       initialize it.
-    - The ESR rates are stored in the 5th index (index 4) of the `Rates` array.
-    - The total rates are summed and stored in `spinsys.Rates_Summed`.
+    - The ESR rates are stored in `spinsys.ESRRates`.
     """
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
         bath.calcRates(spinsys)
@@ -461,11 +471,12 @@ def addESRrate(spinsys: SpinSys, freq: float = 14):
         for j in range(spinsys.dimensionOfMatrix):
             if i != j:
                 spinsys.ESRRates[i, j] = (
-                    0.5 * spinsys.RabiRate**2 
-                    * abs(TransitionMatrixElement[i, j])**2 * spinsys.T2 / (
+                    0.5 * RabiRate**2 
+                    * abs(TransitionMatrixElement[i, j])**2 * T2 / (
                         (freq - abs(spinsys.E_All_inGHz[i] - spinsys.E_All_inGHz[j]))**2
-                        * spinsys.T2**2 + 1)
+                        * T2**2 + 1)
                 )
+    return 
 
 # endregion Calculations
     
@@ -508,7 +519,7 @@ def plotESR_FreqSweep(
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
             The plotly figure object containing the ESR spectrum plot.
-        - 'Freq_array': numpy.ndarray
+        - 'freq_array': numpy.ndarray
             The array of frequency points in GHz.
         - 'ESRsignal': numpy.ndarray
             The calculated ESR signal corresponding to the frequency points.
@@ -745,7 +756,6 @@ def plotESR_Tipfieldsweep(
     -----
     - The initial tip magnetic field of the spin system is restored
       after the calculation.
-    - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     - The ESR spectrum is calculated using `calcESR_FreqSweep`.
     """
     # Save previous BTip value
@@ -770,7 +780,6 @@ def plotESR_Tipfieldsweep(
         f, ESRsignal[i][:] = calcESR_FreqSweep(
             spinsys,
             norm=norm,
-            N=N_Freq,
             lw=lw,
             freq_array=freq_array,
             AllowPumping=AllowPumping,
@@ -867,7 +876,7 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
         - 'Pop_Boltzmann': numpy.ndarray
             The Boltzmann populations of the spin states.
         - 'Pop_Tunneling': numpy.ndarray

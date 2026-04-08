@@ -44,7 +44,7 @@ def calcIETS_2nd(
     norm: bool = False,
 ):
     """
-    Calculate the second derivative of the tunneling current (dI/dV) in 2nd Order.
+    Calculate the derivative of the tunneling current (dI/dV) in 2nd Order.
 
     Parameters
     ----------
@@ -174,7 +174,7 @@ def calcIETS_2ndR(
         Array of voltage values (in mV) at which the spectrum is calculated.
     dIdV : ndarray
         The normalized differential conductance (dI/dV) spectrum.
-    P : ndarray
+    P : ndarray of shape (dimensionOfMatrix, N)
         Matrix of state populations for each voltage point.
     
     Notes
@@ -307,7 +307,7 @@ def calculate_derivative(Current: list, Voltage: list):
     Current : array_like
         Array of current values.
     Voltage : array_like
-        Array of voltage values. Must be the same length as `I`.
+        Array of voltage values. Must be the same length as `Current`.
         
     Returns
     -------
@@ -316,7 +316,7 @@ def calculate_derivative(Current: list, Voltage: list):
 
     Notes
     -----
-    Assumes that `I` and `V` are one-dimensional arrays of equal length.
+    Assumes that `Current` and `Voltages` are one-dimensional arrays of equal length.
     """
     n = len(Current)  # Length of the array
     dIdV = np.zeros(n)  # Initialize the output array for derivative
@@ -370,7 +370,7 @@ def plotIETS(
     return_dict : dict
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
-            The plotly figure object containing the ESR spectrum plot.
+            The plotly figure object containing the plot.
         - 'V_array': numpy.ndarray
             The voltage values used in the spectrum.
         - 'dIdVsignal': numpy.ndarray
