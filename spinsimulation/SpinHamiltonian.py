@@ -1304,8 +1304,7 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
 
 def plotZeemanDiagramm(
     spinsys: SpinSys,
-    Brange: tuple[float, float] = (0, 1),
-    N: int = 200,
+    B_array: np.ndarray = None,
     energyscale: str = 'meV',
 ):
     """
@@ -1316,11 +1315,9 @@ def plotZeemanDiagramm(
     spinsys : SpinSys
         The spin system object containing all relevant parameters and
         methods, including the magnetic field vector and energy levels.
-    Brange : list of float, optional
-        The range of magnetic field values in Tesla to sweep, given as
-        [B_min, B_max]. Default is [0, 1].
-    N : int, optional
-        The number of points in the magnetic field sweep. Default is 200.
+    B_array : numpy.ndarray, optional
+        An array of magnetic field values to use for the sweep. If None,
+        a default range from 0 to 1 Tesla will be used with 200 points.
 
     Returns
     -------
@@ -1339,11 +1336,16 @@ def plotZeemanDiagramm(
     """
     # Save the initial B-Vector
     Binitial = spinsys.B
-    B = np.linspace(Brange[0], Brange[1], N)
+
+    # Default range from 0 to 1 Tesla with 200 points
+    if B_array is None:
+        B_array = np.linspace(0, 1, 200)  
+
+    N = len(B_array)
     E = np.zeros((N, spinsys.dimensionOfMatrix))
     
     for i in range(N):
-        spinsys.B = [0, 0, B[i]]
+        spinsys.B = [0, 0, B_array[i]]
         calcEigEnergies(spinsys)
         E[i, :] = spinsys.E_sort
 
@@ -1355,7 +1357,7 @@ def plotZeemanDiagramm(
     fig = go.Figure()
     for i in range(spinsys.dimensionOfMatrix):
         y = E[:, i] * spinsys.meVtoGHzConversion if energyscale == 'GHz' else E[:, i]
-        fig.add_trace(go.Scatter(x=B, y=y, mode='lines', name=f"E_{i}"))
+        fig.add_trace(go.Scatter(x=B_array, y=y, mode='lines', name=f"E_{i}"))
 
     fig.update_layout(
         title='Zeeman Diagramm',
@@ -1373,7 +1375,7 @@ def plotZeemanDiagramm(
     
     return_dict = {
         'fig': fig,
-        'B_array': B,
+        'B_array': B_array,
         'E_array': E}
 
     return return_dict
