@@ -1,3 +1,20 @@
+"""Analyze voltage-dependent spin pumping and split-population observables.
+
+This module provides helper functions for projecting populations onto a
+subsystem basis, splitting magnetization and populations into two
+components, and visualizing the resulting voltage-dependent quantities
+with Plotly.
+
+Notes
+-----
+- Most functions operate on :class:`~spinsimulation.SpinSys.SpinSys`
+  instances and update the supplied objects in place during sweeps.
+- The routines build on rate, population, and magnetization utilities
+  defined in the surrounding simulation package.
+"""
+
+from collections.abc import Sequence
+
 import numpy as np
 import plotly.colors
 import plotly.graph_objects as go
@@ -11,11 +28,13 @@ from spinsimulation.SpinSys import SpinSys
 # region Calculations
 def split_Populations(spinsys: SpinSys, subspin: SpinSys):
     """
-    Split the populations of a spin system into two subpopulations based on overlaps with subspin eigenvectors.
+    Calculate two subpopulations based on overlaps with subspin eigenvectors.
 
-    This function first calculates the rates and populations for the full spin system. It then projects the populations
-    onto the eigenvectors of a subspin system using overlap calculations, resulting in two sets of subpopulations
-    (A and B) according to the specified overlap order.
+    This function first calculates the rates and populations for the
+    full spin system. It then projects the populations onto the
+    eigenvectors of a subspin system using overlap calculations,
+    resulting in two sets of subpopulations (A and B) according to the
+    specified overlap order.
 
     Parameters
     ----------
@@ -33,7 +52,8 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
 
     Notes
     -----
-    This function assumes that `calcRates`, `calcPopulations`, and `calcOverlap` are defined elsewhere.
+    This function assumes that `calcRates`, `calcPopulations`, and
+    `calcOverlap` are defined elsewhere.
     The function modifies the populations of `spinsys` in-place before projection.
     """
     # First we calculate the Rates and Populations of the whole system
@@ -49,8 +69,20 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
     Populations_B = np.zeros(subspin.dimensionOfMatrix)
 
     for idx in range(subspin.dimensionOfMatrix):
-        overlap_A = calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='BA')
-        overlap_B = calcOverlap(spinsys, subspin.dimensionOfMatrix, subspin.dimensionOfMatrix, subspin.eigVectors[:, idx], order='AB')
+        overlap_A = calcOverlap(
+            spinsys,
+            subspin.dimensionOfMatrix,
+            subspin.dimensionOfMatrix,
+            subspin.eigVectors[:, idx],
+            order='BA',
+        )
+        overlap_B = calcOverlap(
+            spinsys,
+            subspin.dimensionOfMatrix,
+            subspin.dimensionOfMatrix,
+            subspin.eigVectors[:, idx],
+            order='AB',
+        )
         Populations_A[idx] = sum(overlap_A * spinsys.Populations)
         Populations_B[idx] = sum(overlap_B * spinsys.Populations)
 
@@ -125,7 +157,7 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
 
     Returns
     -------
-    O : numpy.ndarray
+    Overlap : numpy.ndarray
         Array of overlaps between the projected state and the eigenvectors, shape (n,).
 
     Notes
@@ -140,30 +172,44 @@ def calcOverlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
         PhiA = np.tensordot(V, np.conj(stateB), axes=([1], [0]))  # (dA, n)
     else:
         V = EV.reshape(nB, nA, -1)               # (dB, dA, n)
-        PhiA = np.tensordot(V.transpose(1, 0, 2), np.conj(stateB), axes=([1], [0]))  # (dA, n)
-    O = np.einsum('in,in->n', np.conj(PhiA), PhiA).real
+        PhiA = np.tensordot(
+            V.transpose(1, 0, 2),
+            np.conj(stateB),
+            axes=([1], [0]),
+        )  # (dA, n)
+    Overlap = np.einsum('in,in->n', np.conj(PhiA), PhiA).real
     
-    return O
+    return Overlap
 
 
 # endregion Calculations
 
 # region Visualization
-def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100, type: str = 'z', spins: list = [0], norm: bool = True, total: bool = True):
+def plotMagnetization_Voltage(
+    spinsys: SpinSys,
+    Vrange: Sequence[float] = (-200, 200),
+    N: int = 100,
+    type: str = 'z',
+    spins: Sequence[int] = (0,),
+    norm: bool = True,
+    total: bool = True,
+):
     """
-    Plot the magnetization of specified spins and the total magnetization as a function of voltage.
+    Plot the magnetization as a function of voltage.
 
     Parameters
     ----------
     spinsys : SpinSys
         The spin system object containing the spin configuration and state.
     Vrange : list of float, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+        The voltage range [V_min, V_max] (in mV) over which to sweep.
+        Default is [-200, 200].
     N : int, optional
         Number of voltage points in the sweep. Default is 100.
     type : str, optional
-        The type of magnetization component to calculate ('x', 'y', or 'z'). Default is 'z'.
-    spins : list of int, optional
+        The type of magnetization component to calculate ('x', 'y', or
+        'z'). Default is 'z'.
+    spins : sequence of int, optional
         List of spin indices to plot. Default is [0].
     norm : bool, optional
         If True, normalize the magnetization values. Default is True.
@@ -179,7 +225,8 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: i
         - 'V_array': numpy.ndarray
             The array of voltage points in mV.
         - 'M_array': numpy.ndarray
-            The calculated Magnetization for each spin, the last column is the total magnetization.
+            The calculated Magnetization for each spin, the last column
+            is the total magnetization.
 
     Notes
     -----
@@ -236,7 +283,8 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: i
 
     if norm:
         tp = float(spinsys.TipPolarization[2])
-        # Tip polarization lines (positive and negative). keep second line out of legend to match original behavior.
+        # Tip polarization lines. Keep the second line out of the legend
+        # to match the original behavior.
         fig.add_trace(go.Scatter(
             x=[V_array[0], V_array[-1]],
             y=[tp, tp],
@@ -268,7 +316,11 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: i
     )
 
     # axis styling
-    fig.update_xaxes(range=[float(V_array[0]), float(V_array[-1])], showgrid=True, gridcolor='lightgray')
+    fig.update_xaxes(
+        range=[float(V_array[0]), float(V_array[-1])],
+        showgrid=True,
+        gridcolor='lightgray',
+    )
     fig.update_yaxes(showgrid=True, gridcolor='lightgray')
     if norm:
         fig.update_yaxes(range=[-1, 1])
@@ -291,7 +343,7 @@ def plotMagnetization_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: i
 
 def plotPopulations_Voltage(
         spinsys: SpinSys,
-        Vrange: list = [-200, 200],
+        Vrange: Sequence[float] = (-200, 200),
         N: int = 200):
     """
     Plot the populations of spin states as a function of applied voltage.
@@ -301,7 +353,8 @@ def plotPopulations_Voltage(
     spinsys : SpinSys
         The spin system object containing the current state and parameters.
     Vrange : list, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+        The voltage range [V_min, V_max] (in mV) over which to sweep.
+        Default is [-200, 200].
     N : int, optional
         The number of voltage points to evaluate. Default is 200.
 
@@ -374,17 +427,20 @@ def plotPopulations_Voltage(
     return return_dict
 
 
-def plotRates_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100):
+def plotRates_Voltage(spinsys: SpinSys, Vrange: Sequence[float] = (-200, 200),
+                       N: int = 100):
     """
     Plot the transition rates between spin states as a function of applied voltage.
     
     Parameters
     ----------
     spinsys : SpinSys
-        The spin system object containing the current state and parameters, including the
-        voltage (`V_DC`) and the rates matrix (`Rates_Summed`).
+        The spin system object containing the current state and
+        parameters, including the voltage (`V_DC`) and the rates matrix
+        (`Rates_Summed`).
     Vrange : list of float, optional
-        The voltage range [V_min, V_max] (in mV) over which to sweep. Default is [-200, 200].
+        The voltage range [V_min, V_max] (in mV) over which to sweep.
+        Default is [-200, 200].
     N : int, optional
         The number of voltage points to evaluate. Default is 100.
 
@@ -401,8 +457,8 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100
         
     Notes
     -----
-    - The function temporarily modifies `spinsys.V_DC` during the sweep and restores its original
-      value at the end.
+    - The function temporarily modifies `spinsys.V_DC` during the sweep
+      and restores its original value at the end.
     - Only off-diagonal transition rates (i ≠ f) are plotted.
     """
     # Save the old voltage value
@@ -467,7 +523,14 @@ def plotRates_Voltage(spinsys: SpinSys, Vrange: list = [-200, 200], N: int = 100
     return return_dict
 
 
-def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list = [-200, 200], N: int = 100, type: str = 'z', normVal: float = None):
+def plotSplitMagnetization_Voltage(
+    spinsys: SpinSys,
+    subspin: SpinSys,
+    Vrange: Sequence[float] = (-200, 200),
+    N: int = 100,
+    type: str = 'z',
+    normVal: float = None,
+):
     """
     Plot the split magnetization of two sub-systems as a function of DC bias voltage.
 
@@ -579,7 +642,12 @@ def plotSplitMagnetization_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: l
     return return_dict
 
 
-def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: list = [-200, 200], N: int = 100):
+def plotSplitPopulations_Voltage(
+    spinsys: SpinSys,
+    subspin: SpinSys,
+    Vrange: Sequence[float] = (-200, 200),
+    N: int = 100,
+):
     """
     Plot split populations as a function of voltage for a given spin subsystem.
 
@@ -637,8 +705,15 @@ def plotSplitPopulations_Voltage(spinsys: SpinSys, subspin: SpinSys, Vrange: lis
 
     # Prepare plotly subplot figure with white background
     color_list = plotly.colors.qualitative.Plotly
-    fig = make_subplots(rows=1, cols=2, shared_yaxes=True,
-                        subplot_titles=('Populations A vs Voltage', 'Populations B vs Voltage'))
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        shared_yaxes=True,
+        subplot_titles=(
+            'Populations A vs Voltage',
+            'Populations B vs Voltage',
+        ),
+    )
 
     for idx in range(subspin.dimensionOfMatrix):
         color = color_list[idx % len(color_list)]
@@ -711,23 +786,12 @@ def plotSplitPopulations(spinsys: SpinSys, subspin: SpinSys):
             1D array of length `subspin.dimensionOfMatrix` with populations for spin A.
         - 'Populations_B' : numpy.ndarray
             1D array of length `subspin.dimensionOfMatrix` with populations for spin B.
-
-    Raises
-    ------
-    ValueError
-        If the arrays returned by split_Populations do not match
-        `subspin.dimensionOfMatrix` in length.
-    RuntimeError
-        If required plotting dependencies (Plotly) or the split_Populations call
-        fail.
     """
     Populations_A = np.zeros(subspin.dimensionOfMatrix)
     Populations_B = np.zeros(subspin.dimensionOfMatrix)
     
     Populations_A, Populations_B = split_Populations(spinsys, subspin)
     
-    x = np.arange(subspin.dimensionOfMatrix)
-
     # Plot with Plotly, white background
     y_labels = subspin.statesWithoutE
     colors = plotly.colors.qualitative.Plotly
@@ -769,8 +833,22 @@ def plotSplitPopulations(spinsys: SpinSys, subspin: SpinSys):
     )
 
     # x-axis ranges [0,1] and gridlines
-    fig.update_xaxes(range=[0, 1], showgrid=True, gridcolor='lightgray', row=1, col=1, title_text='Population')
-    fig.update_xaxes(range=[0, 1], showgrid=True, gridcolor='lightgray', row=1, col=2, title_text='Population')
+    fig.update_xaxes(
+        range=[0, 1],
+        showgrid=True,
+        gridcolor='lightgray',
+        row=1,
+        col=1,
+        title_text='Population',
+    )
+    fig.update_xaxes(
+        range=[0, 1],
+        showgrid=True,
+        gridcolor='lightgray',
+        row=1,
+        col=2,
+        title_text='Population',
+    )
 
     # show y-labels only on the left subplot
     fig.update_yaxes(title_text='States', row=1, col=1)

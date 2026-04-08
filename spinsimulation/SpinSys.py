@@ -1,3 +1,18 @@
+"""Define the :class:`SpinSys` container used throughout the simulation package.
+
+This module provides a single high-level class, :class:`SpinSys`, which
+stores physical constants, system geometry, magnetic fields, interaction
+terms, tunneling parameters, and spectroscopy settings in one mutable
+object. It also includes helpers for parameter inspection, numeric
+formatting, and serialization via pickle.
+
+Notes
+-----
+- Energies are primarily handled in meV, with conversion factors to GHz
+  and SI units.
+- The object is intended to be mutated in place before passing it to the
+  Hamiltonian, transport, and ESR routines in the surrounding package.
+"""
 import os
 import pickle
 
@@ -7,7 +22,8 @@ import scipy.constants as const
 
 class SpinSys:
     """
-    SpinSys(Spins)
+    SpinSys(Spins).
+
     A class to represent a quantum spin system for spin simulations.
 
     Parameters
@@ -90,9 +106,9 @@ class SpinSys:
     w : float
         Bandwidth parameter.
     precission : float
-        Markus Ternes: Precision parameter; sets the minimal (in) state occupation to be calculated,
-        and precission^2 the minimal matrix element to be evaluated. The calculation
-        speed drastically depends on this value.
+        Markus Ternes: Precision parameter; sets the minimal (in) state occupation to
+        be calculated and precission^2 the minimal matrix element to be evaluated.
+        The calculation speed drastically depends on this value.
     tunneling parameters relevant for scanning probe experiments, and Kondo physics.
         
     Notes
@@ -109,7 +125,8 @@ class SpinSys:
     kB = const.Boltzmann / const.e * 1e3  # [meV/K] Boltzmann constant in meV/K
     meVtoGHzConversion = 1e-12 * const.e / const.h  # approx 241.8 GHz/meV
     GHztomeVConversion = 1 / meVtoGHzConversion  # approx 4.1357 uV/GHz
-    hbar_meV = const.hbar * 1e-12 / const.e  # [meV*s] Reduced Planck's constant in meV*s
+    hbar_meV = const.hbar * 1e-12 / const.e  # [meV*s] Reduced Planck's
+    # constant in meV*s
     h_meV = const.h * 1e-12 / const.e  # [meV*s] Planck's constant in meV*s
     meVtoJConversion = 1.602e-22  # approx 1.6e-22 J/meV
     JtomeVConversion = 1 / meVtoJConversion  # approx 6.24e21 meV/J
@@ -119,13 +136,15 @@ class SpinSys:
 
         self.Spins = Spins
         self.NSpins = len(self.Spins)
-        self.dimensionOfMatrix = 1  # A system with N spins [S1,S2,S3,...,SN] is represented through a matrix of dimension (2*S1+1)*(2*S2+1)*...*(2*SN+1)
+        # A system with N spins [S1,S2,S3,...,SN] is represented through a matrix 
+        # of dimension (2*S1+1)*(2*S2+1)*...*(2*SN+1)
+        self.dimensionOfMatrix = 1  
         for i in range(self.NSpins):  
             self.dimensionOfMatrix *= (2 * self.Spins[i] + 1)
         self.dimensionOfMatrix = int(self.dimensionOfMatrix)
         self.ReadoutSpin = 0 
         self.AtomPositions = np.zeros((self.NSpins, 3))
-        self.latticeLengthXY = np.array([0.2877, 0.2877, 0])  # [nm] #!!!Not sure if we want to keep this hard-coded...
+        self.latticeLengthXY = np.array([0.2877, 0.2877, 0])
 
         # External Parameters
         self.T = 1  # [K]
@@ -135,13 +154,19 @@ class SpinSys:
         self.tip = 'f'  # 'a' for antiferromagentic and 'f' for ferromagnetic
 
         # Spin Hamiltoninan
-        self.H = np.zeros((self.dimensionOfMatrix, self.dimensionOfMatrix), dtype=complex)
-        self.gfactorvector = [2.0] * self.NSpins  # Each spin gets his own g-factor, by default 2
-        self.Dvector = np.zeros(self.NSpins)  # Out of plane Anistropy as list for each spin 
-        self.Evector = np.zeros(self.NSpins)  # In plane Anisotropy as list for each spin 
-        self.D0 = np.zeros((self.NSpins, self.NSpins))  # Creates the Dipole Interaction Matrix
-        self.DipoleBool = np.zeros((1, (self.NSpins * (self.NSpins - 1)) // 2), dtype=bool)  # Dipole-Bool array to activate and deactivate the dipole interaction between specific spins
-        self.Jvector = np.zeros(((self.NSpins * (self.NSpins - 1)) // 2, 3))  # A vector that contains all possible spin combinations
+        self.H = np.zeros((self.dimensionOfMatrix, self.dimensionOfMatrix),
+                           dtype=complex)
+        self.gfactorvector = [2.0] * self.NSpins
+        self.Dvector = np.zeros(self.NSpins)
+        self.Evector = np.zeros(self.NSpins)
+        self.D0 = np.zeros((self.NSpins, self.NSpins))
+        self.DipoleBool = np.zeros(
+            (1, (self.NSpins * (self.NSpins - 1)) // 2),
+            dtype=bool,
+        )
+        self.Jvector = np.zeros(
+            ((self.NSpins * (self.NSpins - 1)) // 2, 3)
+        )
         # Off diagonal Elements of the Exchange Parameter J
         self.Jxy = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
         self.Jxz = np.zeros((self.NSpins * (self.NSpins - 1)) // 2, dtype=float)
@@ -159,10 +184,6 @@ class SpinSys:
         self.G = 1e-12  # [A/V], Experimental conductance at 0V;
         self.G_ss = [1e-8] * self.NSpins  # Sample-Sample conductance
         self.G_tt = 0  # 1 enables tip-tip scattering contribution, 0 disables it!
-
-        self.T02 = 1  # Tunneling parameter, used in the tunneling calculation
-        # Markus Ternes: T02 is the tunneling parameter, which is used to normalize the tunneling current, default set to 1 as in Ternes code
-        self.Jrs = -0.04  # Kondo coupling strength in rate equation model, default set to -0.04 as in Ternes code
 
         # Kondo Parameters
         self.J = np.zeros(self.NSpins)
@@ -208,11 +229,18 @@ class SpinSys:
         Rounded value in same format as input
         """
         if isinstance(value, (list, tuple)):
-            return type(value)([self._round_to_significant_figures(v, sig_figs) for v in value])
+            return type(value)(
+                [self._round_to_significant_figures(v, sig_figs) for v in value]
+            )
         elif isinstance(value, np.ndarray):
             if np.issubdtype(value.dtype, np.number):
                 # Only round if it's a numeric array
-                rounded = np.array([self._round_to_significant_figures(v, sig_figs) for v in value.flat])
+                rounded = np.array(
+                    [
+                        self._round_to_significant_figures(v, sig_figs)
+                        for v in value.flat
+                    ]
+                )
                 return rounded.reshape(value.shape)
             else:
                 return value
@@ -234,9 +262,7 @@ class SpinSys:
             return value
 
     def print_parameters(self):
-        """
-        Print all parameters in a detailed format with values rounded to 4 significant figures.
-        """
+        """Print all parameters in a detailed format."""
         params = self.get_parameters_dict()
         
         for category, param_dict in params.items():
@@ -256,7 +282,7 @@ class SpinSys:
                         # Higher dimensional arrays - show shape and summary
                         print(f"    Shape: {rounded_value.shape}")
                         print(f"    Type: {rounded_value.dtype}")
-                elif isinstance(value, (list, tuple)) or isinstance(value, (int, float, complex)):
+                elif isinstance(value, (list, tuple, int, float, complex)):
                     rounded_value = self._round_to_significant_figures(value)
                     print(f"  {key:<25}: {rounded_value}")
                 else:
@@ -283,7 +309,11 @@ class SpinSys:
                 'B_external': np.array(self.B) if hasattr(self, 'B') else 'Not set',
                 'BTip': np.array(getattr(self, 'BTip', [0, 0, 0])),
                 'BTipGradient': np.array(getattr(self, 'BTipGradient', [0, 0, 0])),
-                'g_factors': np.array(getattr(self, 'gfactorvector', [])) if getattr(self, 'gfactorvector', None) is not None else 'Not set'
+                'g_factors': (
+                    np.array(getattr(self, 'gfactorvector', []))
+                    if getattr(self, 'gfactorvector', None) is not None
+                    else 'Not set'
+                )
             },
             'Interactions': {},
             'Tunneling': {}
@@ -292,7 +322,9 @@ class SpinSys:
         # Add interaction matrices if they exist
         if hasattr(self, 'Jvector') and self.Jvector is not None:
             params_dict['Interactions']['Exchange_J_meV'] = self.Jvector
-            params_dict['Interactions']['Exchange_J_GHz'] = self.Jvector * self.meVtoGHzConversion
+            params_dict['Interactions']['Exchange_J_GHz'] = (
+                self.Jvector * self.meVtoGHzConversion
+            )
         
         if hasattr(self, 'Dvector') and self.Dvector is not None:
             params_dict['Interactions']['Anisotropy_D_meV'] = np.array(self.Dvector)
@@ -301,7 +333,9 @@ class SpinSys:
             params_dict['Interactions']['Anisotropy_E_meV'] = np.array(self.Evector)
             
         if hasattr(self, 'D0') and self.D0 is not None:
-            params_dict['Interactions']['Dipole_matrix_GHz'] = self.D0 * self.meVtoGHzConversion
+            params_dict['Interactions']['Dipole_matrix_GHz'] = (
+                self.D0 * self.meVtoGHzConversion
+            )
             
         if hasattr(self, 'DipoleBool') and self.DipoleBool is not None:
             params_dict['Interactions']['DipoleBool'] = np.array(self.DipoleBool)
@@ -315,11 +349,17 @@ class SpinSys:
         if hasattr(self, 'TipPolarization'):
             params_dict['Tunneling']['TipPolarization'] = np.array(self.TipPolarization)
         if hasattr(self, 'SamplePolarization'):
-            params_dict['Tunneling']['SamplePolarization'] = np.array(getattr(self, 'SamplePolarization', [0, 0, 0]))
+            params_dict['Tunneling']['SamplePolarization'] = np.array(
+                getattr(self, 'SamplePolarization', [0, 0, 0])
+            )
         if hasattr(self, 'G'):
             params_dict['Tunneling']['Conductance_G_A_per_V'] = self.G
         if hasattr(self, 'G_ss'):
-            params_dict['Tunneling']['G_ss'] = np.array(self.G_ss) if isinstance(self.G_ss, (list, tuple)) else self.G_ss
+            params_dict['Tunneling']['G_ss'] = (
+                np.array(self.G_ss)
+                if isinstance(self.G_ss, (list, tuple))
+                else self.G_ss
+            )
         if hasattr(self, 'G_tt'):
             params_dict['Tunneling']['G_tt'] = self.G_tt
         if hasattr(self, 'U'):
@@ -353,7 +393,8 @@ class SpinSys:
         Parameters
         ----------
         filename : str, optional
-            Name of the file to save. If None, generates a default name based on system parameters.
+            Name of the file to save. If None, generates a default name based on 
+            system parameters.
         filepath : str, optional
             Directory path where to save the file. If None, saves in current directory.
             
@@ -409,6 +450,11 @@ class SpinSys:
         -------
         SpinSys
             The loaded SpinSys object.
+        
+        Raises
+        ------
+        FileNotFoundError
+            If the specified file does not exist.
         """
         full_path = os.path.join(filepath, filename)
 
