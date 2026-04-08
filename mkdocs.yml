@@ -3,6 +3,7 @@ site_description: Documentation of the Spinfinity Simulation Code
 
 theme:
   name: material
+  logo: assets/images/icon.png
   features:
     - navigation.tabs
     - navigation.sections
