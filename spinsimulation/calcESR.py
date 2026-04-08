@@ -684,9 +684,8 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
     """
     calcPopulations_ESR(spinsys, freq=freq)
     if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
-            hamil.calcEigStates(spinsys)
+        hamil.calcEigStates(spinsys)
     
-    x = np.arange(len(spinsys.Populations))
     width = 0.2
 
     if filter is None:
@@ -737,12 +736,13 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
                     ticktext=labels
                 ),
                 title='Population of Spin States',
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+                legend=dict(orientation='h', yanchor='bottom', y=1.02,
+                             xanchor='right', x=1)
         )
 
         fig.show()
     else:
-        # Only display states with population > filter in any of the three population arrays
+        # Only display states with population > filter in any of the three populations
         pop_arrays = [spinsys.pop_0, spinsys.Populations, spinsys.Populations_ESR]
         mask = np.any([np.array(p) >= filter for p in pop_arrays], axis=0)
 
@@ -799,7 +799,8 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
                     ticktext=labels
                 ),
                 title=f'Population of Spin States (> {filter * 100}%)',
-                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
+                legend=dict(orientation='h', yanchor='bottom', y=1.02,
+                             xanchor='right', x=1)
             )
 
             fig.show()

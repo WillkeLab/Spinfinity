@@ -1,3 +1,32 @@
+"""
+Utilities for calculating and visualizing IETS signals. 
+
+This module provides routines to compute differential conductance spectra using:
+- second-order perturbation theory,
+- second-order theory with rate-equation populations,
+- Plotly-based visualization of the resulting spectra.
+The main workflow is based on a :class:`~spinsimulation.SpinSys.SpinSys` instance,
+which is expected to contain the spin Hamiltonian, eigenstates, populations,
+coupling parameters, and other system-specific quantities required for the
+calculation.
+
+Functions
+---------
+calcIETS_2nd
+    Compute dI/dV using a second-order tunneling model.
+calcIETS_2ndR
+    Compute dI/dV using a second-order model with voltage-dependent rate equations.
+calculate_derivative
+    Numerically differentiate current with respect to voltage.
+plotIETS
+    Plot IETS spectra for one or all spins using Plotly.
+- Energies and voltages are treated in the conventions used by the surrounding
+  spin-simulation package.
+- Some functions modify attributes of the provided spin system in place, such as
+  eigenstates, populations, or readout spin selection.
+"""
+from collections.abc import Sequence
+
 import numpy as np
 import plotly.colors
 import plotly.graph_objects as go
@@ -11,16 +40,23 @@ from spinsimulation.SpinSys import SpinSys
 # region 2nd Order
 
 
-def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: bool = False):
+def calcIETS_2nd(
+    spinsys: SpinSys,
+    Vrange: Sequence[float] = (-30, 30),
+    N: int = 100,
+    norm: bool = False,
+):
     """
-    Calculate the second derivative of the tunneling current (dI/dV) for a given spin system  in 2nd Order.
+    Calculate the second derivative of the tunneling current (dI/dV) in 2nd Order.
 
     Parameters
     ----------
     spinsys : SpinSys
-        The spin system object containing eigenvalues, eigenvectors, temperature, and other relevant parameters.
+        The spin system object containing eigenvalues, eigenvectors, temperature, 
+        and other relevant parameters.
     Vrange : list of float, optional
-        The voltage range [V_min, V_max] over which to calculate dI/dV. Default is [-30, 30].
+        The voltage range [V_min, V_max] over which to calculate dI/dV. Default is 
+        [-30, 30].
     N : int, optional
         Number of voltage points in the output array. Default is 100.
     norm : bool, optional
@@ -35,11 +71,11 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm:
 
     Notes
     -----
-    - The function assumes that the spin system object contains all necessary attributes.
-    - Eigenvalues and eigenvectors are calculated if not already present in the spin system.
+    - The function assumes that the spin system contains all necessary attributes.
+    - Eigenvalues and eigenvectors are calculated if not already present.
     - The calculation uses a Boltzmann distribution for thermal population.
-    - The tunneling rate matrix is computed using the `calcTunnelingMatrixElements` function.
-    - The output can be normalized for easier comparison between different systems or parameters.
+    - The tunneling rate matrix is computed using `calcTunnelingMatrixElements`.
+    - The output can be normalized for easier comparison.
     """
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
@@ -58,9 +94,20 @@ def calcIETS_2nd(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm:
     for i in range(spinsys.dimensionOfMatrix):
         if spinsys.pop_0[i] > 10**(-6):
             for j in range(spinsys.dimensionOfMatrix):
-                ep = tunnelingBroadenedStepFunction(np.array((spinsys.E_All[j] - spinsys.E_All[i] - V_array) / (spinsys.T * spinsys.kB)))
-                en = tunnelingBroadenedStepFunction(np.array((spinsys.E_All[j] - spinsys.E_All[i] + V_array) / (spinsys.T * spinsys.kB)))
-                ytemp = spinsys.pop_0[i] * (RateMatrix[j, i] * ep + RateMatrix[i, j] * en)
+                ep = tunnelingBroadenedStepFunction(
+                    np.array(
+                        (spinsys.E_All[j] - spinsys.E_All[i] - V_array)
+                        / (spinsys.T * spinsys.kB)
+                    )
+                )
+                en = tunnelingBroadenedStepFunction(
+                    np.array(
+                        (spinsys.E_All[j] - spinsys.E_All[i] + V_array)
+                        / (spinsys.T * spinsys.kB)
+                    )
+                )
+                ytemp = (spinsys.pop_0[i] * (RateMatrix[j, i] 
+                                             * ep + RateMatrix[i, j] * en))
                 dIdV_array = dIdV_array + ytemp
 
     # Normalize with Rate_00 to get correct units
@@ -77,7 +124,7 @@ def tunnelingBroadenedStepFunction(x_V):
     """
     Compute the tunneling broadened step function.
 
-    This function calculates a broadened step function commonly used in tunneling spectroscopy.
+    This function calculates a broadened step function used in tunneling spectroscopy.
 
     Parameters
     ----------
@@ -87,12 +134,8 @@ def tunnelingBroadenedStepFunction(x_V):
     Returns
     -------
     y : ndarray or float
-        The value(s) of the tunneling broadened step function at `x_V`. If the computation results
-        in NaN values, they are replaced with 0.0.
-
-    Notes
-    -----
-    The function uses an exponential transformation and handles potential NaN values gracefully.
+        The value(s) of the tunneling broadened step function at `x_V`. 
+        If the computation results in NaN values, they are replaced with 0.0.
     """
     z = np.exp(x_V)
     y = (1 + (x_V - 1) * z) / ((z - 1) ** 2)
@@ -106,26 +149,29 @@ def tunnelingBroadenedStepFunction(x_V):
 
 def calcIETS_2ndR(
     spinsys: SpinSys,
-    Vrange: list = [-30, 30],
+    Vrange: Sequence[float] = (-30, 30),
     N: int = 200,
     AllowPumping: bool = True,
     norm: bool = True
 ):
     """
-    Calculate the IETS (Inelastic Electron Tunneling Spectroscopy) spectrum using the rate equation approach.
+    Calculate the IETS spectrum using the rate equation approach.
     
     Parameters
     ----------
     spinsys : SpinSys
         The spin system object containing all relevant parameters and matrices.
     Vrange : list of float, optional
-        The voltage range [V_min, V_max] (in mV) over which to calculate the spectrum. Default is [-30, 30].
+        The voltage range [V_min, V_max] (in mV) over which to calculate the spectrum. 
+        Default is [-30, 30].
     N : int, optional
         Number of voltage points in the spectrum. Default is 200.
     AllowPumping : bool, optional
-        If True, allows for non-thermal population of spin states (pumping). If False, uses thermal (Boltzmann) population. Default is True.
+        If True, allows for non-thermal population of spin states (pumping). 
+        If False, uses thermal (Boltzmann) population. Default is True.
     norm : bool, optional
-        If True, normalizes the resulting dI/dV spectrum to the range [0, 1]. Default is True.
+        If True, normalizes the resulting dI/dV spectrum to the range [0, 1]. 
+        Default is True.
     
     Returns
     -------
@@ -138,16 +184,16 @@ def calcIETS_2ndR(
     
     Notes
     -----
-    - The calculation is based on the rate equation approach and supports both thermal and non-thermal
-      population distributions.
+    - The calculation is based on the rate equation approach and supports both thermal
+      and non-thermal population distributions.
     """
     # Initialize the arrays
     V_array = np.linspace(Vrange[0], Vrange[1], N)
-    I = np.zeros((N), dtype=float)
+    Current = np.zeros((N), dtype=float)
     P = np.zeros((spinsys.dimensionOfMatrix, N), dtype=float)
     Rates = np.zeros((4, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
-     # Calculate the Eignevalues and Eignevectors if not already done
+    # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calcEigEnergies(spinsys)
 
@@ -167,9 +213,15 @@ def calcIETS_2ndR(
     RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
-    RateFactor_tt = spinsys.G_st**2 / spinsys.G_ss[spinsys.ReadoutSpin] / (const.e * Rate_0) / 1e3 * spinsys.G_tt  # Gtt is actually calculated from Gss and Gst, we use the Gtt value 0,1 here just o allow it or not
-
-    # Calculate the rates that stem from Tip tip and sample sample scattering, since they are not affected by the voltage
+    # Gtt is calculated from Gss and Gst, the Gtt value 0,1 here allows it or not
+    RateFactor_tt = (
+    spinsys.G_st**2
+    / spinsys.G_ss[spinsys.ReadoutSpin]
+    / (const.e * Rate_0)
+    / 1e3 * spinsys.G_tt
+    )
+    # Calculate the rates that stem from Tip tip and sample sample scattering,
+    #  since they are not affected by the voltage
     RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
     RateIntegrals_tt = RateIntegrals_ss
     Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
@@ -180,7 +232,7 @@ def calcIETS_2ndR(
         V_DC = V_array[I_index]
         spinsys.V_DC = V_DC
 
-        # Calculate rate integrals for the current voltage (These are the only changing parts)
+        # Calculate changing rate integrals for the current voltage
         RateIntegrals_ts = bath.calcRateIntegrals(spinsys, 'ts')
         RateIntegrals_st = bath.calcRateIntegrals(spinsys, 'st')
         
@@ -217,7 +269,8 @@ def calcIETS_2ndR(
                 p = np.empty((0, 0))
             if p.size == 0:  # If no valid solution, use thermal distribution
                 Populations = spinsys.pop_0
-                print("Warning: No valid solution for rate equations found, using thermal population instead.")
+                print("Warning: No valid solution for rate equations found, "
+                "using thermal population instead.")
             else:
                 Populations = p[:, 0] / np.sum(p[:, 0])
         else:
@@ -234,11 +287,11 @@ def calcIETS_2ndR(
         # Adjust current calculation
         I_value += spinsys.b0 * spinsys.G * spinsys.V_DC
 
-        I[I_index] = I_value
+        Current[I_index] = I_value
         P[:, I_index] = Populations    
 
     # Calculate the derivative (dI/dV)
-    dIdV = calculate_derivative(I, (V_array * 1e-3))  # Convert V_array to volts
+    dIdV = calculate_derivative(Current, (V_array * 1e-3))  # Convert V_array to volts
 
     # Normalize dI/dV if required
     if norm:
@@ -247,15 +300,15 @@ def calcIETS_2ndR(
     return V_array, dIdV, P
 
 
-def calculate_derivative(I: list, V: list):
+def calculate_derivative(Current: list, Voltage: list):
     """
     Calculate the numerical derivative dI/dV of current (I) with respect to voltage (V).
 
     Parameters
     ----------
-    I : array_like
+    Current : array_like
         Array of current values.
-    V : array_like
+    Voltage : array_like
         Array of voltage values. Must be the same length as `I`.
         
     Returns
@@ -267,18 +320,18 @@ def calculate_derivative(I: list, V: list):
     -----
     Assumes that `I` and `V` are one-dimensional arrays of equal length.
     """
-    n = len(I)  # Length of the array
+    n = len(Current)  # Length of the array
     dIdV = np.zeros(n)  # Initialize the output array for derivative
 
     # Forward difference for the first point
-    dIdV[0] = (I[1] - I[0]) / (V[1] - V[0])
+    dIdV[0] = (Current[1] - Current[0]) / (Voltage[1] - Voltage[0])
 
     # Central difference for the middle points
     for i in range(1, n - 1):
-        dIdV[i] = (I[i + 1] - I[i - 1]) / (V[i + 1] - V[i - 1])
+        dIdV[i] = (Current[i + 1] - Current[i - 1]) / (Voltage[i + 1] - Voltage[i - 1])
 
     # Backward difference for the last point
-    dIdV[n - 1] = (I[n - 1] - I[n - 2]) / (V[n - 1] - V[n - 2])
+    dIdV[n - 1] = (Current[n - 1] - Current[n - 2]) / (Voltage[n - 1] - Voltage[n - 2])
 
     return dIdV
 
@@ -286,27 +339,37 @@ def calculate_derivative(I: list, V: list):
 # endregion 2nd Order + Rate
 
 # region Visualization
-def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: bool = False, order: str = '2nd', plotAllSpins: bool = False):
+
+
+def plotIETS(
+    spinsys: SpinSys,
+    Vrange: Sequence[float] = (-30, 30),
+    N: int = 100,
+    norm: bool = False,
+    order: str = '2nd',
+    plotAllSpins: bool = False,
+):
     """
-    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum for a given spin system.
+    Plot the Inelastic Electron Tunneling Spectroscopy (IETS) spectrum.
+    
+    The function calculates the IETS spectrum for the given spin system 
+    and visualizes it using Plotly. It supports both 2nd order and 2nd order
+    with rate equations calculations.
 
     Parameters
     ----------
     spinsys : SpinSys
         The spin system object for which the IETS spectrum is to be calculated.
     Vrange : list, optional
-        The voltage range [min, max] in millivolts over which to calculate the spectrum (default is [-30, 30]).
+        The voltage range [min, max] in millivolts over which to
+        calculate the spectrum (default is [-30, 30]).
     N : int, optional
-        Number of points in the voltage range for the spectrum calculation (default is 400).
+        Number of points in the voltage range for the spectrum
+        calculation (default is 400).
     norm : bool, optional
         If True, normalize the calculated spectrum (default is False).
     order : str, optional
         The order of the IETS calculation. Supported orders are '2nd' and '2ndR'.
-
-    Raises
-    ------
-    ValueError
-        If an unsupported order is specified.
 
     Returns
     -------
@@ -319,17 +382,19 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
         - 'dIdVsignal': numpy.ndarray
             The calculated dI/dV signal values.
 
+    Raises
+    ------
+    ValueError
+        If an unsupported order is specified.
+
     Notes
     -----
     - the dimension of the dIdVsignal changes when plotAllSpins=True
     """
-    # Define y-axis label according to normalization 
-    if norm:
-        y_label = 'Normalized dI/dV (a.u.)'
-    else:
-        y_label = 'dI/dV (S)'
+    # Define y-axis label according to normalization
+    y_label = 'Normalized dI/dV (a.u.)' if norm else 'dI/dV (S)'
 
-    if plotAllSpins == False:
+    if not plotAllSpins:
 
         # Initialize x and y arrays
         x = np.zeros(N)  # Voltage 
@@ -340,7 +405,8 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
         elif order == '2ndR':
             x, y, _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
         else:
-            raise ValueError("Unsupported order. Currently only '2nd' order is implemented.")
+            raise ValueError("Unsupported order. Currently only '2nd'"
+            "and '2ndR' order is implemented.")
     
         # Plot the IETS spectrum using Plotly with white background and black border
         y_max = np.max(y)
@@ -369,9 +435,10 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
             margin=dict(l=60, r=20, t=60, b=60)
         )
 
-        # set explicit axis ranges and add a black rectangle border around the plotting area
-        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
-        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_xaxes(range=[x0, x1], showgrid=True,
+                          gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, 
+                         gridcolor='lightgray', zeroline=False)
 
         fig.update_layout(
             shapes=[dict(
@@ -389,7 +456,7 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
 
         fig.show()
 
-    elif plotAllSpins == True:
+    elif plotAllSpins:
 
         # Initialize x and y arrays
         x = np.zeros(N)
@@ -397,18 +464,19 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
 
         for i in range(len(spinsys.Spins)):
             spinsys.ReadoutSpin = i
-            # print(f"Calculating IETS for Spin {i} with ReadoutSpin={spinsys.ReadoutSpin}")
+            
             if order == '2nd':
                 x, y[i, :] = calcIETS_2nd(spinsys, Vrange=Vrange, N=N, norm=norm)
             elif order == '2ndR':
                 x, y[i, :], _ = calcIETS_2ndR(spinsys, Vrange=Vrange, N=N, norm=norm)
             else:
-                raise ValueError("Unsupported order. Currently only '2nd' '2ndR' and '3rd' order are implemented.")
+                raise ValueError("Unsupported order. Currently only '2nd' "
+                "and '2ndR' order are implemented.")
             
             # Plot all IETS spectra in the same figure on top of each other
             # Only create the figure once, before the loop
             # if i == 0:
-        # After computing x and y for all spins, build a Plotly figure similar to the single-spin case
+        # After computing x and y for all spins, build a Plotly figure
         color_list = plotly.colors.qualitative.Plotly
         fig = go.Figure()
 
@@ -439,8 +507,10 @@ def plotIETS(spinsys: SpinSys, Vrange: list = [-30, 30], N: int = 100, norm: boo
             margin=dict(l=60, r=20, t=60, b=60)
         )
 
-        fig.update_xaxes(range=[x0, x1], showgrid=True, gridcolor='lightgray', zeroline=False)
-        fig.update_yaxes(range=[y0, y1], showgrid=True, gridcolor='lightgray', zeroline=False)
+        fig.update_xaxes(range=[x0, x1], showgrid=True, 
+                         gridcolor='lightgray', zeroline=False)
+        fig.update_yaxes(range=[y0, y1], showgrid=True, 
+                         gridcolor='lightgray', zeroline=False)
 
         # add a black rectangle border around the plotting area
         fig.update_layout(
