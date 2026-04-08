@@ -25,8 +25,6 @@ plotIETS
 - Some functions modify attributes of the provided spin system in place, such as
   eigenstates, populations, or readout spin selection.
 """
-from collections.abc import Sequence
-
 import numpy as np
 import plotly.colors
 import plotly.graph_objects as go
