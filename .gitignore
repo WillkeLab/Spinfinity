@@ -5,3 +5,6 @@ __pycache__/
 
 # Ignore Jupyter notebooks checkpoints
 .ipynb_checkpoints/
+
+# Ignore Codex files 
+.codex

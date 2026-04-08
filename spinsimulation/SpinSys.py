@@ -1,17 +1,15 @@
 """Define the :class:`SpinSys` container used throughout the simulation package.
 
-This module provides a single high-level class, :class:`SpinSys`, which
+This module provides a single class, :class:`SpinSys`, which
 stores physical constants, system geometry, magnetic fields, interaction
 terms, tunneling parameters, and spectroscopy settings in one mutable
-object. It also includes helpers for parameter inspection, numeric
-formatting, and serialization via pickle.
+object. It also includes helpers for parameter inspection and saving/
+loading the object state.
 
 Notes
 -----
 - Energies are primarily handled in meV, with conversion factors to GHz
   and SI units.
-- The object is intended to be mutated in place before passing it to the
-  Hamiltonian, transport, and ESR routines in the surrounding package.
 """
 import os
 import pickle
@@ -59,8 +57,6 @@ class SpinSys:
         External magnetic field vector [T].
     BTip : list of float
         Magnetic field from the tip [T].
-    BTipGradient : list of float
-        Gradient of the tip magnetic field [T].
     tip : str
         Tip type: 'a' for antiferromagnetic, 'f' for ferromagnetic.
     H : ndarray
@@ -93,10 +89,6 @@ class SpinSys:
         Sample-sample conductance for each spin.
     G_tt : int
         Enables (1) or disables (0) tip-tip scattering contribution.
-    T02 : float
-        Tunneling parameter.
-    Jrs : float
-        Another Tunneling parameter.
     
     Kondo Parameters
     J : ndarray
@@ -110,12 +102,6 @@ class SpinSys:
         be calculated and precission^2 the minimal matrix element to be evaluated.
         The calculation speed drastically depends on this value.
     tunneling parameters relevant for scanning probe experiments, and Kondo physics.
-        
-    Notes
-    -----
-    This class provides a framework for simulating quantum spin systems, including
-    Hamiltonian construction, external field effects, anisotropy, dipole interactions,
-    and tunneling parameters relevant for scanning probe experiments.
     """
 
     # Constants
@@ -142,15 +128,15 @@ class SpinSys:
         for i in range(self.NSpins):  
             self.dimensionOfMatrix *= (2 * self.Spins[i] + 1)
         self.dimensionOfMatrix = int(self.dimensionOfMatrix)
-        self.ReadoutSpin = 0 
+        self.ReadoutSpin = 0
         self.AtomPositions = np.zeros((self.NSpins, 3))
-        self.latticeLengthXY = np.array([0.2877, 0.2877, 0])
+        # Lattice constants in the XY plane [nm]
+        self.latticeLengthXY = np.array([0.2877, 0.2877, 0]) 
 
         # External Parameters
         self.T = 1  # [K]
         self.B = [0.0, 0.0, 0.0]  # [T]
         self.BTip = [0.0, 0.0, 0.0]  # [T]
-        self.BTipGradient = [0, 0, 0]  # [T]
         self.tip = 'f'  # 'a' for antiferromagentic and 'f' for ferromagnetic
 
         # Spin Hamiltoninan
@@ -206,10 +192,6 @@ class SpinSys:
         # Stevens Operators
         self.Stevens = [{} for _ in range(self.NSpins)]
         self.use_Stevens = False  # Flag to indicate if Stevens operators are used
-
-        # ESR parameters
-        self.RabiRate = 1  # Rabi rate for ESR
-        self.T2 = 200  # coherence time
 
     # region PrintParameters
 
@@ -308,7 +290,6 @@ class SpinSys:
             'Magnetic Fields': {
                 'B_external': np.array(self.B) if hasattr(self, 'B') else 'Not set',
                 'BTip': np.array(getattr(self, 'BTip', [0, 0, 0])),
-                'BTipGradient': np.array(getattr(self, 'BTipGradient', [0, 0, 0])),
                 'g_factors': (
                     np.array(getattr(self, 'gfactorvector', []))
                     if getattr(self, 'gfactorvector', None) is not None
@@ -366,19 +347,6 @@ class SpinSys:
             params_dict['Tunneling']['U'] = self.U
         if hasattr(self, 'b0'):
             params_dict['Tunneling']['b0'] = self.b0
-            
-        # Add ESR parameters if they exist
-        params_dict['ESR'] = {}
-        if hasattr(self, 'RabiRate'):
-            params_dict['ESR']['RabiRate'] = self.RabiRate
-        if hasattr(self, 'T2'):
-            params_dict['ESR']['T2_coherence_time'] = self.T2
-        if hasattr(self, 'ReadoutSpin'):
-            params_dict['ESR']['ReadoutSpin'] = getattr(self, 'ReadoutSpin', 'Not set')
-        
-        # Remove ESR section if it's empty
-        if not params_dict['ESR']:
-            del params_dict['ESR']
             
         return params_dict
     
