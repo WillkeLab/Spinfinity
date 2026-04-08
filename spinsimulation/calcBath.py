@@ -138,7 +138,7 @@ def calcLifetimes(spinsys: SpinSys, AllowPumping: bool = True):
     """
     # Check whether the RateMatrix is already calculated
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-        calcRates(spinsys)
+        calcRates(spinsys, AllowPumping=AllowPumping)
 
     # Initialize the Rate array that somes up all rates that leave the state
     R1_tot = np.zeros(spinsys.dimensionOfMatrix)
@@ -313,7 +313,7 @@ def calcPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     if AllowPumping:
         # Calculate the rates if not already done
         if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-            calcRates(spinsys)
+            calcRates(spinsys, AllowPumping=AllowPumping)
         spinsys.K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
 
         for i in range(spinsys.dimensionOfMatrix):
@@ -695,6 +695,8 @@ def calcTunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
 # endregion Rate Calculations
 
 # region Visualization
+
+
 def plotPopulations(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Plot the thermal populations of the spin system's states.
