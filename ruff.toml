@@ -1,9 +1,33 @@
 include = [
-    "spinsimulation/SpinHamiltonian.py"
+    "spinsimulation/SpinSys.py",
+    "spinsimulation/SpinHamiltonian.py",
+    "spinsimulation/calcBath.py",
+    "spinsimulation/calcdIdV.py",
+    "spinsimulation/SpinPumping.py",
+    "spinsimulation/calcESR.py",
 ]
 
 [lint]
-select = ["D"]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pydocstyle
+    "D",
+    # pydoclint
+    "DOC",
+] 
+preview = true
+
 
 [lint.pydocstyle]
 convention = "numpy"
