@@ -1,7 +1,7 @@
 [project]
 name = "spinsimulation"
 version = "0.1.1"
-description = "Library for python code based on Markus Ternes dIdV simulation tool"
+description = "Library for python code to simulate spin systems in a tunnel junction"
 authors = [
     {name = "PaulGreule", email = "paul.greule@kit.edu"},
     {name = "JohannesSchwenk", email = "j.schwenk@kit.edu"}
@@ -13,8 +13,17 @@ dependencies = [
     "scipy (>=1.15.3,<2.0.0)",
     "matplotlib",
     "plotly (>=6.1.2,<7.0.0)",
-    "cma"
-    "Qutip"
+    "cma",
+    "qutip",
+    "joblib"
+]
+
+[project.optional-dependencies]
+docs = [
+    "mkdocs<2",
+    "mkdocs-material==9.*",
+    "mkdocstrings[python]",
+    "mkdocs-jupyter"
 ]
 
 [build-system]
