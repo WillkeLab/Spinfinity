@@ -259,7 +259,8 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
         calcPopulations(spinsys, AllowPumping=AllowPumping)
 
-    # Deriving the tunneling current using Equation 41 from Ternes paper
+    # Deriving the tunneling current using Equation 41 from Ternes (2015),
+    # https://dx.doi.org/10.1088/1367-2630/17/6/063016
     spinsys.I = 0
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
@@ -269,7 +270,7 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
             spinsys.I += I_temp
 
     # Adjust current calculation
-    spinsys.I += spinsys.b0 * spinsys.G * spinsys.V_DC
+    spinsys.I += spinsys.b0 * spinsys.G_st * spinsys.V_DC
 
     return spinsys.I
 
@@ -395,8 +396,8 @@ def calcRates(spinsys: SpinSys):
 
     Rate_0 = spinsys.MatrixST[0][0]  # Transition matrix element of the ground state
 
-    # Rate-Factors using Loth 2010
-    spinsys.G_st = (1 - spinsys.b0) * spinsys.G
+    # Rate-Factors using Loth et al. (2010), https://doi.org/10.1038/nphys1616
+    spinsys.G_st = (1 - spinsys.b0) * spinsys.G_st
 
     RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3

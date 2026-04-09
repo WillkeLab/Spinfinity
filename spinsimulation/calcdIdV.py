@@ -110,7 +110,7 @@ def calcIETS_2nd(
 
     # Normalize with Rate_00 to get correct units
     Rate_0 = RateMatrix[0][0]  # Transition matrix element of the ground state
-    dIdV_array = dIdV_array * spinsys.G / Rate_0
+    dIdV_array = dIdV_array * spinsys.G_st / Rate_0
     
     # Normalize dI/dV if required
     if norm:
@@ -206,8 +206,8 @@ def calcIETS_2ndR(
    
     Rate_0 = spinsys.Matrix[0][0]  # Transition matrix element of the ground state
 
-    # Using the approach of Loth 2010 (default)
-    spinsys.G_st = (1 - spinsys.b0) * spinsys.G
+    # Rate-Factors using Loth et al. (2010), https://doi.org/10.1038/nphys1616
+    spinsys.G_st = (1 - spinsys.b0) * spinsys.G_st
     RateFactor_ts = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_st = spinsys.G_st / (const.e * Rate_0) / 1e3
     RateFactor_ss = 1 / (const.e * Rate_0) / 1e3
@@ -243,8 +243,7 @@ def calcIETS_2ndR(
             Rates[0, :, :] + Rates[1, :, :] +
             Rates[2, :, :] + Rates[3, :, :] 
         )
-        # print(f"Calculated Rates at V={V_DC} mV")
-        # print(Rates_Summed[0,1])
+    
         # Build the Rate-Equation matrix
         K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
         for i in range(spinsys.dimensionOfMatrix):
@@ -252,7 +251,7 @@ def calcIETS_2ndR(
                 if i != j:
                     K[i, i] -= Rates_Summed[i, j]  # Rates leaving state i
                     K[i, j] = Rates_Summed[j, i]   # Rates leading to state i
-        # print(K)
+        
         # Calculate the thermal population (Boltzmann distribution)
         p0 = np.exp(-spinsys.E_All / (spinsys.kB * spinsys.T))
         pTot = np.sum(p0)
@@ -275,7 +274,8 @@ def calcIETS_2ndR(
             Populations = spinsys.pop_0
             print("Using thermal population (Boltzmann distribution).")
 
-        # Deriving the tunneling current using Equation 41 from Ternes paper
+        # Deriving the tunneling current using Equation 41 from Ternes (2015),
+        # https://dx.doi.org/10.1088/1367-2630/17/6/063016
         I_value = 0
         for i in range(spinsys.dimensionOfMatrix):
             for j in range(spinsys.dimensionOfMatrix):
@@ -283,7 +283,7 @@ def calcIETS_2ndR(
                 I_value += I_temp
 
         # Adjust current calculation
-        I_value += spinsys.b0 * spinsys.G * spinsys.V_DC
+        I_value += spinsys.b0 * spinsys.G_st * spinsys.V_DC
 
         Current[I_index] = I_value
         P[:, I_index] = Populations    

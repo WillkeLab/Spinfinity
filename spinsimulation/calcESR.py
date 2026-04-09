@@ -306,7 +306,7 @@ def calcESR_FreqSweep_ESRrate(
         @ spinsys.eigVectors
     )
     
-    # Calculate the cw current for each frequency
+    # Calculate the cw current for each frequency based on Yang 
     for freq_index in range(N):
         # calculate the ESR rate matrix
         for i in range(spinsys.dimensionOfMatrix):

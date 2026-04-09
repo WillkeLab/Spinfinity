@@ -3,6 +3,7 @@ site_description: Documentation of the Spinfinity Simulation Code
 
 theme:
   name: material
+  #logo: assets/images/icon.png
   features:
     - navigation.tabs
     - navigation.sections
@@ -13,6 +14,9 @@ theme:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      execute: false
+      show_source: true
   - mkdocstrings:
       handlers:
         python:
@@ -24,7 +28,11 @@ plugins:
 
 nav:
   - Home: index.md
-  - API Reference:
+  - Installation: installation.md
+  - Examples:
+      - First Notebook: examples/example.ipynb
+  - Fitting: fitting.md
+  - Documentation:
       - Spin System: api/spinsys.md
       - Spin Hamiltonian: api/spinhamiltonian.md
       - Bath: api/bath.md
