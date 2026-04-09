@@ -8,3 +8,6 @@ __pycache__/
 
 # Ignore Codex files 
 .codex
+
+# Ignore mkdocs cache
+.cache
