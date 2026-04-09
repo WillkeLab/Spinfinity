@@ -975,7 +975,7 @@ def calcTunnelCurrent_time(spinsys: SpinSys, Approach: str = "Loth"):
     if Approach == "Ternes":
         I = I / (const.e**2 * spinsys.T02 / spinsys.h_meV)
     if Approach == "Loth":
-        I = np.add(I, spinsys.b0 * spinsys.G * spinsys.V_DC)  # add factor to every element in array I
+        I = np.add(I, spinsys.b0 * spinsys.G_st * spinsys.V_DC)  # add factor to every element in array I
 
     return I
 

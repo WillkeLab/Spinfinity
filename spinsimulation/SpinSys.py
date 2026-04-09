@@ -83,7 +83,7 @@ class SpinSys:
         On-site energies for each spin.
     b0 : float
         Ratio of spin-independent tunneling electrons.
-    G : float
+    G_st : float
         Experimental conductance at 0V [A/V].
     G_ss : list
         Sample-sample conductance for each spin.
@@ -167,7 +167,7 @@ class SpinSys:
         self.SamplePolarization = [0, 0, 0]
         self.U = np.zeros(self.NSpins) 
         self.b0 = 0  # Ratio how many electrons that tunnel do not care about the spin!!
-        self.G = 1e-12  # [A/V], Experimental conductance at 0V;
+        self.G_st = 1e-12  # [A/V], Experimental conductance at 0V;
         self.G_ss = [1e-8] * self.NSpins  # Sample-Sample conductance
         self.G_tt = 0  # 1 enables tip-tip scattering contribution, 0 disables it!
 
@@ -334,7 +334,7 @@ class SpinSys:
                 getattr(self, 'SamplePolarization', [0, 0, 0])
             )
         if hasattr(self, 'G'):
-            params_dict['Tunneling']['Conductance_G_A_per_V'] = self.G
+            params_dict['Tunneling']['Conductance_G_A_per_V'] = self.G_st
         if hasattr(self, 'G_ss'):
             params_dict['Tunneling']['G_ss'] = (
                 np.array(self.G_ss)
