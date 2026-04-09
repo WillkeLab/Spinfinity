@@ -3,9 +3,9 @@ import scipy as sp
 import scipy.constants as const
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.calcdIdV as dIdV
+import spinsimulation.dIdV as dIdV
 import matplotlib.pyplot as plt
-import spinsimulation.calcBath as bath 
+import spinsimulation.Bath as bath 
 from scipy.signal import convolve
 import plotly.graph_objects as go
 import plotly.colors

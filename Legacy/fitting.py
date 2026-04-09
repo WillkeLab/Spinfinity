@@ -1,4 +1,4 @@
-from spinsimulation.calcdIdV3 import calcIETS_3rd
+from spinsimulation.dIdV3 import calcIETS_3rd
 from spinsimulation.SpinSys import SpinSys
 import plotly.graph_objects as go
 import copy

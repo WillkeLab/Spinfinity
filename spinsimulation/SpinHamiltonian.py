@@ -20,22 +20,22 @@ Key Features
 Main Components
 ---------------
 Spin Operators
-    - calcSpinOperators: Constructs Sx, Sy, Sz matrices for all spins
-    - calcAngMomMatrices: Generates angular momentum matrices for a
+    - calc_SpinOperators: Constructs Sx, Sy, Sz matrices for all spins
+    - calc_AngMomMatrices: Generates angular momentum matrices for a
       given spin quantum number
 Hamiltonian Construction
-    - calcEigEnergies: Constructs full Hamiltonian and solves for eigenenergies
-    - addZeeman: Adds Zeeman interaction term (external magnetic field)
-    - addTipField: Adds tip field contribution for readout spin
-    - addZeroField: Adds zero-field splitting and anisotropy terms
-    - addExchangeInteraction: Adds spin-spin exchange coupling
-    - calcDipolarCoupling: Calculates dipolar coupling constants
-    - addDipolarCoupling: Adds dipolar interaction to Hamiltonian
+    - calc_EigEnergies: Constructs full Hamiltonian and solves for eigenenergies
+    - add_Zeeman: Adds Zeeman interaction term (external magnetic field)
+    - add_TipField: Adds tip field contribution for readout spin
+    - add_ZeroField: Adds zero-field splitting and anisotropy terms
+    - add_ExchangeInteraction: Adds spin-spin exchange coupling
+    - calc_DipolarCoupling: Calculates dipolar coupling constants
+    - add_DipolarCoupling: Adds dipolar interaction to Hamiltonian
 Eigenstate Analysis
-    - calcEigStates: Generates eigenstate representations in Bra-Ket notation
+    - calc_EigStates: Generates eigenstate representations in Bra-Ket notation
 Stevens Operators
     - stevens_operator: Generates Stevens operator matrices for magnetic anisotropy
-    - setStevens: Sets Stevens operator coefficients
+    - set_Stevens: Sets Stevens operator coefficients
     - anticommutator: Computes anticommutator of two operators
 The module assumes spin systems are represented using the basis of eigenstates of Sz,
 with states ordered from m = -s to m = +s. All interaction matrices are constructed
@@ -48,7 +48,7 @@ from spinsimulation.SpinSys import SpinSys
 
 
 # region SpinOperators
-def calcSpinOperators(spinsys: SpinSys):
+def calc_SpinOperators(spinsys: SpinSys):
     """
     Compute the spin operator matrices for all spins in the given `SpinSys` object.
 
@@ -69,7 +69,7 @@ def calcSpinOperators(spinsys: SpinSys):
 
     Notes
     -----
-    The function assumes that the `calcAngMomMatrices` function is available and returns
+    The function assumes that the `calc_AngMomMatrices` function is available and returns
     the angular momentum matrices for a given spin quantum number. The spin operator
     matrices are constructed such that each operator acts non-trivially only on its
     corresponding spin and as the identity on all other spins.
@@ -93,7 +93,7 @@ def calcSpinOperators(spinsys: SpinSys):
     # Loop through each spin
     for i_spin in range(spinsys.NSpins):
         # Calculate angular momentum matrices for the given spin type
-        sigma_x, sigma_y, sigma_z = calcAngMomMatrices(s=spinsys.Spins[i_spin])
+        sigma_x, sigma_y, sigma_z = calc_AngMomMatrices(s=spinsys.Spins[i_spin])
 
         # Initialize temporary variables for spin operators
         SxTemp = sigma_x
@@ -120,7 +120,7 @@ def calcSpinOperators(spinsys: SpinSys):
     return 
 
 
-def calcAngMomMatrices(s: float):
+def calc_AngMomMatrices(s: float):
     """
     Calculate the angular momentum matrices for a given spin quantum number s.
 
@@ -170,7 +170,7 @@ def calcAngMomMatrices(s: float):
 # region Hamiltonian
 
 
-def calcEigStates(spinsys: SpinSys):
+def calc_EigStates(spinsys: SpinSys):
     """
     Construct the eigenstates of a spin system in Bra-Ket notation.
 
@@ -206,7 +206,7 @@ def calcEigStates(spinsys: SpinSys):
     """
     # Ensure the Hamiltonian is calculated and solved 
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        calcEigEnergies(spinsys)
+        calc_EigEnergies(spinsys)
 
     # Create the basis states in Bra-Ket notation
     basisStates = np.empty(spinsys.dimensionOfMatrix, dtype=object)
@@ -264,7 +264,7 @@ def calcEigStates(spinsys: SpinSys):
     return
 
 
-def calcEigEnergies(spinsys: SpinSys):
+def calc_EigEnergies(spinsys: SpinSys):
     """
     Construct the spin Hamiltonian for the given spin system and solve for eigenpairs.
 
@@ -286,21 +286,21 @@ def calcEigEnergies(spinsys: SpinSys):
     """
     # Ensure the spin operators are calculated before constructing the Hamiltonian
     if not hasattr(spinsys, 'Sx') or spinsys.Sx is None:
-        calcSpinOperators(spinsys)
+        calc_SpinOperators(spinsys)
     
     # This section initializes the Spin Hamiltonian and then solves it 
     spinsys.H = np.zeros(
         (spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix),
         dtype=complex,
     )  # Important to reset the spin Hamiltonian
-    addZeeman(spinsys)
-    addTipField(spinsys)
-    addZeroField(spinsys)
-    addExchangeInteraction(spinsys)
-    addExchangeOffDiagonal(spinsys)
-    # calcDipolarCoupling(spinsys)  # These two functions are split
+    add_Zeeman(spinsys)
+    add_TipField(spinsys)
+    add_ZeroField(spinsys)
+    add_ExchangeInteraction(spinsys)
+    add_ExchangeOffDiagonal(spinsys)
+    # calc_DipolarCoupling(spinsys)  # These two functions are split
     # because one may want to change the D0 entries manually.
-    addDipolarCoupling(spinsys)
+    add_DipolarCoupling(spinsys)
 
     # Solving the Hamiltonian and Sorting its Result 
     E, Evec = np.linalg.eigh(spinsys.H)
@@ -324,10 +324,10 @@ def calcEigEnergies(spinsys: SpinSys):
     #     if np.real(self.eigVectors[0, i]) < 0:
     #         self.eigVectors[:, i] = -self.eigVectors[:, i]
 
-    # self.calcEigStates()
+    # self.calc_EigStates()
 
 
-def addZeeman(spinsys: SpinSys):
+def add_Zeeman(spinsys: SpinSys):
     """
     Add the Zeeman term to the Hamiltonian of the spin system.
 
@@ -376,7 +376,7 @@ def addZeeman(spinsys: SpinSys):
     return
 
 
-def addTipField(spinsys: SpinSys):
+def add_TipField(spinsys: SpinSys):
     """
     Add the tip magnetic field contribution to the Hamiltonian for the readout spin.
 
@@ -444,7 +444,7 @@ def addTipField(spinsys: SpinSys):
     return
 
 
-def addZeroField(spinsys: SpinSys):
+def add_ZeroField(spinsys: SpinSys):
     """
     Build and add the anisotropy Hamiltonian for the spin system.
 
@@ -492,7 +492,7 @@ def addZeroField(spinsys: SpinSys):
                 spinsys.H += coeff * Oab_full
 
 
-def addExchangeInteraction(spinsys: SpinSys):
+def add_ExchangeInteraction(spinsys: SpinSys):
     """
     Add the exchange interaction terms to the spin system Hamiltonian.
 
@@ -535,7 +535,7 @@ def addExchangeInteraction(spinsys: SpinSys):
     return
 
 
-def addExchangeOffDiagonal(spinsys: SpinSys):
+def add_ExchangeOffDiagonal(spinsys: SpinSys):
     """
     Add off-diagonal exchange interaction terms to the spin system Hamiltonian.
 
@@ -591,7 +591,7 @@ def addExchangeOffDiagonal(spinsys: SpinSys):
     return
     
 
-def calcDipolarCoupling(spinsys: SpinSys):
+def calc_DipolarCoupling(spinsys: SpinSys):
     """
     Calculate the dipolar coupling constants for each spin pair.
 
@@ -637,7 +637,7 @@ def calcDipolarCoupling(spinsys: SpinSys):
     return
 
 
-def addDipolarCoupling(spinsys: SpinSys):
+def add_DipolarCoupling(spinsys: SpinSys):
     """
     Add dipolar coupling interactions to the spin Hamiltonian of a spin system.
 
@@ -754,7 +754,7 @@ def stevens_operator(S, k, q, return_latex=False):
         If k is not in {2, 4, 6} or if q is out of the valid range for the given k.
     """
     # Get angular momentum matrices
-    Sx_, Sy_, Sz_ = calcAngMomMatrices(S)
+    Sx_, Sy_, Sz_ = calc_AngMomMatrices(S)
     I_matrix = np.eye(Sx_.shape[0])
     ss = S * (S + 1)
 
@@ -899,7 +899,7 @@ def stevens_operator(S, k, q, return_latex=False):
     return e
 
 
-def setStevens(spinsys, i_spin, k, q, value):
+def set_Stevens(spinsys, i_spin, k, q, value):
     """
     Set a Stevens operator coefficient for a given spin.
 
@@ -945,7 +945,7 @@ def setStevens(spinsys, i_spin, k, q, value):
 # region Visualization
 
 
-def plotEigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
+def plot_EigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
     """
     Visualize the eigenstate matrix of the spin system as a heatmap.
 
@@ -983,7 +983,7 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
     # Check if eigVectors are calculated, if not calculate them. They
     # are needed for the projection matrix.
     if not hasattr(spinsys, 'states') or spinsys.eigVectors is None:
-        calcEigStates(spinsys)
+        calc_EigStates(spinsys)
             
     projection = np.zeros(
         [spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix],
@@ -1115,7 +1115,7 @@ def plotEigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
     return return_dict
     
 
-def plotZeemanDiagramm(
+def plot_ZeemanDiagramm(
     spinsys: SpinSys,
     B_array: np.ndarray = None,
     energyscale: str = 'meV',
@@ -1159,12 +1159,12 @@ def plotZeemanDiagramm(
     
     for i in range(N):
         spinsys.B = [0, 0, B_array[i]]
-        calcEigEnergies(spinsys)
+        calc_EigEnergies(spinsys)
         E[i, :] = spinsys.E_sort
 
     # Resotre the initial solution
     spinsys.B = Binitial
-    calcEigEnergies(spinsys)
+    calc_EigEnergies(spinsys)
         
     # Build a Plotly figure with white background
     fig = go.Figure()
@@ -1194,7 +1194,7 @@ def plotZeemanDiagramm(
     return return_dict
 
 
-def plotEnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
+def plot_EnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     """
     Plot the energy eigenvalues versus the expectation values of Sx, Sy, or Sz.
 
@@ -1228,7 +1228,7 @@ def plotEnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     the function will compute them.
     """
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        calcEigEnergies(spinsys)
+        calc_EigEnergies(spinsys)
 
     if type == 'z':
         S_Operator = np.sum(spinsys.Sz, axis=0)
@@ -1284,7 +1284,7 @@ def plotEnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     return return_dict
 
 
-def plotAll(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
+def plot_All(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     """
     Plot all relevant information for the spin system.
      
@@ -1302,9 +1302,9 @@ def plotAll(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
         The energy scale to use for the plots ('meV' or 'GHz'). Default is 'meV'.
     """
     # make them all plot next to each other
-    plotEigenMatrix(spinsys, plot_type='p')
-    plotEnergyVsS(spinsys, type=type, energyscale=energyscale)
-    plotZeemanDiagramm(spinsys, energyscale=energyscale)
+    plot_EigenMatrix(spinsys, plot_type='p')
+    plot_EnergyVsS(spinsys, type=type, energyscale=energyscale)
+    plot_ZeemanDiagramm(spinsys, energyscale=energyscale)
 
     return 
 

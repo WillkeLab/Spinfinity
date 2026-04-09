@@ -14,7 +14,7 @@ from joblib import Parallel, delayed
 # import other SpinFinity packages
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.calcBath as bath
+import spinsimulation.Bath as bath
 
 # import qutip code
 from qutip import Qobj, mesolve

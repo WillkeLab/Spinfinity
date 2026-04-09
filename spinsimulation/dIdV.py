@@ -16,7 +16,7 @@ calc_IETS_2nd
     Compute dI/dV using a second-order tunneling model.
 calc_IETS_2ndR
     Compute dI/dV using a second-order model with voltage-dependent rate equations.
-calculate_derivative
+calc_derivative
     Numerically differentiate current with respect to voltage.
 plot_IETS
     Plot IETS spectra for one or all spins using Plotly.
@@ -31,7 +31,7 @@ import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
 
-import spinsimulation.calcBath as bath
+import spinsimulation.Bath as bath
 import spinsimulation.SpinHamiltonian as hamil
 from spinsimulation.SpinSys import SpinSys
 
@@ -69,7 +69,7 @@ def calc_IETS_2nd(
     - The function assumes that the spin system contains all necessary attributes.
     - Eigenvalues and eigenvectors are calculated if not already present.
     - The calculation uses a Boltzmann distribution for thermal population.
-    - The tunneling rate matrix is computed using `calcTunnelingMatrixElements`.
+    - The tunneling rate matrix is computed using `calc_TunnelingMatrixElements`.
     - The output can be normalized for easier comparison.
     """
     # Initialize the arrays
@@ -81,13 +81,13 @@ def calc_IETS_2nd(
 
     # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        hamil.calcEigEnergies(spinsys)
+        hamil.calc_EigEnergies(spinsys)
 
     # Calculate the thermal population (Boltzmann distribution)
-    bath.calcPopulations(spinsys, AllowPumping=False)
+    bath.calc_Populations(spinsys, AllowPumping=False)
 
     # Calculate the Rate Matrix     
-    RateMatrix = bath.calcTunnelingMatrixElements(spinsys, "st")[0]
+    RateMatrix = bath.calc_TunnelingMatrixElements(spinsys, "st")[0]
 
     for i in range(spinsys.dimensionOfMatrix):
         if spinsys.pop_0[i] > 10**(-6):
@@ -193,12 +193,12 @@ def calc_IETS_2ndR(
 
     # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        hamil.calcEigEnergies(spinsys)
+        hamil.calc_EigEnergies(spinsys)
 
     # Getting the relevant matrix elements
-    spinsys.Matrix = bath.calcTunnelingMatrixElements(spinsys, "st")[0]
-    spinsys.MatrixSS = bath.calcTunnelingMatrixElements(spinsys, "ss")
-    spinsys.MatrixTT = bath.calcTunnelingMatrixElements(spinsys, "tt")[0]
+    spinsys.Matrix = bath.calc_TunnelingMatrixElements(spinsys, "st")[0]
+    spinsys.MatrixSS = bath.calc_TunnelingMatrixElements(spinsys, "ss")
+    spinsys.MatrixTT = bath.calc_TunnelingMatrixElements(spinsys, "tt")[0]
 
     MatrixSS_summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
     for i in range(spinsys.NSpins):
@@ -220,7 +220,7 @@ def calc_IETS_2ndR(
     )
     # Calculate the rates that stem from Tip tip and sample sample scattering,
     #  since they are not affected by the voltage
-    RateIntegrals_ss = bath.calcRateIntegrals(spinsys, 'ss')
+    RateIntegrals_ss = bath.calc_RateIntegrals(spinsys, 'ss')
     RateIntegrals_tt = RateIntegrals_ss
     Rates[2, :, :] = RateFactor_ss * MatrixSS_summed * RateIntegrals_ss
     Rates[3, :, :] = RateFactor_tt * spinsys.MatrixTT * RateIntegrals_tt * spinsys.G_tt
@@ -231,8 +231,8 @@ def calc_IETS_2ndR(
         spinsys.V_DC = V_DC
 
         # Calculate changing rate integrals for the current voltage
-        RateIntegrals_ts = bath.calcRateIntegrals(spinsys, 'ts')
-        RateIntegrals_st = bath.calcRateIntegrals(spinsys, 'st')
+        RateIntegrals_ts = bath.calc_RateIntegrals(spinsys, 'ts')
+        RateIntegrals_st = bath.calc_RateIntegrals(spinsys, 'st')
         
         # Calculate rates based on rate factors and integrals
         Rates[0, :, :] = RateFactor_ts * spinsys.Matrix.T * RateIntegrals_ts
@@ -289,7 +289,7 @@ def calc_IETS_2ndR(
         P[:, I_index] = Populations    
 
     # Calculate the derivative (dI/dV)
-    dIdV = calculate_derivative(Current, (V_array * 1e-3))  # Convert V_array to volts
+    dIdV = calc_derivative(Current, (V_array * 1e-3))  # Convert V_array to volts
 
     # Normalize dI/dV if required
     if norm:
@@ -298,7 +298,7 @@ def calc_IETS_2ndR(
     return V_array, dIdV, P
 
 
-def calculate_derivative(Current: list, Voltage: list):
+def calc_derivative(Current: list, Voltage: list):
     """
     Calculate the numerical derivative dI/dV of current (I) with respect to voltage (V).
 

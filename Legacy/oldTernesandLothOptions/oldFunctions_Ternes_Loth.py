@@ -1064,7 +1064,7 @@ from plotly.subplots import make_subplots
 
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.calcBath as bath
+import spinsimulation.Bath as bath
 
 # region 2nd Order
 
