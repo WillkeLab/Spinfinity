@@ -12,13 +12,13 @@ calculation.
 
 Functions
 ---------
-calcIETS_2nd
+calc_IETS_2nd
     Compute dI/dV using a second-order tunneling model.
-calcIETS_2ndR
+calc_IETS_2ndR
     Compute dI/dV using a second-order model with voltage-dependent rate equations.
 calculate_derivative
     Numerically differentiate current with respect to voltage.
-plotIETS
+plot_IETS
     Plot IETS spectra for one or all spins using Plotly.
 - Energies and voltages are treated in the conventions used by the surrounding
   spin-simulation package.
@@ -38,7 +38,7 @@ from spinsimulation.SpinSys import SpinSys
 # region 2nd Order
 
 
-def calcIETS_2nd(
+def calc_IETS_2nd(
     spinsys: SpinSys,
     V_array: np.ndarray = None,
     norm: bool = False,
@@ -145,7 +145,7 @@ def tunnelingBroadenedStepFunction(x_V):
 # region 2nd Order + Rate
 
 
-def calcIETS_2ndR(
+def calc_IETS_2ndR(
     spinsys: SpinSys,
     V_array: np.ndarray = None,
     AllowPumping: bool = True,
@@ -339,7 +339,7 @@ def calculate_derivative(Current: list, Voltage: list):
 # region Visualization
 
 
-def plotIETS(
+def plot_IETS(
     spinsys: SpinSys,
     V_array: np.ndarray = None,
     norm: bool = False,
@@ -398,9 +398,9 @@ def plotIETS(
         y = np.zeros(N)  # dI/dV Signal
         # Calculate the IETS spectrum for the specified order
         if order == '2nd':
-            x, y = calcIETS_2nd(spinsys, V_array=V_array, norm=norm)
+            x, y = calc_IETS_2nd(spinsys, V_array=V_array, norm=norm)
         elif order == '2ndR':
-            x, y, _ = calcIETS_2ndR(spinsys, V_array=V_array, norm=norm)
+            x, y, _ = calc_IETS_2ndR(spinsys, V_array=V_array, norm=norm)
         else:
             raise ValueError("Unsupported order. Currently only '2nd'"
             "and '2ndR' order is implemented.")
@@ -463,9 +463,9 @@ def plotIETS(
             spinsys.ReadoutSpin = i
             
             if order == '2nd':
-                x, y[i, :] = calcIETS_2nd(spinsys, V_array=V_array, norm=norm)
+                x, y[i, :] = calc_IETS_2nd(spinsys, V_array=V_array, norm=norm)
             elif order == '2ndR':
-                x, y[i, :], _ = calcIETS_2ndR(spinsys, V_array=V_array, norm=norm)
+                x, y[i, :], _ = calc_IETS_2ndR(spinsys, V_array=V_array, norm=norm)
             else:
                 raise ValueError("Unsupported order. Currently only '2nd' "
                 "and '2ndR' order are implemented.")
