@@ -1,1 +1,1 @@
-:::spinsimulation.calcESR
+:::spinsimulation.ESR

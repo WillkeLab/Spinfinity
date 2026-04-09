@@ -44,14 +44,14 @@ import scipy.constants as const
 from matplotlib import cm
 from scipy.linalg import null_space
 
-import spinsimulation.calcBath as bath
+import spinsimulation.Bath as bath
 import spinsimulation.SpinHamiltonian as hamil
 from spinsimulation.SpinSys import SpinSys
 
 # region Calculations
 
 
-def calcESR_FreqSweep(
+def calc_FreqSweep(
     spinsys: SpinSys,
     freq_array: np.ndarray = None,
     AllowPumping: bool = False,
@@ -95,7 +95,6 @@ def calcESR_FreqSweep(
       for each allowed transition.
     """
     # Initialize
-    spinsys.ESRshift = 0  # Dont remember what thuis is for
     if freq_array is None:
         freq_array = np.linspace(10, 20, 1000, dtype=float)
     N = len(freq_array)
@@ -109,12 +108,12 @@ def calcESR_FreqSweep(
 
     # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        hamil.calcEigEnergies(spinsys)
+        hamil.calc_EigEnergies(spinsys)
 
-    bath.calcPopulations(spinsys, AllowPumping=AllowPumping)
+    bath.calc_Populations(spinsys, AllowPumping=AllowPumping)
 
     # Look at transitions
-    spinsys.RecordedTransitions = calcRecordedTransitions(spinsys, freq_array[0],
+    spinsys.RecordedTransitions = calc_RecordedTransitions(spinsys, freq_array[0],
                                                            freq_array[-1])
     spinsys.ResonanceFrequencies = np.zeros(len(spinsys.RecordedTransitions))
 
@@ -140,6 +139,9 @@ def calcESR_FreqSweep(
                 "potential transitions in the specified frequency range"
             )
 
+    # Avoid zero tip field for amplitude calculation
+    spinsys.BTip[0] = spinsys.BTip[0] + 1e-9  # Ass a small value for the x-component
+    
     # Amplitude calculation
     for k in range(len(spinsys.ResonanceFrequencies)):
         i = spinsys.RecordedTransitions[k][0]  # Initial state index
@@ -179,7 +181,7 @@ def calcESR_FreqSweep(
     return freq_array, ESRsignal
 
 
-def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
+def calc_RecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     """
     Calculate and record transitions between quantum states within an energy range. 
     
@@ -228,7 +230,7 @@ def calcRecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     return RecordedTransitions 
 
 
-def calcESR_FreqSweep_ESRrate(
+def calc_FreqSweep_ESRrate(
         spinsys: SpinSys, 
         freq_array: np.ndarray = None,
         RabiRate: float = 1,
@@ -281,12 +283,12 @@ def calcESR_FreqSweep_ESRrate(
 
     # Calculate the Eignevalues and Eignevectors if not already done
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
-        hamil.calcEigEnergies(spinsys)
+        hamil.calc_EigEnergies(spinsys)
 
     # Calculate the RF off tunnel current via the rates
 
     # if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
-    bath.calcPopulations(spinsys)
+    bath.calc_Populations(spinsys)
     
     I_off = 0
     for i in range(spinsys.dimensionOfMatrix):
@@ -316,7 +318,7 @@ def calcESR_FreqSweep_ESRrate(
                         0.5
                         * RabiRate**2
                         * abs(TransitionMatrixElement[i, j])**2
-                        * spinsys.T2
+                        * T2
                         / (
                             (
                                 freq_array[freq_index]
@@ -372,7 +374,7 @@ def calcESR_FreqSweep_ESRrate(
     return freq_array, ESRsignal
 
 
-def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
+def calc_Populations_ESR(spinsys: SpinSys, freq: float = 14):
     """Calculate the steady-state populations of a spin system under ESR.
 
     This function updates the populations of the given spin system by
@@ -399,8 +401,8 @@ def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
     - If the rate matrix has no null space, the thermal population
       (`spinsys.pop_0`) is used.
     """
-    bath.calcPopulations(spinsys, AllowPumping=True)
-    addESRrate(spinsys, freq=freq)
+    bath.calc_Populations(spinsys, AllowPumping=True)
+    add_ESRrate(spinsys, freq=freq)
 
     K = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
     Rates_Summed = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
@@ -422,7 +424,7 @@ def calcPopulations_ESR(spinsys: SpinSys, freq: float = 14):
     return spinsys.Populations_ESR
 
 
-def addESRrate(spinsys: SpinSys, freq: float = 14,
+def add_ESRrate(spinsys: SpinSys, freq: float = 14,
                 RabiRate: float = 1, T2: float = 200):
     """
     Add the ESR (Electron Spin Resonance) transition rates to the given spin system.
@@ -449,12 +451,12 @@ def addESRrate(spinsys: SpinSys, freq: float = 14,
     Notes
     -----
     - If the `Rates` attribute of `spinsys` is not present or is
-      `None`, the function calls `bath.calcRates(spinsys)` to
+      `None`, the function calls `bath.calc_Rates(spinsys)` to
       initialize it.
     - The ESR rates are stored in `spinsys.ESRRates`.
     """
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
-        bath.calcRates(spinsys)
+        bath.calc_Rates(spinsys)
 
     # Initialize the ESR rates if not already present
     spinsys.ESRRates = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
@@ -483,7 +485,7 @@ def addESRrate(spinsys: SpinSys, freq: float = 14,
 # region Visualization
 
 
-def plotESR_FreqSweep(
+def plot_FreqSweep(
     spinsys: SpinSys,
     freq_array: np.ndarray = None,
     AllowPumping: bool = False,
@@ -526,11 +528,11 @@ def plotESR_FreqSweep(
 
     Notes
     -----
-    - The ESR spectrum is calculated using `calcESR_FreqSweep`.
+    - The ESR spectrum is calculated using `calc_FreqSweep`.
     - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
     # calculate the ESR spectrum
-    Freq_array, ESRsignal = calcESR_FreqSweep(
+    Freq_array, ESRsignal = calc_FreqSweep(
         spinsys,
         freq_array=freq_array,
         AllowPumping=AllowPumping,
@@ -597,9 +599,11 @@ def plotESR_FreqSweep(
     return return_dict
 
 
-def plotESR_FreqSweep_ESRrate(
+def plot_FreqSweep_ESRrate(
     spinsys: SpinSys,
     freq_array: np.ndarray = None,
+    RabiRate: float = 1,
+    T2: float = 200,
     norm: bool = True,
 ):
     """Compute and plot the ESR spectrum based on the ESR driving rate.
@@ -616,6 +620,10 @@ def plotESR_FreqSweep_ESRrate(
     freq_array : np.ndarray, optional
         An array of frequency points (in GHz) at which the ESR spectrum is calculated.
         If None, a default range from 10 to 20 GHz and 200 points will be used.
+    RabiRate : float, optional
+        The Rabi rate for the ESR transition (in GHz, default is 1).
+    T2 : float, optional
+        The coherence time (in ns) for the ESR transition (default is 200).
     norm : bool, optional
         Whether to normalize the ESR signal (default is True).
 
@@ -632,18 +640,20 @@ def plotESR_FreqSweep_ESRrate(
         
     Notes
     -----
-    - The ESR spectrum is calculated using `calcESR_FreqSweep_ESRrate`.
+    - The ESR spectrum is calculated using `calc_FreqSweep_ESRrate`.
     - Adds ResonanceFrequencies and RecordedTransitions to the spinsys object.
     """
     # Calculate the ESR spectrum using the specified parameters
-    Freq_array, ESRsignal = calcESR_FreqSweep_ESRrate(
+    Freq_array, ESRsignal = calc_FreqSweep_ESRrate(
         spinsys,
         freq_array=freq_array,
+        RabiRate=RabiRate,
+        T2=T2,
         norm=norm,
     )
     
     # Record the transitions
-    spinsys.RecordedTransitions = calcRecordedTransitions(
+    spinsys.RecordedTransitions = calc_RecordedTransitions(
         spinsys,
         Freq_array[0],
         Freq_array[-1],
@@ -708,7 +718,7 @@ def plotESR_FreqSweep_ESRrate(
     return return_dict
 
 
-def plotESR_Tipfieldsweep(
+def plot_Tipfieldmap(
     spinsys: SpinSys,
     freq_array: np.ndarray = None,
     BTip_array: np.ndarray = None,
@@ -756,7 +766,7 @@ def plotESR_Tipfieldsweep(
     -----
     - The initial tip magnetic field of the spin system is restored
       after the calculation.
-    - The ESR spectrum is calculated using `calcESR_FreqSweep`.
+    - The ESR spectrum is calculated using `calc_FreqSweep`.
     """
     # Save previous BTip value
     BTip_initial = spinsys.BTip.copy()
@@ -774,10 +784,10 @@ def plotESR_Tipfieldsweep(
     # calculating the ESR signal for each Field 
     for i in range(N_B):
         spinsys.BTip[2] = BTip_array[i] * np.cos(Angle * np.pi / 180)
-        spinsys.BTip[0] = BTip_array[i] * np.sin(Angle * np.pi / 180) + 1e-6
+        spinsys.BTip[0] = BTip_array[i] * np.sin(Angle * np.pi / 180) + 1e-9
         spinsys.BTip[1] = 0  # BTip[0] is the y-component of the tip field
-        hamil.calcEigEnergies(spinsys)
-        f, ESRsignal[i][:] = calcESR_FreqSweep(
+        hamil.calc_EigEnergies(spinsys)
+        f, ESRsignal[i][:] = calc_FreqSweep(
             spinsys,
             norm=norm,
             lw=lw,
@@ -839,7 +849,7 @@ def plotESR_Tipfieldsweep(
 
     # Restore the initial BTip value
     spinsys.BTip = BTip_initial
-    hamil.calcEigEnergies(spinsys)
+    hamil.calc_EigEnergies(spinsys)
 
     return_dict = {
         'fig': fig,
@@ -850,7 +860,7 @@ def plotESR_Tipfieldsweep(
     return return_dict
 
 
-def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None):
+def plot_ESRPopulations(spinsys: SpinSys, freq: float = 14, filter: float = None):
     """
     Plot the populations of spin states for a given spin system under ESR conditions.
 
@@ -892,9 +902,9 @@ def plotESR_Populations(spinsys: SpinSys, freq: float = 14, filter: float = None
     - If the eigenstates are not already calculated, the function will compute them.
     - Adds Populations_ESR to the spinsys object.
     """
-    calcPopulations_ESR(spinsys, freq=freq)
+    calc_Populations_ESR(spinsys, freq=freq)
     if not hasattr(spinsys, 'basisSates') or spinsys.basisStates is None:
-        hamil.calcEigStates(spinsys)
+        hamil.calc_EigStates(spinsys)
     
     width = 0.2
 

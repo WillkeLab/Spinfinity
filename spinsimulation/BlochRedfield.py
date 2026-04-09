@@ -73,7 +73,7 @@ from scipy.linalg import null_space
 from scipy.special import expit
 from spinsimulation.SpinSys import SpinSys
 import spinsimulation.SpinHamiltonian as hamil
-import spinsimulation.calcBath as bath
+import spinsimulation.Bath as bath
 import matplotlib.pyplot as plt
 
 

@@ -1,1 +1,1 @@
-:::spinsimulation.calcBath
+:::spinsimulation.Bath

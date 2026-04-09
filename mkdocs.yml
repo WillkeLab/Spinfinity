@@ -29,10 +29,11 @@ plugins:
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Examples:
-      - First Notebook: examples/example.ipynb
+  - Tutorials:
+      - First Notebook: tutorials/example.ipynb
   - Fitting: fitting.md
   - Documentation:
+      - Overview: documentation.md
       - Spin System: api/spinsys.md
       - Spin Hamiltonian: api/spinhamiltonian.md
       - Bath: api/bath.md
