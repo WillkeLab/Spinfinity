@@ -259,7 +259,7 @@ def calcTunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
         calcPopulations(spinsys, AllowPumping=AllowPumping)
 
-    # Deriving the tunneling current using Equation 41 from Ternes paper
+    # Deriving the tunneling current using Equation 41 from https://dx.doi.org/10.1088/1367-2630/17/6/063016
     spinsys.I = 0
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
