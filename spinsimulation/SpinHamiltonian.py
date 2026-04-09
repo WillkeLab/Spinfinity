@@ -69,10 +69,10 @@ def calc_SpinOperators(spinsys: SpinSys):
 
     Notes
     -----
-    The function assumes that the `calc_AngMomMatrices` function is available and returns
-    the angular momentum matrices for a given spin quantum number. The spin operator
-    matrices are constructed such that each operator acts non-trivially only on its
-    corresponding spin and as the identity on all other spins.
+    The function assumes that the `calc_AngMomMatrices` function is available 
+    and returns the angular momentum matrices for a given spin quantum number. 
+    The spin operator matrices are constructed such that each operator acts
+    non-trivially only on its corresponding spin and as the identity on all other spins.
     """
     spinsys.Sx = np.zeros(
         (spinsys.NSpins, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix),
