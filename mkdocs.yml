@@ -3,7 +3,20 @@ site_description: Documentation of the Spinfinity Simulation Code
 
 theme:
   name: material
-  #logo: assets/images/icon.png
+  logo: assets/images/icon.png
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
   features:
     - navigation.tabs
     - navigation.sections
@@ -11,12 +24,16 @@ theme:
     - content.code.copy
     - search.suggest
     - search.highlight
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search
   - mkdocs-jupyter:
-      execute: false
+      execute: true
+      allow_errors: false
       show_source: true
+      include_requirejs: true
   - mkdocstrings:
       handlers:
         python:

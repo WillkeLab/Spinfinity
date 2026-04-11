@@ -11,3 +11,6 @@ __pycache__/
 
 # Ignore mkdocs cache
 .cache
+
+# Ignore mkdocs site output
+\site
