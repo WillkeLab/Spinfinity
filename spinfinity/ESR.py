@@ -29,9 +29,9 @@ Dependencies
 - SciPy constants and linear algebra utilities.
 - Plotly for interactive visualization.
 - Internal modules:
-    ``spinsimulation.calcBath``,
-    ``spinsimulation.SpinHamiltonian``,
-    ``spinsimulation.SpinSys``.
+    ``spinfinity.calcBath``,
+    ``spinfinity.SpinHamiltonian``,
+    ``spinfinity.SpinSys``.
 The functions in this module mutate the supplied ``SpinSys`` object by populating
 attributes such as eigenvectors, transition lists, resonance frequencies, ESR rates,
 and population arrays. Callers should therefore treat ``spinsys`` as a working state
@@ -44,9 +44,9 @@ import scipy.constants as const
 from matplotlib import cm
 from scipy.linalg import null_space
 
-import spinsimulation.Bath as bath
-import spinsimulation.SpinHamiltonian as hamil
-from spinsimulation.SpinSys import SpinSys
+import spinfinity.Bath as bath
+import spinfinity.SpinHamiltonian as hamil
+from spinfinity.SpinSys import SpinSys
 
 # region Calculations
 

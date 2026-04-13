@@ -9,8 +9,8 @@ import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil 
 
 # region Physical Quantities
 
@@ -1062,9 +1062,9 @@ import plotly.graph_objects as go
 import plotly.colors
 from plotly.subplots import make_subplots
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.Bath as bath
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil 
+import spinfinity.Bath as bath
 
 # region 2nd Order
 

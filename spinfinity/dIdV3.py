@@ -1,11 +1,11 @@
 import numpy as np
 import scipy as sp
 import scipy.constants as const
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.dIdV as dIdV
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil 
+import spinfinity.dIdV as dIdV
 import matplotlib.pyplot as plt
-import spinsimulation.Bath as bath 
+import spinfinity.Bath as bath 
 from scipy.signal import convolve
 import plotly.graph_objects as go
 import plotly.colors

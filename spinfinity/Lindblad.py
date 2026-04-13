@@ -12,9 +12,9 @@ from joblib import Parallel, delayed
 
 
 # import other SpinFinity packages
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.Bath as bath
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil 
+import spinfinity.Bath as bath
 
 # import qutip code
 from qutip import Qobj, mesolve

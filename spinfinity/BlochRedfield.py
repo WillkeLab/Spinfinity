@@ -24,7 +24,7 @@ Usage Examples:
 
 Basic substrate relaxation calculation:
 ```python
-import spinsimulation as ss
+import spinfinity as ss
 
 # Create spin system
 spinsys = ss.SpinSys()
@@ -71,9 +71,9 @@ import numpy as np
 import scipy.linalg as la
 from scipy.linalg import null_space
 from scipy.special import expit
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil
-import spinsimulation.Bath as bath
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil
+import spinfinity.Bath as bath
 import matplotlib.pyplot as plt
 
 

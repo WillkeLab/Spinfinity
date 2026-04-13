@@ -5,7 +5,7 @@ This module provides routines to compute differential conductance spectra using:
 - second-order perturbation theory,
 - second-order theory with rate-equation populations,
 - Plotly-based visualization of the resulting spectra.
-The main workflow is based on a :class:`~spinsimulation.SpinSys.SpinSys` instance,
+The main workflow is based on a :class:`~spinfinity.SpinSys.SpinSys` instance,
 which is expected to contain the spin Hamiltonian, eigenstates, populations,
 coupling parameters, and other system-specific quantities required for the
 calculation.
@@ -31,9 +31,9 @@ import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
 
-import spinsimulation.Bath as bath
-import spinsimulation.SpinHamiltonian as hamil
-from spinsimulation.SpinSys import SpinSys
+import spinfinity.Bath as bath
+import spinfinity.SpinHamiltonian as hamil
+from spinfinity.SpinSys import SpinSys
 
 # region 2nd Order
 

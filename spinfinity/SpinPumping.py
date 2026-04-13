@@ -7,7 +7,7 @@ with Plotly.
 
 Notes
 -----
-- Most functions operate on :class:`~spinsimulation.SpinSys.SpinSys`
+- Most functions operate on :class:`~spinfinity.SpinSys.SpinSys`
   instances and update the supplied objects in place during sweeps.
 - The routines build on rate, population, and magnetization utilities
   defined in the surrounding simulation package.
@@ -19,9 +19,9 @@ import plotly.colors
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-import spinsimulation.Bath as bath
-import spinsimulation.SpinHamiltonian as hamil
-from spinsimulation.SpinSys import SpinSys
+import spinfinity.Bath as bath
+import spinfinity.SpinHamiltonian as hamil
+from spinfinity.SpinSys import SpinSys
 
 
 # region Calculations

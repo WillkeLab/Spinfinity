@@ -1,7 +1,7 @@
 """Compute bath, rate, transport, and population quantities for spin systems.
 
 This module provides helper functions that operate on
-:class:`~spinsimulation.SpinSys.SpinSys` instances to calculate
+:class:`~spinfinity.SpinSys.SpinSys` instances to calculate
 magnetization, state populations, transition rates, tunneling matrix
 elements, lifetimes, and several related visualization outputs.
 
@@ -18,8 +18,8 @@ import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
 
-import spinsimulation.SpinHamiltonian as hamil
-from spinsimulation.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil
+from spinfinity.SpinSys import SpinSys
 
 # region Physical Quantities
 

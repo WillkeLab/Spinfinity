@@ -1,4 +1,4 @@
-The authors recommend to install the "spinsimulation" package to a python
+The authors recommend to install the "spinfinity" package in a python
 environment. Create and activate a Python environment with Python 3.10 or newer, 
 then install the package from the project root:
 

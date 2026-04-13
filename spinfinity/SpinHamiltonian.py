@@ -44,7 +44,7 @@ using Kronecker products to embed single-spin operators into the full Hilbert sp
 import numpy as np
 import plotly.graph_objects as go
 
-from spinsimulation.SpinSys import SpinSys
+from spinfinity.SpinSys import SpinSys
 
 
 # region SpinOperators

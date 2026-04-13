@@ -1,5 +1,5 @@
-from spinsimulation.dIdV3 import calcIETS_3rd
-from spinsimulation.SpinSys import SpinSys
+from spinfinity.dIdV3 import calcIETS_3rd
+from spinfinity.SpinSys import SpinSys
 import plotly.graph_objects as go
 import copy
 import numpy as np
