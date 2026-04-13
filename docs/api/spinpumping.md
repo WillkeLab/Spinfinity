@@ -1,1 +1,1 @@
-:::spinsimulation.SpinPumping
+:::spinfinity.SpinPumping

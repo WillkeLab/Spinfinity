@@ -1,1 +1,1 @@
-:::spinsimulation.Bath
+:::spinfinity.Bath

@@ -1,16 +1,52 @@
-"""Compute bath, rate, transport, and population quantities for spin systems.
+"""
+Calculations and visualizations related to the electron bath coupled to the spin system.
 
-This module provides helper functions that operate on
-:class:`~spinfinity.SpinSys.SpinSys` instances to calculate
-magnetization, state populations, transition rates, tunneling matrix
-elements, lifetimes, and several related visualization outputs.
+This module provides functions to calculates various physical quantities based on
+the second order tunneling theory. It most importantly calculates the tunneling rates 
+and matrix elements. From this various physical quantities can be derived, such as 
+magnetization, lifetimes, tunneling current, and population distributions. 
 
-Notes
------
-- Most functions update attributes on the provided ``spinsys`` object
-  in place.
-- The routines in this module are used by the transport and ESR
-  calculations elsewhere in the package.
+Functions
+---------
+calc_Magnetization
+    Calculate the magnetization of a spin system along a specified axis.
+calc_Lifetimes
+    Calculate the lifetimes (T1) for each state in a spin system.
+calc_TunnelCurrent
+    Calculate the tunneling current for the given spin system.
+calc_Populations
+    Calculate the population distribution of spin states in a given spin system.
+calc_Rates
+    Calculate transition rates for a given spin system.
+calc_RateIntegrals
+    Calculate rate integrals for a given spin system and bias voltage.
+calc_TunnelingMatrixElements
+    Calculate the tunneling matrix elements for a given spin system and scattering type.
+calc_TunnelingElectronMatrixElements
+    Calculate tunneling electron matrix elements.
+plot_Populations
+    Plot the thermal populations of the spin system's states.
+plot_RateContributions
+    Plot the contributions of the highest N transition rates between spin states.
+plot_RatesTo
+    Plot the rate contributions to a specified state in a spin system.
+plot_RatesFrom
+    Plot the rate contributions from a specified state in a spin system.
+
+Dependencies
+------------
+- Uses `spinfinity.SpinSys.SpinSys` class to represent the spin system
+  and its properties.
+- Uses `spinfinity.SpinHamiltonian` for eigenvalue and eigenvector calculations.
+
+References
+----------
+- Ternes, M., *Spin excitations and correlations in scanning tunneling spectroscopy*. 
+New J. Phys. 17, 063016 (2015). 
+[https://dx.doi.org/10.1088/1367-2630/17/6/063016](https://dx.doi.org/10.1088/1367-2630/17/6/063016) 
+- Loth, S., von Bergmann, K., Ternes, M. et al. *Controlling the state of quantum 
+spins with electric currents*. Nature Phys 6, 340–344 (2010). 
+[https://doi.org/10.1038/nphys1616](https://doi.org/10.1038/nphys1616)
 """
 
 import numpy as np
@@ -27,6 +63,10 @@ from spinfinity.SpinSys import SpinSys
 def calc_Magnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = True):
     """
     Calculate the magnetization of a spin system along a specified axis.
+
+    This function calculates the magnetization of a spin system by projecting the spin
+    operators onto the eigenstates of the system and weighting them by the population of
+    each state. The magnetization can be calculated along the 'x', 'y', or 'z' axis.
 
     Parameters
     ----------
@@ -51,10 +91,10 @@ def calc_Magnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = T
     Notes
     -----
     The function updates the following attributes of `spinsys`:
-        - Mag_tot: Total magnetization of the system.
-        - Mag_tot_max: Maximum possible total magnetization.
-        - Mag: Magnetization for each individual spin.
-        - Mag_max: Maximum possible magnetization for each spin.
+        - Mag_tot: The total magnetization of the system.
+        - Mag_tot_max: The maximum possible total magnetization.
+        - Mag: The magnetization for each individual spin.
+        - Mag_max: The maximum possible magnetization for each spin.
         - Magtype: The axis along which magnetization was calculated.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
@@ -128,11 +168,12 @@ def calc_Lifetimes(spinsys: SpinSys):
 
     Notes
     -----
-    - `T1_tot` is the total lifetime for each state, 
-    considering all possible transitions.
-    - `T1_ss` is the natural lifetime for each state, 
-    considering only sample scattering transitions.
-    - Requires the `Rates` and `Rates_Summed` attributes in the `spinsys` object.
+    The function updates the following attributes of `spinsys`:
+
+    - `spinsys.T1_tot`: The total lifetime for each state, considering
+    all possible transitions.
+    - `spinsys.T1_ss`: The natural lifetime for each state, 
+    considering only sample-sample scattering.
     """
     # Check whether the RateMatrix is already calculated
     if not hasattr(spinsys, 'Rates') or spinsys.Rates is None:
@@ -159,6 +200,9 @@ def calc_TunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
     """
     Calculate the tunneling current for the given spin system.
 
+    The tunneling current is calculated using the populations of the spin states. If
+    the populations are not already calculated, they will be computed. 
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -169,33 +213,26 @@ def calc_TunnelCurrent(spinsys: SpinSys, AllowPumping: bool = True):
 
     Returns
     -------
-    I : float
+    Current : float
         The calculated tunneling current.
-
-    Notes
-    -----
-    - The function updates the `I` attribute of the `spinsys` object in-place.
-    - The current is calculated using the populations and transition
-      rates between spin states.
-    - If populations are not available, they are calculated using `calc_Populations`.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
         calc_Populations(spinsys, AllowPumping=AllowPumping)
 
     # Deriving the tunneling current using Equation 41 from Ternes (2015),
     # https://dx.doi.org/10.1088/1367-2630/17/6/063016
-    spinsys.I = 0
+    Current = 0
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
-            I_temp = const.e * spinsys.Populations[i] * (
+            Current_temp = const.e * spinsys.Populations[i] * (
                 spinsys.Rates[0, i, j] - spinsys.Rates[1, i, j]
             )
-            spinsys.I += I_temp
+            Current += Current_temp
 
     # Adjust current calculation
-    spinsys.I += spinsys.b0 * spinsys.G_st * spinsys.V_DC
+    Current += spinsys.b0 * spinsys.G_st * spinsys.V_DC
 
-    return spinsys.I
+    return Current
 
 
 def calc_Populations(spinsys: SpinSys, AllowPumping: bool = True):
@@ -204,8 +241,7 @@ def calc_Populations(spinsys: SpinSys, AllowPumping: bool = True):
 
     Computes the thermal population distribution based on Boltzmann statistics.
     If pumping is allowed, calculates the non-thermal population by solving the
-    steady-state of the rate equations. The function updates the `Populations`
-    attribute of the `spinsys` object in-place.
+    steady-state of the rate equations. 
 
     Parameters
     ----------
@@ -218,10 +254,14 @@ def calc_Populations(spinsys: SpinSys, AllowPumping: bool = True):
 
     Notes
     -----
-    - If pumping is not allowed or no valid solution is found for the non-thermal
-      population, the thermal population is used.
-    - The function assumes that the `spinsys` object has the necessary attributes
-     and methods for rate calculations.
+    If pumping is not allowed or no valid solution is found for the non-thermal
+    population, the thermal population is used.
+    The function updates the following attributes of `spinsys`:
+
+    - `spinsys.pop_0`: The normalized thermal population distribution.
+    - `spinsys.Populations`: The final population distribution considering pumping
+        if allowed, otherwise the thermal population.
+    - `spinsys.K`: The rate matrix used for solving the steady-state population.
     """
     if not hasattr(spinsys, 'E_All') or spinsys.E_All is None:
         hamil.calc_EigEnergies(spinsys)
@@ -268,13 +308,12 @@ def calc_Populations(spinsys: SpinSys, AllowPumping: bool = True):
 
 def calc_Rates(spinsys: SpinSys):
     """
-    Calculate transition rates for a given spin system.
+    Calculate transition rates for a given spin system and tunnel parameters.
 
-    The function updates the following attributes of `spinsys` in-place:
-        - spinsys.Rates : ndarray
-            A 3D array containing the calculated rates for different processes.
-        - spinsys.Rates_Summed : ndarray
-            A 2D array containing the summed rates over all processes.
+    The function calculates the transition rates for tip-to-sample (ts), sample-to-tip
+    (st),sample-to-sample (ss), and tip-to-tip (tt) scattering processes based on the
+    tunneling matrix elements and rate integrals. It uses the tunnel parameters defined
+    in the `spinsys` object. 
 
     Parameters
     ----------
@@ -283,16 +322,16 @@ def calc_Rates(spinsys: SpinSys):
 
     Notes
     -----
-    - The function initializes and calculates various tunneling matrix elements
-      and rate integrals.
-    - The rate factors are computed.
-    - The rates are calculated for different tunneling and scattering processes
-      and stored in `spinsys.Rates`.
-    - The summed rates are stored in `spinsys.Rates_Summed`.
-    - The function assumes that required attributes and methods
-      such as `calc_EigEnergies`, `calc_TunnelingMatrixElements` 
-      and `calc_RateIntegrals`
-      are available in the provided `spinsys` object.
+    The function updates the following attributes of `spinsys`:
+
+    - `spinsys.Rates`: A 3D array containing the calculated transition rates for each
+        scattering process and state pair.
+    - `spinsys.Rates_Summed`: A 2D array containing the sum of all transition rates
+        for each state pair.
+    - `spinsys.MatrixST`: The tunneling matrix elements for tip-sample scattering.
+    - `spinsys.MatrixTS`: The tunneling matrix elements for sample-tip scattering.
+    - `spinsys.MatrixSS`: The tunneling matrix elements for sample-sample scattering.
+    - `spinsys.MatrixTT`: The tunneling matrix elements for tip-tip scattering.
     """
     # Initialize the Rates matrix
     spinsys.Rates = np.zeros((4, spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
@@ -351,7 +390,11 @@ def calc_Rates(spinsys: SpinSys):
 
 def calc_RateIntegrals(spinsys: SpinSys, type: str):
     """
-    Calculate rate integrals for a given spin system and bias voltage.
+    Calculate rate integrals for a given spin system and scattering tunnel parameters.
+
+    The function calculates the rate integrals for tip-to-sample (ts), sample-to-tip
+    (st), sample-to-sample (ss), and tip-to-tip (tt) scattering processes based on the
+    energy levels of the spin system, the bias voltage, and the temperature. 
     
     Parameters
     ----------
@@ -374,8 +417,8 @@ def calc_RateIntegrals(spinsys: SpinSys, type: str):
 
     Notes
     -----
-    - The function avoids division by zero by substituting a small
-      value for V_DC if it is zero.
+    The function avoids division by zero by substituting a small value for V_DC if 
+    it is zero.
     """
     # Create the three nxn matrices [I_ts, I_st, I_ss]
     RateIntegrals = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
@@ -417,6 +460,12 @@ def calc_TunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
     """
     Calculate the tunneling matrix elements for a given spin system and scattering type.
 
+    This function computes the tunneling matrix elements for the specified scattering
+    type ('st', 'ts', 'ss', or 'tt') by combining the electron tunneling matrix elements
+    with the spin operators of the system. The resulting matrix elements are calculated
+    in the eigenbasis of the spin system and are used to determine the transition rates
+    for different scattering processes. 
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -432,12 +481,6 @@ def calc_TunnelingMatrixElements(spinsys: SpinSys, scattertype: str):
         Array containing the calculated tunneling rate matrix elements. The shape is
         (NSpins, dimensionOfMatrix, dimensionOfMatrix) for "ss" scattertype, and
         (1, dimensionOfMatrix, dimensionOfMatrix) otherwise.
-        
-    Notes
-    -----
-    The function computes the tunneling matrix elements by projecting spin operators
-    into the eigenbasis and combining them with electron tunneling matrix elements.
-    The resulting rate matrix is used in further calculations of tunneling rates.
     """
     # Get the electron tunneling matrix elements
     x_el, y_el, z_el, u_el = calc_TunnelingElectronMatrixElements(spinsys, scattertype)
@@ -522,13 +565,6 @@ def calc_TunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
         Matrix elements for the z-component of spin.
     u : ndarray
         Matrix elements for the identity component.
-
-    Notes
-    -----
-    If an invalid `scattertype` is provided, the function defaults to
-    'st' (tip-to-sample scattering). The function uses Pauli matrices
-    for spin-1/2 electrons and computes the matrix elements in the
-    eigenbasis of the tip and sample density matrices.
     """
     # Normalize the Tip and Sample Polarizations if their norms are greater than 1
     if np.linalg.norm(spinsys.TipPolarization) > 1:
@@ -622,7 +658,11 @@ def calc_TunnelingElectronMatrixElements(spinsys: SpinSys, scattertype: str):
 
 def plot_Populations(spinsys: SpinSys, AllowPumping: bool = True):
     """
-    Plot the thermal populations of the spin system's states.
+    Plot the thermal and steady state populations of the spin system.
+
+    The function generates a horizontal bar plot comparing the thermal population 
+    (calculated from Boltzmann statistics) and the steady-state population 
+    (calculated from the rate equation) for each eigenstate of the spin system.
 
     Parameters
     ----------
@@ -637,11 +677,6 @@ def plot_Populations(spinsys: SpinSys, AllowPumping: bool = True):
         A dictionary containing:
         - 'fig': plotly.graph_objects.Figure
             The plotly figure object containing the plot.
-    
-    Notes
-    -----
-    - The function assumes that the `spinsys` object has the necessary
-      attributes and methods for rate calculations.
     """
     if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
         calc_Populations(spinsys, AllowPumping=AllowPumping)
@@ -696,7 +731,7 @@ def plot_RateContributions(
     yscale: str = 'linear',
     N=None,
     ylim: list = None,
-):
+    ):
     """
     Plot the contributions of the highest N transition rates between spin states.
 
@@ -861,7 +896,7 @@ def plot_RateContributions(
     
     return return_dict
 
-
+# HERE
 def plot_RatesTo(spinsys: SpinSys, state: int, yscale: str = 'linear', N: int = None):
     """
     Plot the rate contributions to a specified state in a spin system.
