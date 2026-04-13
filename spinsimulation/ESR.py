@@ -142,16 +142,20 @@ def calc_FreqSweep(
     # Avoid zero tip field for amplitude calculation
     spinsys.BTip[0] = spinsys.BTip[0] + 1e-9  # Ass a small value for the x-component
     
-    # Amplitude calculation
+    # Amplitude calculation based on Yang et al. (2021) doi: https://doi.org/10.1038/s41467-021-21274-5
     for k in range(len(spinsys.ResonanceFrequencies)):
         i = spinsys.RecordedTransitions[k][0]  # Initial state index
         j = spinsys.RecordedTransitions[k][1]  # Final state index
 
+        # The signal depends linear on the population difference between the 
+        # two involved states
         spinsys.dp = abs(spinsys.Populations[i] - spinsys.Populations[j])
 
         # Rabi rate factor
         rabiRateFactor = 1
 
+        # The ESR driving depends linear on the matrix element
+        # of the initial and final state with the tipfield operator
         spinsys.M_x = rabiRateFactor * (
             spinsys.eigVectors[:, j].T.conj()
             @ spinsys.Sx[spinsys.ReadoutSpin, :, :]
@@ -184,6 +188,10 @@ def calc_FreqSweep(
 def calc_RecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     """
     Calculate and record transitions between quantum states within an energy range. 
+
+    This function calculates the recorded transitions based on the occupation
+    and the energy differences between states. It records transitions where the state
+    has sufficiently high occupation and the energy difference is within the range.
     
     Parameters
     ----------
@@ -205,10 +213,6 @@ def calc_RecordedTransitions(spinsys: SpinSys, MinE: float, MaxE: float):
     Here no selection rules are applied, transitions within the specified energy range 
     which initial states fulfill Population > 10e-5 are recorded.
     """
-    # This function calculates the recorded transitions based on the occupation
-    # and the energy differences between states. It records transitions where the state
-    # has sufficiently high occupation and the energy difference is within the range.
-
     # Initialize RecordedTransitions with a dummy value 
     # to avoid issues when appending later
     RecordedTransitions = [(0, 0)]
@@ -285,11 +289,12 @@ def calc_FreqSweep_ESRrate(
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         hamil.calc_EigEnergies(spinsys)
 
-    # Calculate the RF off tunnel current via the rates
-
     # if not hasattr(spinsys, 'Populations') or spinsys.Populations is None:
     bath.calc_Populations(spinsys)
     
+    # The subsequent calculation is based on Yang et al. (2018) doi: https://doi.org/10.1038/s41565-018-0296-7
+
+    # Calculate the RF off tunnel current via the rates
     I_off = 0
     for i in range(spinsys.dimensionOfMatrix):
         for j in range(spinsys.dimensionOfMatrix):
@@ -426,8 +431,7 @@ def calc_Populations_ESR(spinsys: SpinSys, freq: float = 14):
 
 def add_ESRrate(spinsys: SpinSys, freq: float = 14,
                 RabiRate: float = 1, T2: float = 200):
-    """
-    Add the ESR (Electron Spin Resonance) transition rates to the given spin system.
+    """Add the ESR (Electron Spin Resonance) transition rates to the given spin system.
 
     This function calculates the ESR-induced transition rates between
     energy levels of the spin system and updates the `Rates` and
@@ -460,6 +464,8 @@ def add_ESRrate(spinsys: SpinSys, freq: float = 14,
 
     # Initialize the ESR rates if not already present
     spinsys.ESRRates = np.zeros((spinsys.dimensionOfMatrix, spinsys.dimensionOfMatrix))
+
+    # The calculation is based on Yang et al. (2018) doi: https://doi.org/10.1038/s41565-018-0296-7
 
     # Calculate the matrix element for the ESR rate
     TransitionMatrixElement = (
