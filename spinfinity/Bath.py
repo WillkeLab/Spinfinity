@@ -91,6 +91,7 @@ def calc_Magnetization(spinsys: SpinSys, type: str = 'z', AllowPumping: bool = T
     Notes
     -----
     The function updates the following attributes of `spinsys`:
+    
         - Mag_tot: The total magnetization of the system.
         - Mag_tot_max: The maximum possible total magnetization.
         - Mag: The magnetization for each individual spin.

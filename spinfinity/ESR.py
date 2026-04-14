@@ -62,6 +62,8 @@ def calc_FreqSweep(
     """
     Calculate the Electron Spin Resonance (ESR) spectrum for a given spin system.
 
+    The function has fun. 
+
     Parameters
     ----------
     spinsys : SpinSys
