@@ -1,5 +1,5 @@
 [project]
-name = "spinsimulation"
+name = "spinfinity"
 version = "0.1.1"
 description = "Library for python code to simulate spin systems in a tunnel junction"
 authors = [

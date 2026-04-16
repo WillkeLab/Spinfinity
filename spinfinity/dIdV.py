@@ -1,29 +1,38 @@
 """
-Utilities for calculating and visualizing IETS signals. 
+Calculating and visualizing differential conductence (dI/dV) spectra. 
 
-This module provides routines to compute differential conductance spectra using:
-- second-order perturbation theory,
-- second-order theory with rate-equation populations,
-- Plotly-based visualization of the resulting spectra.
-The main workflow is based on a :class:`~spinsimulation.SpinSys.SpinSys` instance,
-which is expected to contain the spin Hamiltonian, eigenstates, populations,
-coupling parameters, and other system-specific quantities required for the
-calculation.
+This module provides routines to compute differential conductance spectra using
+second-order perturbation theory.
 
 Functions
 ---------
 calc_IETS_2nd
-    Compute dI/dV using a second-order tunneling model.
+    Compute dI/dV using a second-order tunneling model and thermally populated states.
+tunnelingBroadenedStepFunction
+    Compute the tunneling broadened step function used in the IETS calculations.
 calc_IETS_2ndR
-    Compute dI/dV using a second-order model with voltage-dependent rate equations.
+    Compute dI/dV using a second-order tunneling model with voltage-dependent
+    rate equations.
 calc_derivative
     Numerically differentiate current with respect to voltage.
 plot_IETS
     Plot IETS spectra for one or all spins using Plotly.
-- Energies and voltages are treated in the conventions used by the surrounding
-  spin-simulation package.
-- Some functions modify attributes of the provided spin system in place, such as
-  eigenstates, populations, or readout spin selection.
+
+Dependencies
+------------
+- Uses `spinfinity.SpinSys.SpinSys` class to represent the spin system
+  and its properties.
+- Uses `spinfinity.SpinHamiltonian` for eigenvalue and eigenvector calculations.
+- Uses functions from `spinfinity.Bath` for population and rate calculations.
+
+References
+----------
+- Ternes, M., *Spin excitations and correlations in scanning tunneling spectroscopy*. 
+New J. Phys. 17, 063016 (2015). 
+[https://dx.doi.org/10.1088/1367-2630/17/6/063016](https://dx.doi.org/10.1088/1367-2630/17/6/063016) 
+- Loth, S., von Bergmann, K., Ternes, M. et al. *Controlling the state of quantum 
+spins with electric currents*. Nature Phys 6, 340–344 (2010). 
+[https://doi.org/10.1038/nphys1616](https://doi.org/10.1038/nphys1616)
 """
 import numpy as np
 import plotly.colors
@@ -31,9 +40,9 @@ import plotly.graph_objects as go
 import scipy.constants as const
 from scipy.linalg import null_space
 
-import spinsimulation.Bath as bath
-import spinsimulation.SpinHamiltonian as hamil
-from spinsimulation.SpinSys import SpinSys
+import spinfinity.Bath as bath
+import spinfinity.SpinHamiltonian as hamil
+from spinfinity.SpinSys import SpinSys
 
 # region 2nd Order
 
@@ -45,6 +54,9 @@ def calc_IETS_2nd(
 ):
     """
     Calculate the derivative of the tunneling current (dI/dV) in 2nd Order.
+
+    This functions calculates the dI/dV signal as a function of voltage using
+    a second-order tunneling model with thermally populated states.
 
     Parameters
     ----------
@@ -63,14 +75,6 @@ def calc_IETS_2nd(
         Array of voltage values over the specified range.
     dIdV_array : ndarray
         Calculated dI/dV values corresponding to each voltage in V_array.
-
-    Notes
-    -----
-    - The function assumes that the spin system contains all necessary attributes.
-    - Eigenvalues and eigenvectors are calculated if not already present.
-    - The calculation uses a Boltzmann distribution for thermal population.
-    - The tunneling rate matrix is computed using `calc_TunnelingMatrixElements`.
-    - The output can be normalized for easier comparison.
     """
     # Initialize the arrays
     # Default range from -30 mV to 30 mV with 200 points
@@ -153,6 +157,10 @@ def calc_IETS_2ndR(
 ):
     """
     Calculate the IETS spectrum using the rate equation approach.
+
+    This function calculates the dI/dV spectrum as a function of voltage using
+    a second-order tunneling model combined with voltage-dependent rate equations that 
+    redistribute the spin state populations. 
     
     Parameters
     ----------
@@ -179,8 +187,17 @@ def calc_IETS_2ndR(
     
     Notes
     -----
-    - The calculation is based on the rate equation approach and supports both thermal
-      and non-thermal population distributions.
+    The calculation is based on the rate equation approach and supports both thermal
+    and non-thermal population distributions. `For AllowPumping=False` the function
+    should output the same result as `calc_IETS_2nd`.
+    The function updates the following attributes of `spinsys`:
+
+    - `spinsys.pop_0`: The thermal population distribution (Boltzmann distribution)
+      for the spin states.
+    - `spinsys.MatrixST`: The tunneling matrix elements for tip-sample scattering.
+    - `spinsys.MatrixTS`: The tunneling matrix elements for sample-tip scattering.
+    - `spinsys.MatrixSS`: The tunneling matrix elements for sample-sample scattering.
+    - `spinsys.MatrixTT`: The tunneling matrix elements for tip-tip scattering.
     """
     # Initialize the arrays
     # Default range from -30 mV to 30 mV with 200 points
@@ -196,7 +213,8 @@ def calc_IETS_2ndR(
         hamil.calc_EigEnergies(spinsys)
 
     # Getting the relevant matrix elements
-    spinsys.Matrix = bath.calc_TunnelingMatrixElements(spinsys, "st")[0]
+    spinsys.MatrixST = bath.calc_TunnelingMatrixElements(spinsys, "st")[0]
+    spinsys.MatrixTS = spinsys.MatrixST.T
     spinsys.MatrixSS = bath.calc_TunnelingMatrixElements(spinsys, "ss")
     spinsys.MatrixTT = bath.calc_TunnelingMatrixElements(spinsys, "tt")[0]
 
@@ -204,7 +222,7 @@ def calc_IETS_2ndR(
     for i in range(spinsys.NSpins):
         MatrixSS_summed += spinsys.MatrixSS[i, :, :] * spinsys.G_ss[i]
    
-    Rate_0 = spinsys.Matrix[0][0]  # Transition matrix element of the ground state
+    Rate_0 = spinsys.MatrixST[0][0]  # Transition matrix element of the ground state
 
     # Rate-Factors using Loth et al. (2010), https://doi.org/10.1038/nphys1616
     spinsys.G_st = (1 - spinsys.b0) * spinsys.G_st
@@ -235,8 +253,8 @@ def calc_IETS_2ndR(
         RateIntegrals_st = bath.calc_RateIntegrals(spinsys, 'st')
         
         # Calculate rates based on rate factors and integrals
-        Rates[0, :, :] = RateFactor_ts * spinsys.Matrix.T * RateIntegrals_ts
-        Rates[1, :, :] = RateFactor_st * spinsys.Matrix * RateIntegrals_st
+        Rates[0, :, :] = RateFactor_ts * spinsys.MatrixTS * RateIntegrals_ts
+        Rates[1, :, :] = RateFactor_st * spinsys.MatrixST * RateIntegrals_st
         
         # Sum the rates
         Rates_Summed = (
@@ -313,10 +331,6 @@ def calc_derivative(Current: list, Voltage: list):
     -------
     dIdV : ndarray
         Array of numerical derivatives dI/dV, same length as input arrays.
-
-    Notes
-    -----
-    Assumes that `Current` and `Voltages` are one-dimensional arrays of equal length.
     """
     n = len(Current)  # Length of the array
     dIdV = np.zeros(n)  # Initialize the output array for derivative

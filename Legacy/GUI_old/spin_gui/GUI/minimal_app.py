@@ -1,6 +1,6 @@
 """
 Minimal, extensible GUI for configuring `SpinSys` objects and rendering
-visualizations defined in `spinsimulation.SpinVisualization`.
+visualizations.
 
 The layout is intentionally simple:
     - A parameter form to configure the spin system.
@@ -43,8 +43,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinVisualization as vis
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinVisualization as vis
 
 
 # --------------------------------------------------------------------------- #

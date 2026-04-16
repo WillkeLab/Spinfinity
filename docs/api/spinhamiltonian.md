@@ -1,1 +1,1 @@
-:::spinsimulation.SpinHamiltonian
+:::spinfinity.SpinHamiltonian

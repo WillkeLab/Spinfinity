@@ -1,1 +1,1 @@
-:::spinsimulation.SpinSys
+:::spinfinity.SpinSys

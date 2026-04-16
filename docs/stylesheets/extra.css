@@ -1,0 +1,20 @@
+/* Header (top bar) */
+.md-header {
+  background-color:  #0a0518;;
+}
+
+/* Tabs (important if using navigation.tabs) */
+.md-tabs {
+  background-color:  #0a0518;;
+}
+
+/* Increase logo size */
+.md-header__button.md-logo img {
+  height: 72px;   /* default ~24px */
+}
+
+/* Increase site title size in header */
+.md-header__title {
+  font-size: 1.6rem;   /* default ~1.125rem */
+  font-weight: 700;
+}
