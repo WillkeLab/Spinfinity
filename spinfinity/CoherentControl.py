@@ -9,10 +9,10 @@ from qutip import Bloch
 
 from joblib import Parallel, delayed
 
-from spinsimulation.SpinSys import SpinSys
-import spinsimulation.SpinHamiltonian as hamil 
-import spinsimulation.Bath as bath
-import spinsimulation.Lindblad as lind
+from spinfinity.SpinSys import SpinSys
+import spinfinity.SpinHamiltonian as hamil 
+import spinfinity.Bath as bath
+import spinfinity.Lindblad as lind
 
 
 
