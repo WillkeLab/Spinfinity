@@ -48,7 +48,7 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
         Threshold in [0, 1] for filtering rates. If a rate is less than threshold_percent * the highest rate, it will not be considered in the operators.
         Default is 0.01.
     recalcRates : bool, Optional
-        Whether to recalculate the rates with bath.calcRates as well as the eigenstates with hamil.calcEigStates before calculating 
+        Whether to recalculate the rates with bath.calcRates as well as the eigenstates with hamil.calc_EigStates before calculating 
         the collapse operators.
         Default is True. 
 
@@ -64,11 +64,11 @@ def collapseOperators(spinsys: SpinSys, threshold_percent: float = 0.01, recalcR
     """ 
     # define rates for the operator's prefactors if specified
     if recalcRates:
-        hamil.calcEigEnergies(spinsys)
-        hamil.calcEigStates(spinsys)
-        bath.calcRates(spinsys)
+        hamil.calc_EigEnergies(spinsys)
+        hamil.calc_EigStates(spinsys)
+        bath.calc_Rates(spinsys)
     elif not hasattr(spinsys, 'Rates_Summed') or spinsys.Rates_Summed is None:
-        bath.calcRates(spinsys)
+        bath.calc_Rates(spinsys)
 
     Rates_Summed = spinsys.Rates_Summed
 
@@ -535,7 +535,7 @@ def _calcDecayParallelHelper(spinsys: SpinSys, S: Qobj, BTip_value: float, Bidx:
     local_spinsys = deepcopy(spinsys)   # create copy of spinsys to change its BTip only locally
     local_spinsys.BTip[Bidx] = BTip_value   # change BTip value along Bidx axis
 
-    hamil.calcEigEnergies(local_spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
+    hamil.calc_EigEnergies(local_spinsys)  # calculate new Hamiltonian, eigenenergies and eigenstates
     L_operators = collapseOperators(local_spinsys, threshold_percent=0.2)  # calculate new collapse operators with new Hamiltonian
 
     meV_to_J = 1e-3 * const.e
@@ -671,7 +671,7 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTipRange: list[float] = [-0.1, 0.1]
     -----
     - The function restores the original ``spinsys.BTip`` after the sweep.
     - Energies are recalculated for each tip field value via
-      ``hamil.calcEigEnergies``.
+      ``hamil.calc_EigEnergies``.
     """
 
     # Save the initial BTip-Vector
@@ -691,12 +691,12 @@ def plotTipZeemanDiagramm(spinsys: SpinSys, BTipRange: list[float] = [-0.1, 0.1]
     
     for i in range(N_BTip):
         spinsys.BTip[Bidx] = BTip_values[i]
-        hamil.calcEigEnergies(spinsys)
+        hamil.calc_EigEnergies(spinsys)
         E[i,:] = spinsys.E_sort
 
     # Restore the initial solution
     spinsys.BTip = BTipInitial
-    hamil.calcEigEnergies(spinsys)
+    hamil.calc_EigEnergies(spinsys)
         
     # Build a Plotly figure with white background
     fig = go.Figure()
