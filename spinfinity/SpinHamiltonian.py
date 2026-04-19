@@ -383,7 +383,7 @@ def add_Zeeman(spinsys: SpinSys):
 
     return
 
-# HERE: 
+
 def add_TipField(spinsys: SpinSys):
     """
     Add the tip magnetic field contribution to the Hamiltonian for the readout spin.
@@ -400,12 +400,6 @@ def add_TipField(spinsys: SpinSys):
         The spin system object containing the Hamiltonian, spin
         operators, g-factor vector, Bohr magneton, tip field vector,
         and the index of the readout spin.
-
-    Notes
-    -----
-    - If `spinsys.tip` is 'a', the tip field is added to the Hamiltonian.
-    - Otherwise, the tip field is subtracted from the Hamiltonian.
-    - Only the readout spin is affected by the tip field.
     """
     # Adding the Tipfield to the Readout Spin only
     if spinsys.tip == 'a':
@@ -456,8 +450,15 @@ def add_ZeroField(spinsys: SpinSys):
     """
     Build and add the anisotropy Hamiltonian for the spin system.
 
-    Supports either standard parameters (D, E) or Stevens operators.
-    This function modifies spinsys.H in-place.
+    This function adds the anistropy part to the spin Hamiltonian using the
+    parameters D and E or the Stevens operators.
+
+    Parameters
+    ----------
+    spinsys : SpinSys
+        The spin system object containing the Hamiltonian, number of spins,
+        anisotropy parameters (Dvector and Evector), spin operator matrices,
+        and a flag indicating whether Stevens operators are used. 
     """
     # Check if Stevens operators are used
     # If not, use standard D, E parameters
@@ -724,12 +725,6 @@ def anticommutator(A, B):
     -------
     ndarray
         The anticommutator A @ B + B @ A.
-
-    Notes
-    -----
-    The anticommutator is commonly used in quantum mechanics and quantum field
-    theory, particularly for fermionic systems where operators satisfy canonical
-    anticommutation relations.
     """
     return A @ B + B @ A
 
@@ -982,11 +977,6 @@ def plot_EigenMatrix(spinsys: SpinSys, plot_type: str = 'p'):
     ------
     ValueError
         If `plot_type` is not 'p' or 'a'.
-        
-    Notes
-    -----
-    - The function checks if the eigenvectors are already calculated; if
-      not, it computes them.
     """
     # Check if eigVectors are calculated, if not calculate them. They
     # are needed for the projection matrix.
@@ -1150,10 +1140,6 @@ def plot_ZeemanDiagramm(
             The array of magnetic field values used in the sweep.
         - 'E_array': numpy.ndarray
             The array of energy eigenvalues corresponding to each magnetic field value.
-    
-    Notes
-    -----
-    - The function restores the original field value afterwards.
     """
     # Save the initial B-Vector
     Binitial = spinsys.B
@@ -1230,10 +1216,6 @@ def plot_EnergyVsS(spinsys: SpinSys, type: str = 'z', energyscale: str = 'meV'):
     ValueError
         If `type` is not 'x', 'y', or 'z', or if `energyscale` is not 'meV' or 'GHz'.
 
-    Notes
-    -----
-    If the eigenvectors of the spin system are not already calculated,
-    the function will compute them.
     """
     if not hasattr(spinsys, 'eigVectors') or spinsys.eigVectors is None:
         calc_EigEnergies(spinsys)

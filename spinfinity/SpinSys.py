@@ -1,15 +1,11 @@
-"""Define the :class:`SpinSys` container used throughout the simulation package.
+"""
+Define the :class:`SpinSys` container used throughout the simulation package.
 
 This module provides a single class, :class:`SpinSys`, which
 stores physical constants, system geometry, magnetic fields, interaction
 terms, tunneling parameters, and spectroscopy settings in one mutable
 object. It also includes helpers for parameter inspection and saving/
 loading the object state.
-
-Notes
------
-- Energies are primarily handled in meV, with conversion factors to GHz
-  and SI units.
 """
 import os
 import pickle
