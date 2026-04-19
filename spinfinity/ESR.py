@@ -1,41 +1,46 @@
 """
-Spinfinity ESR simulation utilities.
+Calculating and visualizing Electron Spin Resonance (ESR) spectra.
 
-This module provides calculation and visualization helpers for electron spin resonance
-(ESR) spectra in a spin-system model. It supports both direct line-broadening-based
-frequency sweeps and an alternative rate-equation approach that includes ESR-driven
-transition rates. In addition, it offers plotting helpers for spectra, tip-field
-dependence, and state populations.
-The functions in this module operate on a ``SpinSys`` instance and expect the
-associated spin-Hamiltonian, eigenstates, rates, and population vectors to be
-available or computable via the imported ``hamil`` and ``bath`` helpers.
-Main features
--------------
-- Calculate ESR spectra over a frequency range.
-- Identify and record allowed transitions within a frequency window.
-- Simulate ESR response using rate equations and Rabi-driven transitions.
-- Compute steady-state populations under ESR excitation.
-- Visualize spectra, tip-field sweeps, and state populations using Plotly.
-Key conventions
----------------
-- Frequencies are expressed in GHz.
-- Magnetic fields are expressed in Tesla, unless converted for plotting.
-- State indices refer to the eigenbasis of the Hamiltonian.
-- The readout spin is selected via ``spinsys.ReadoutSpin``.
-- Populations and rates are updated in-place on the provided ``spinsys`` object.
+This module provides calculation and visualization helpers for Electron Spin Resonance
+(ESR) spectra of a specified spin systems. 
+
+Functions
+---------
+calc_FreqSweep
+    Calculate the Electron Spin Resonance (ESR) spectrum for a given spin system.
+calc_RecordedTransitions
+    Calculate and record transitions between quantum states within an energy range.
+calc_FreqSweep_ESRrate
+    Simulate a continuous-wave ESR frequency sweep by solving rate equations.
+calc_Populations_ESR
+    Calculate the steady-state populations of a spin system under ESR.
+add_ESRrate
+    Add the ESR transition rates to the given spin system.
+plot_FreqSweep
+    Plot the ESR spectrum for a given spin system.
+plot_FreqSweep_ESRrate
+    Compute and plot the ESR spectrum based on the ESR driving rate.
+plot_Tipfieldmap
+    Plot ESR spectra as a function of tip magnetic field for a given spin system.
+plot_ESRPopulations
+    Plot the populations of spin states for a given spin system under ESR conditions.
+
 Dependencies
 ------------
-- NumPy for numerical calculations.
-- SciPy constants and linear algebra utilities.
-- Plotly for interactive visualization.
-- Internal modules:
-    ``spinfinity.calcBath``,
-    ``spinfinity.SpinHamiltonian``,
-    ``spinfinity.SpinSys``.
-The functions in this module mutate the supplied ``SpinSys`` object by populating
-attributes such as eigenvectors, transition lists, resonance frequencies, ESR rates,
-and population arrays. Callers should therefore treat ``spinsys`` as a working state
-container rather than an immutable input.
+- Uses `spinfinity.SpinSys.SpinSys` class to represent the spin system
+  and its properties.
+- Uses `spinfinity.SpinHamiltonian` for eigenvalue and eigenvector calculations.
+- Uses functions from `spinfinity.Bath` for population and rate calculations.
+
+References
+----------
+- Yang, K., Willke, P., Bae, Y. et al. *Electrically controlled nuclear polarization of
+  individual atoms*. Nature Nanotech 13, 1120–1125 (2018). 
+  [https://doi.org/10.1038/s41565-018-0296-7](https://doi.org/10.1038/s41565-018-0296-7)
+- Yang, K., Phark, SH., Bae, Y. et al. *Probing resonating valence bond states in 
+  artificial quantum magnets*. Nat Commun 12, 993 (2021). 
+  [https://doi.org/10.1038/s41467-021-21274-5](https://doi.org/10.1038/s41467-021-21274-5)
+
 """
 import numpy as np
 import plotly.colors
@@ -62,7 +67,11 @@ def calc_FreqSweep(
     """
     Calculate the Electron Spin Resonance (ESR) spectrum for a given spin system.
 
-    The function has fun. 
+    This function computes the ESR spectrum by calculating the transition frequencies
+    and amplitudes based on the eigenstates of the spin system.
+    The ESR signal is constructed as a sum of Lorentzian lines for each allowed
+    transition, where the amplitude of each transition depends on the population
+    difference and the matrix element of the transition with the tip field operator. 
 
     Parameters
     ----------
@@ -86,15 +95,6 @@ def calc_FreqSweep(
         Array of frequency values (in GHz) at which the ESR spectrum is calculated.
     ESRsignal : ndarray
         Calculated ESR signal intensity at each frequency point.
-
-    Notes
-    -----
-    - The function computes transition frequencies and amplitudes
-      based on the eigenstates of the spin system.
-    - If the number of transitions is less than 300,
-      details of each transition are printed.
-    - The ESR signal is constructed as a sum of Lorentzian lines
-      for each allowed transition.
     """
     # Initialize
     if freq_array is None:

@@ -1,16 +1,40 @@
-"""Analyze voltage-dependent spin pumping and split-population observables.
+"""
+Analyze voltage-dependent quantities.
 
 This module provides helper functions for projecting populations onto a
 subsystem basis, splitting magnetization and populations into two
 components, and visualizing the resulting voltage-dependent quantities
 with Plotly.
 
-Notes
------
-- Most functions operate on :class:`~spinfinity.SpinSys.SpinSys`
-  instances and update the supplied objects in place during sweeps.
-- The routines build on rate, population, and magnetization utilities
-  defined in the surrounding simulation package.
+Functions
+---------
+split_Populations
+    Calculate two subpopulations based on overlaps with subspin eigenvectors.
+split_Magnetization
+    Compute magnetization contributions from two population partitions of a subsystem.
+split_Lifetimes
+    Compute lifetimes for subsystem eigenstates.
+calc_Overlap
+    Calculate the overlap between a given state and the eigenvectors of a spin system.
+plot_Magnetization_Voltage
+    Plot the magnetization as a function of voltage.
+plot_Populations_Voltage
+    Plot the populations of spin states as a function of applied voltage.
+plot_Rates_Voltage
+    Plot the transition rates between spin states as a function of applied voltage.
+plot_SplitMagnetization_Voltage
+    Plot the split magnetization of two sub-systems as a function of DC bias voltage.
+plot_SplitPopulations_Voltage
+    Plot split populations as a function of voltage for a given spin subsystem.
+plot_SplitPopulations
+    Plot horizontal bar charts of split populations for two sub-spins using Plotly.
+
+Dependencies
+------------
+- Uses `spinfinity.SpinSys.SpinSys` class to represent the spin system
+  and its properties.
+- Uses `spinfinity.SpinHamiltonian` for eigenvalue and eigenvector calculations.
+- Uses functions from `spinfinity.Bath` for population and rate calculations.
 """
 from collections.abc import Sequence
 
@@ -48,10 +72,6 @@ def split_Populations(spinsys: SpinSys, subspin: SpinSys):
         Array of projected populations using overlap order 'BA'.
     Populations_B : np.ndarray
         Array of projected populations using overlap order 'AB'.
-
-    Notes
-    -----
-    The function modifies the populations of `spinsys` in-place before projection.
     """
     # First we calculate the Rates and Populations of the whole system
     # hamil.calc_EigEnergies(subspin)
@@ -90,9 +110,9 @@ def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str = 'z'):
     """
     Compute magnetization contributions from two population partitions of a subsystem.
 
-    This function splits the populations of ``spinsys`` into two parts (A and B)
-    with respect to ``subspin``, then computes the total magnetization of
-    ``subspin`` for each partition independently.
+    This function splits the populations of `spinsys` into two parts (A and B)
+    with respect to subspin, then computes the total magnetization of
+    subspin for each partition independently.
 
     Parameters
     ----------
@@ -110,11 +130,6 @@ def split_Magnetization(spinsys: SpinSys, subspin: SpinSys, type: str = 'z'):
         Total magnetization of ``subspin`` after assigning partition A populations.
     Mag_B : float or complex
         Total magnetization of ``subspin`` after assigning partition B populations.
-
-    Notes
-    -----
-    This function mutates ``subspin.Populations`` as part of the calculation.
-    After return, ``subspin.Populations`` remains set to the B partition.
     """    
     # Calculate first the sub populations
     pA, pB = split_Populations(spinsys=spinsys, subspin=subspin)
@@ -150,11 +165,6 @@ def split_Lifetimes(spinsys: SpinSys, subspin: SpinSys):
         Full system object.
     subspin : SpinSys
         Subsystem object defining the eigenstates onto which rates are projected.
- 
-    Notes
-    -----
-    - The function calls calc_Rates(spinsys) at the start to ensure rate arrays are
-      populated.
     """
     # Calculate the Rates of the SpinSystem
     bath.calc_Rates(spinsys)
@@ -213,6 +223,9 @@ def calc_Overlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     """
     Calculate the overlap between a given state and the eigenvectors of a spin system.
 
+    This function projects the eigenvectors of the composite system onto a given state
+    of subsystem B and computes the overlap for each eigenvector.
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -233,11 +246,6 @@ def calc_Overlap(spinsys: SpinSys, nA: int, nB: int, stateB: list, order='AB'):
     -------
     Overlap : numpy.ndarray
         Array of overlaps between the projected state and the eigenvectors, shape (n,).
-
-    Notes
-    -----
-    This function projects the eigenvectors of the composite system onto a given state
-    of subsystem B and computes the overlap for each eigenvector.
     """
     EV = np.asarray(spinsys.eigVectors)
     stateB = np.asarray(stateB).reshape(-1)
@@ -270,6 +278,9 @@ def plot_Magnetization_Voltage(
     """
     Plot the magnetization as a function of voltage.
 
+    The function calculates and plots the magnetization as a function of voltage
+    dependent tunneling rates. 
+
     Parameters
     ----------
     spinsys : SpinSys
@@ -298,10 +309,6 @@ def plot_Magnetization_Voltage(
         - 'M_array': numpy.ndarray
             The calculated Magnetization for each spin, the last column
             is the total magnetization.
-
-    Notes
-    -----
-    The function restores its original value after plotting. 
     """
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -420,6 +427,9 @@ def plot_Populations_Voltage(
         ):
     """
     Plot the populations of spin states as a function of applied voltage.
+
+    The function calculates and plots the spin state populations as a function of 
+    voltage dependent tunneling rates. 
     
     Parameters
     ----------
@@ -439,10 +449,6 @@ def plot_Populations_Voltage(
             The array of voltage points in mV.
         - 'P_array': numpy.ndarray
             The calculated Populations for each spin state at each voltage. 
-
-    Notes
-    -----
-    - The function restores the original values at the end.
     """
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -500,11 +506,9 @@ def plot_Populations_Voltage(
     return return_dict
 
 
-def plot_Rates_Voltage(spinsys: SpinSys,
-                        V_array: np.ndarray = None
-                        ):
+def plot_Rates_Voltage(spinsys: SpinSys, V_array: np.ndarray = None):
     """
-    Plot the transition rates between spin states as a function of applied voltage.
+    Plot the tunneling rates between spin states as a function of applied voltage.
     
     Parameters
     ----------
@@ -526,12 +530,6 @@ def plot_Rates_Voltage(spinsys: SpinSys,
             The array of voltage points in mV.
         - 'R_array': numpy.ndarray
             The calculated Rates for each transition (i → f) at each voltage.
-        
-    Notes
-    -----
-    - The function temporarily modifies `spinsys.V_DC` during the sweep
-      and restores its original value at the end.
-    - Only off-diagonal transition rates (i ≠ f) are plotted.
     """
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -641,10 +639,6 @@ def plot_SplitMagnetization_Voltage(
             Computed magnetization values for subsystem A corresponding to V_array.
         - 'Mag_B': numpy.ndarray
             Computed magnetization values for subsystem B corresponding to V_array.
-
-    Notes
-    -----
-    - The initial values are restored after the sweep.
     """
     # Save the old voltage value
     V_initial = spinsys.V_DC
@@ -751,11 +745,6 @@ def plot_SplitPopulations_Voltage(
         - 'Populations_B': ndarray
             Array of shape (len(V_array), subspin.dimensionOfMatrix)
             containing populations for B.
-
-    Notes
-    -----
-    - After restoring the initial voltage it calls calc_Rates(spinsys) and
-      calc_Populations(spinsys, AllowPumping=True).
     """
     # Save the old voltage value
     V_initial = spinsys.V_DC
