@@ -1,10 +1,10 @@
 include = [
-    "spinsimulation/SpinSys.py",
-    "spinsimulation/SpinHamiltonian.py",
-    "spinsimulation/calcBath.py",
-    "spinsimulation/calcdIdV.py",
-    "spinsimulation/SpinPumping.py",
-    "spinsimulation/calcESR.py",
+    "spinfinity/SpinSys.py",
+    "spinfinity/SpinHamiltonian.py",
+    "spinfinity/Bath.py",
+    "spinfinity/dIdV.py",
+    "spinfinity/SpinPumping.py",
+    "spinfinity/ESR.py",
 ]
 
 [lint]
