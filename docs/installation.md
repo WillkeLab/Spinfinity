@@ -1,24 +1,19 @@
-The authors recommend to install the "spinfinity" package in a python
-environment. Create and activate a Python environment with Python 3.10 or newer, 
-then install the package from the project root:
+Spinfinity requires Python 3.10 or newer.
+
+For local use, install the package from the project root:
 
 ```bash
-conda install jupyter pip
-cd folderpath 
-pip install -e .  
+pip install -e .
 ```
 
-The Spinfinty project comes with a documentation using the mkdocs package.
-Install it to your environment via:
+To build the documentation locally, install the optional documentation dependencies
 
 ```bash
-cd folderpath 
-pip install .[docs]  
+pip install .[docs]
 ```
 
-To generate the local documentation website run:
+Then start the documentation server with:
 
 ```bash
 mkdocs serve
-```
-You can then access the documentation via the URL provided. 
+``` 
