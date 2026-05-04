@@ -598,3 +598,126 @@ def calc_Relaxometry(spinsys: SpinSys, tau_array: np.ndarray, e_ops: list[Qobj] 
     return tau_array, signal
 
 # endregion Relaxometry
+
+# region ESEEM
+
+def calc_3pulseESEEM(spinsys: SpinSys, tau_array: np.ndarray, T: float, e_ops: list[Qobj] = None, tsteps: int = 2500):
+
+    if e_ops is None:
+        e_ops = [Qobj(spinsys.Sx[spinsys.ReadoutSpin]), Qobj(spinsys.Sy[spinsys.ReadoutSpin]), Qobj(spinsys.Sz[spinsys.ReadoutSpin])]
+
+    # Build Signal array
+    signal = np.zeros((len(tau_array), len(e_ops)))
+
+    # Calculate the Hamiltonian in the rotating frame of the microwave field
+    H_rot = RotFrame(spinsys, spinsys.f_RF)
+
+    # Build Pulse Sequence for 3p-ESEEM: pi/2 - T - pi/2 - tau - pi/2 - T - pi/2
+    Omega_R = 2*np.pi*spinsys.RabiRate
+    tp_90 = (np.pi / 2) / Omega_R
+    pulse_op = Qobj(spinsys.Sx[spinsys.ReadoutSpin])
+    solver_options = {"max_step": tp_90 / 10.0}
+
+    for idx, tau in enumerate(tau_array):
+        t1_start = 0.0
+        t1_end = tp_90
+        t2_start = t1_end + T
+        t2_end = t2_start + tp_90
+        t3_start = t2_end + tau
+        t3_end = t3_start + tp_90
+        t4_start = t3_end + T
+        t4_end = t4_start + tp_90
+
+        t_final = t4_end
+        tlist = np.linspace(0, t_final, tsteps)
+
+        def Ox_coeff(t, args):
+            if (t1_start <= t <= t1_end) or (t2_start <= t <= t2_end) or (t3_start <= t <= t3_end) or (t4_start <= t <= t4_end):
+                return args["Omega_R"]
+            return 0.0
+        
+        H = [
+            H_rot,
+            [pulse_op, Ox_coeff],
+        ]
+
+        args = {"Omega_R": Omega_R}
+        result = mesolve(
+            H,
+            spinsys.psi0,
+            tlist,
+            c_ops=spinsys.collapse_ops,
+            e_ops=e_ops,
+            args=args,
+            options=solver_options,
+        )
+
+        signal[idx, :] = np.array(result.expect).T[-1]  # Take the expectation values at the end of the sequence
+    
+    return tau_array, signal
+
+def calc_HahnEcho(spinsys: SpinSys, tau_array: np.ndarray, e_ops: list[Qobj] = None, tsteps: int = 2500):
+    
+     # Required varaibles in spinsys: f_RF, c_ops, RabiRate, psi0 as well as finished Hamiltonian and operators
+     # TODO: remove tsteps
+
+    if e_ops is None:
+        e_ops = [Qobj(spinsys.Sx[spinsys.ReadoutSpin]), Qobj(spinsys.Sy[spinsys.ReadoutSpin]), Qobj(spinsys.Sz[spinsys.ReadoutSpin])]
+
+    # Build Signal array for Hahn Echo
+    signal = np.zeros((len(tau_array), len(e_ops)))
+
+    # Calculate the Hamiltonian in the rotating frame of the microwave field
+    H_rot = RotFrame(spinsys, spinsys.f_RF)
+
+    # Build Pulse Sequence for Hahn Echo: pi/2 - tau - pi - tau
+    Omega_R = 2*np.pi*spinsys.RabiRate
+    tp_90 = (np.pi / 2) / Omega_R
+    tp_180 = np.pi / Omega_R
+    pulse_op = Qobj(spinsys.Sx[spinsys.ReadoutSpin])
+    solver_options = {"max_step": tp_90 / 10.0}
+    t1_start = 0.0
+    t1_end = tp_90
+
+    for idx, tau in enumerate(tau_array):
+        t2_start = t1_end + tau
+        t2_end = t2_start + tp_180
+        t3_start = t2_end + tau
+        t3_end = t3_start + tp_90
+
+        t_final = t3_end
+        tlist = np.linspace(0, t_final, tsteps)
+        #tlist = [0.0, t_final]
+        def Ox_coeff(t, args):
+            if t1_start <= t <= t1_end:
+                return args["Omega_R"]
+            if t2_start <= t <= t2_end:
+                return args["Omega_R"]
+            if t3_start <= t <= t3_end:
+                return args["Omega_R"]
+            return 0.0
+        
+        # Build the time-dependent Hamiltonian for the Hahn Echo sequence
+        H = [
+            H_rot,
+            [pulse_op, Ox_coeff],
+        ]
+        
+        # Solve the master equation for the Hahn Echo sequence
+        args = {"Omega_R": Omega_R}
+        result = mesolve(
+            H,
+            spinsys.psi0,
+            tlist,
+            c_ops=spinsys.collapse_ops,
+            e_ops=e_ops,
+            args=args,
+            options=solver_options,
+        )
+
+        signal[idx, :] = np.array(result.expect).T[-1]  # Take the expectation values at the end of the sequence
+
+    return tau_array, signal
+
+
+# endregion ESEEM
