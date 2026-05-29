@@ -531,7 +531,7 @@ def calc_HahnEcho_pluspihalf(spinsys: SpinSys, tau_array: np.ndarray, e_ops: lis
 
     return tau_array, signal
 
-def calc_HahnEcho__pluspihalf_Parallel(spinsys: SpinSys, tau_array: np.ndarray, e_ops: list[Qobj] = None, tsteps: int = 2500):
+def calc_HahnEcho_pluspihalf_Parallel(spinsys: SpinSys, tau_array: np.ndarray, e_ops: list[Qobj] = None, tsteps: int = 2500):
     
     # Required varaibles in spinsys: f_RF, c_ops, RabiRate, psi0 as well as finished Hamiltonian and operators
 
