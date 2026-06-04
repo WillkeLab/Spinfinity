@@ -71,6 +71,18 @@ class SpinSys:
         Boolean array to activate/deactivate dipole interactions between spins.
     Jvector : ndarray
         Vector containing all possible spin pair interactions.
+    Jxy : ndarray
+        XY component of exchange interaction.
+    Jxz : ndarray
+        XZ component of exchange interaction.
+    Jyz : ndarray
+        YZ component of exchange interaction.
+    Jyx : ndarray
+        YX component of exchange interaction.
+    Jzx : ndarray
+        ZX component of exchange interaction.
+    Jzy : ndarray
+        ZY component of exchange interaction.
     V_DC : float
         DC bias voltage [V].
     TipPolarization : list of float
@@ -87,19 +99,11 @@ class SpinSys:
         Sample-sample conductance for each spin.
     G_tt : int
         Enables (1) or disables (0) tip-tip scattering contribution.
-    
-    Kondo Parameters
-    J : ndarray
-        Kondo exchange coupling for each spin.
-    lt : float
-        Intrinsic lifetime broadening (default: 0.005, i.e., 5 µeV).
-    w : float
-        Bandwidth parameter.
-    precission : float
-        Markus Ternes: Precision parameter; sets the minimal (in) state occupation to
-        be calculated and precission^2 the minimal matrix element to be evaluated.
-        The calculation speed drastically depends on this value.
-    tunneling parameters relevant for scanning probe experiments, and Kondo physics.
+    Stevens : list of dict
+        Stevens operators for each spin.
+    use_Stevens : bool
+        Flag to indicate if Stevens operators are used.
+        
     """
 
     # Constants
@@ -169,24 +173,6 @@ class SpinSys:
         self.G_st = 1e-12  # [A/V], Experimental conductance at 0V;
         self.G_ss = [1e-8] * self.NSpins  # Sample-Sample conductance
         self.G_tt = 0  # 1 enables tip-tip scattering contribution, 0 disables it!
-
-        # Kondo Parameters
-        self.J = np.zeros(self.NSpins)
-        self.lt = 0.005        # intrinsic lifetime broadening 5 µeV
-        self.w = 20              # bandwidth
-        self.precission = 0.001
-        # %precission sets the mininal (in) state occupation to be calculated
-        # and %precission^2 the minimal matrix element to be evaluated
-        # the calculation speed drastically depends on that value
-        
-        # Tunneling Parameters for Frota function
-        self.AmpFrota = 0.1  # Amplitude of the Frota function
-        self.theta_rFrota = 0.0  # Phase angle of the Frota function
-        self.GammaFrota = 0.01  # Lifetime broadening for the Frota function, in meV
-        self.epsilonFrota = 0.0  # Energy offset for the Frota function, in meV
-        self.BkgndLinFrota = 0.0  # Background linear term for the Frota function
-        self.OffsetFrota = 0.0  # Offset for the Frota function 
-        self.use_Frota = False  # Flag to indicate if Frota function is used
 
         # Stevens Operators
         self.Stevens = [{} for _ in range(self.NSpins)]

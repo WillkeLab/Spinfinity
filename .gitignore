@@ -12,13 +12,8 @@ __pycache__/
 # Ignore mkdocs cache
 .cache
 
-<<<<<<< HEAD
 # Ignore ruff cache
 .ruff_cache
 
 # Ignore mkdocs site output
 \site
-=======
-# Ignore mkdocs build output
-site/
->>>>>>> 1cfcdfc (added site folder to gitignore)
