@@ -469,11 +469,10 @@ def add_ZeroField(spinsys: SpinSys):
             spinsys.H += (
                 spinsys.Dvector[i_spin]
                 * (spinsys.Sz[i_spin, :, :] @ spinsys.Sz[i_spin, :, :])
-                + spinsys.Evector[i_spin]
-                * (
-                    spinsys.Sx[i_spin, :, :] @ spinsys.Sx[i_spin, :, :]
-                    - spinsys.Sy[i_spin, :, :] @ spinsys.Sy[i_spin, :, :]
-                )
+                + spinsys.EvectorX[i_spin]
+                * (spinsys.Sx[i_spin, :, :] @ spinsys.Sx[i_spin, :, :])
+                + spinsys.EvectorY[i_spin]
+                * (spinsys.Sy[i_spin, :, :] @ spinsys.Sy[i_spin, :, :])
             )
             
     else:

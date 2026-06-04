@@ -61,8 +61,10 @@ class SpinSys:
         List of g-factors for each spin.
     Dvector : ndarray
         Out-of-plane anisotropy for each spin.
-    Evector : ndarray
-        In-plane anisotropy for each spin.
+    EvectorX : ndarray
+        In-plane anisotropy in x direction for each spin.
+    EvectorY : ndarray
+        In-plane anisotropy in x direction for each spin.
     D0 : ndarray
         Dipole interaction matrix.
     DipoleBool : ndarray
@@ -140,7 +142,8 @@ class SpinSys:
                            dtype=complex)
         self.gfactorvector = [2.0] * self.NSpins
         self.Dvector = np.zeros(self.NSpins)
-        self.Evector = np.zeros(self.NSpins)
+        self.EvectorX = np.zeros(self.NSpins)
+        self.EvectorY = np.zeros(self.NSpins)
         self.D0 = np.zeros((self.NSpins, self.NSpins))
         self.DipoleBool = np.zeros(
             (1, (self.NSpins * (self.NSpins - 1)) // 2),
