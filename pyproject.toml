@@ -1,6 +1,6 @@
 [project]
 name = "spinfinity"
-version = "0.1.2"
+version = "1.0.0"
 description = "Python package for simulating quantum spin systems in tunnel junction experiments in Scanning Probe Microscopy"
 authors = [
     {name = "PaulGreule", email = "paul.greule@kit.edu"},
