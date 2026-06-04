@@ -1,6 +1,6 @@
 # Spinfinity
 
-Python package for simulating quantum spin systems in tunnel junction experiments in Scanning Probe Microscopy.
+Python package for simulating quantum spin systems in tunnel junction experiments.
 
 ## Intended Use
 
@@ -33,7 +33,7 @@ Suggested citation text:
 ```bibtex
 @software{spinfinity,
   title   = {Spinfinity: A Python package for simulating quantum spin systems in tunnel junction experiments},
-  author  = {Greule, Paul and Arnold, Jonas and Hardeweg, Lovis Ben and Matusche, Johanna and Schwenk, Johannes and Willke, Philip},
+  author  = {Greule, Paul and Schwenk, Johannes and Willke, Philip},
   year    = {2026},
   url     = {https://github.com/paulgreule1999/spinfinity}
 }
@@ -46,4 +46,4 @@ For support please contact: paul.greule@kit.edu
 We welcome everyone to contribute to this project. Please contact: paul.greule@kit.edu
 
 ## License
-For open source projects, say how it is licensed.
+Spinfinity is licensed under the GNU General Public License (GPL). See the repository for the full license text.

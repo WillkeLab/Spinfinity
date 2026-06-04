@@ -4,7 +4,7 @@ version = "0.1.2"
 description = "Python package for simulating quantum spin systems in tunnel junction experiments in Scanning Probe Microscopy"
 authors = [
     {name = "PaulGreule", email = "paul.greule@kit.edu"},
-    {name = "JohannesSchwenk", email = "j.schwenk@kit.edu"}
+    {name = "JohannesSchwenk", email = "johannes.schwenk@kit.edu"}
 ]
 readme = "README.md"
 requires-python = ">= 3.10"
