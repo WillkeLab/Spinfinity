@@ -31,11 +31,11 @@ with the relevant methodological references listed above.
 Suggested citation text:
 
 ```bibtex
-@software{spinfinity,
+@software{Spinfinity,
   title   = {Spinfinity: A Python package for simulating quantum spin systems in tunnel junction experiments},
-  author  = {Greule, Paul and Schwenk, Johannes and Willke, Philip},
+  author  = {Greule, Paul and Arnold, Jonas and Renz, Luise and Hardeweg, Lovis and Matusche, Johanna and Huang, Wantong and Au-Yeung, Kwan Ho and Ascheraden, Hannah and Schwenk, Johannes and Willke, Philip},
   year    = {2026},
-  url     = {https://github.com/paulgreule1999/spinfinity}
+  url     = {https://github.com/WillkeLab/Spinfinity}
 }
 ``` 
 
