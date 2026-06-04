@@ -28,7 +28,7 @@ pip install -e .
 ```
 
 ## Documentation
-Find the documentation website under https://paulgreule1999.github.io/Spinfinity/
+Find the documentation website under https://WillkeLab.github.io/Spinfinity/
 
 To build the documentation locally, install the optional documentation dependencies
 
@@ -60,11 +60,11 @@ with the relevant methodological references listed above.
 Suggested citation text:
 
 ```bibtex
-@software{spinfinity,
+@software{Spinfinity,
   title   = {Spinfinity: A Python package for simulating quantum spin systems in tunnel junction experiments},
   author  = {Greule, Paul and Arnold, Jonas and Renz, Luise and Hardeweg, Lovis and Matusche, Johanna and Huang, Wantong and Au-Yeung, Kwan Ho and Ascheraden, Hannah and Schwenk, Johannes and Willke, Philip},
   year    = {2026},
-  url     = {https://github.com/paulgreule1999/spinfinity}
+  url     = {https://github.com/WillkeLab/Spinfinity}
 }
 ``` 
 
