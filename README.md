@@ -62,7 +62,7 @@ Suggested citation text:
 ```bibtex
 @software{spinfinity,
   title   = {Spinfinity: A Python package for simulating quantum spin systems in tunnel junction experiments},
-  author  = {Greule, Paul and Arnold, Jonas and Hardeweg, Lovis Ben and Matusche, Johanna and Schwenk, Johannes and Willke, Philip},
+  author  = {Greule, Paul and Arnold, Jonas and Hardeweg, Lovis Ben and Matusche, Johanna and Schwenk, Ascheraden, Hannah Johannes and Willke, Philip},
   year    = {2026},
   url     = {https://github.com/paulgreule1999/spinfinity}
 }

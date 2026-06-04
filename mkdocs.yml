@@ -48,7 +48,6 @@ nav:
   - Installation: installation.md
   - Tutorials:
       - First Notebook: tutorials/example.ipynb
-      - Fitting: tutorials/fitting.md
   - Documentation:
       - Overview: documentation.md
       - Spin System: api/spinsys.md
