@@ -1,4 +1,4 @@
-# Spinfinity v.1.0.0
+# Spinfinity v1.1.0
 
 Python package for simulating quantum spin systems in tunnel junction experiments. 
 
