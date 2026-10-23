@@ -1,0 +1,39 @@
+include = [
+    "spinfinity/SpinSys.py",
+    "spinfinity/SpinHamiltonian.py",
+    "spinfinity/Bath.py",
+    "spinfinity/dIdV.py",
+    "spinfinity/dIdV3.py",
+    "spinfinity/SpinPumping.py",
+    "spinfinity/ESR.py",
+    "spinfinity/Lindblad.py",
+    "spinfinity/Eigensystem_Import.py",
+    "spinfinity/CoherentControl.py",
+    "spinfinity/helperfunctions.py",
+    "spinfinity/plotting.py",
+]
+
+[lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # pydocstyle
+    "D",
+    # pydoclint
+    "DOC",
+] 
+preview = true
+
+
+[lint.pydocstyle]
+convention = "numpy"

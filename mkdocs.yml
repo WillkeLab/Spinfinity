@@ -1,0 +1,77 @@
+site_name: Spinfinity
+site_description: Documentation of the Spinfinity Simulation Code
+
+theme:
+  name: material
+  logo: assets/images/icon.png
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+extra_css:
+  - stylesheets/extra.css
+
+plugins:
+  - search
+  - mkdocs-jupyter:
+      execute: true
+      cache: false
+      allow_errors: false
+      include_requirejs: true
+      custom_mathjax_url: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-AMS_CHTML-full,Safe"
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - User guide: user_guide.md
+  - Tutorials:
+    - First spin Hamiltonian: tutorials/01_first_spin_hamiltonian.ipynb
+    - Two interacting spins: tutorials/02_two_interacting_spins.ipynb
+    - IETS: tutorials/03_iets_spin_half.ipynb
+    - ESR: tutorials/04_phenomenological_esr.ipynb
+    - Relaxation and dephasing: tutorials/05_relaxation_and_timeevolution.ipynb
+    - Rabi oscillation: tutorials/06_rabi_oscillations.ipynb
+  - Documentation:
+      - Overview: documentation.md
+      - Units and conventions: units_conventions.md
+      - Spin System: api/spinsys.md
+      - Spin Hamiltonian: api/spinhamiltonian.md
+      - Eigensystem Import: api/eigensystem_import.md
+      - Bath: api/bath.md
+      - dIdV: api/dIdV.md
+      - dIdV3: api/dIdV3.md
+      - Spin Pumping: api/spinpumping.md
+      - ESR: api/esr.md
+      - Lindblad: api/lindblad.md
+      - Coherent Control: api/coherentcontrol.md
+
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

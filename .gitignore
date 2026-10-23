@@ -1,0 +1,40 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# Local agent configuration
+.codex/
+
+# Tool caches
+.cache/
+.ruff_cache/
+.pytest_cache/
+
+# Generated MkDocs website
+/site/
+
+# Local VS Code settings
+.vscode/
+
+# Coverage results
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local virtual environments
+.venv/
+venv/
+
+# Python build artifacts
+/build/
+/dist/
+*.egg-info/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
