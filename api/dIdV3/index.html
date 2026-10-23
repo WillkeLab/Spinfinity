@@ -1,0 +1,2241 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation of the Spinfinity Simulation Code">
+      
+      
+      
+      
+        <link rel="prev" href="../dIdV/">
+      
+      
+        <link rel="next" href="../spinpumping/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>dIdV3 - Spinfinity</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#spinfinity.dIdV3" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Spinfinity" class="md-header__button md-logo" aria-label="Spinfinity" data-md-component="logo">
+      
+  <img src="../../assets/images/icon.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Spinfinity
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              dIdV3
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../user_guide/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  User guide
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/01_first_spin_hamiltonian/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../documentation/" class="md-tabs__link">
+          
+  
+  
+  Documentation
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Spinfinity" class="md-nav__button md-logo" aria-label="Spinfinity" data-md-component="logo">
+      
+  <img src="../../assets/images/icon.png" alt="logo">
+
+    </a>
+    Spinfinity
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/01_first_spin_hamiltonian/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first spin Hamiltonian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/02_two_interacting_spins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Two interacting spins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/03_iets_spin_half/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first IETS spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/04_phenomenological_esr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Your first ESR spectrum
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/05_relaxation_and_timeevolution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Relaxation and Time Evolution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/06_rabi_oscillations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rabi oscillations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Documentation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Documentation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../documentation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../units_conventions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Units and conventions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spinsys/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spin System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spinhamiltonian/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spin Hamiltonian
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../eigensystem_import/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Eigensystem Import
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bath/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bath
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../dIdV/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dIdV
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dIdV3
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dIdV3
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dIdV3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dIdV3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3.calc_IETS_3rd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_IETS_3rd
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3.calc_IETS_3rdR" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_IETS_3rdR
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spinpumping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spin Pumping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../esr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ESR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../lindblad/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lindblad
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../coherentcontrol/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Coherent Control
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dIdV3
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="dIdV3">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3.calc_IETS_3rd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_IETS_3rd
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spinfinity.dIdV3.calc_IETS_3rdR" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        calc_IETS_3rdR
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+  <h1>dIdV3</h1>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="spinfinity.dIdV3" class="doc doc-heading">
+            <code>dIdV3</code>
+
+
+</h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Calculating differential conductence (dI/dV) spectra in 3rd order.</p>
+<p>This module provides routines to compute differential conductance spectra using
+third-order perturbation theory.</p>
+
+
+<p><span class="doc-section-title">Functions:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+            <tr class="doc-section-item">
+              <td><code><a class="autorefs autorefs-internal" title="calc_IETS_3rd(spinsys, V_array=None, norm=False, energy_step=None) (spinfinity.dIdV3.calc_IETS_3rd)" href="#spinfinity.dIdV3.calc_IETS_3rd">calc_IETS_3rd</a></code></td>
+              <td>
+                <div class="doc-md-description">
+                  <p>Calculate conductance in 3rd order.</p>
+                </div>
+              </td>
+            </tr>
+            <tr class="doc-section-item">
+              <td><code><a class="autorefs autorefs-internal" title="calc_IETS_3rdR(spinsys, V_array=None, AllowPumping=True, norm=False, energy_step=None) (spinfinity.dIdV3.calc_IETS_3rdR)" href="#spinfinity.dIdV3.calc_IETS_3rdR">calc_IETS_3rdR</a></code></td>
+              <td>
+                <div class="doc-md-description">
+                  <p>Calculate third-order spectra from corrected rates and populations.</p>
+                </div>
+              </td>
+            </tr>
+      </tbody>
+    </table>
+
+
+<details class="dependencies" open>
+  <summary>Dependencies</summary>
+  <ul>
+<li>Uses <code>spinfinity.SpinSys.SpinSys</code> class to represent the spin system
+  and its properties.</li>
+<li>Uses <code>spinfinity.SpinHamiltonian</code> for eigenvalue and eigenvector calculations.</li>
+<li>Uses functions from <code>spinfinity.Bath</code> for population and rate calculations.</li>
+</ul>
+</details>
+
+<details class="references" open>
+  <summary>References</summary>
+  <ul>
+<li>Ternes, M., <em>Spin excitations and correlations in scanning tunneling spectroscopy</em>.
+New J. Phys. 17, 063016 (2015).
+<a href="https://dx.doi.org/10.1088/1367-2630/17/6/063016">https://dx.doi.org/10.1088/1367-2630/17/6/063016</a></li>
+</ul>
+</details>
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="spinfinity.dIdV3.calc_IETS_3rd" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_IETS_3rd</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="n">V_array</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">energy_step</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate conductance in 3rd order.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>spinsys</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SpinSys (spinfinity.SpinSys.SpinSys)" href="../spinsys/#spinfinity.SpinSys.SpinSys">SpinSys</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Spin system. J contains signed dimensionless substrate couplings
+per spin; J_tip is the signed dimensionless tip coupling of the
+readout spin. T is in K; w and lt are in meV.
+The Hamiltonian is rebuilt.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>V_array</code>
+            </td>
+            <td>
+                  <code><span title="array_like">array_like</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bias voltages in mV. Default is 200 points from -30 to 30 mV.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>norm</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Divide by the first conductance value if True. Default is False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>energy_step</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Logarithm convolution grid spacing in meV. Default is one quarter
+of the smaller nonzero scale among lt and kB*T.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>V_array</code></td>            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bias voltages in mV.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>conductance</code></td>            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Differential conductance in S, or dimensionless when norm=True.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the ground-state elastic normalization or the requested
+first-point normalization is zero.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<details class="note" open>
+  <summary>Notes</summary>
+  <p>Uses thermal populations and factorized broadened-step times logarithm
+contributions, as in Ternes (2015), Eqs. (24)-(25).
+J=J_tip=0 exactly recovers calc_IETS_2nd.
+Eigenstates and the existing second-order thermal caches are refreshed.</p>
+</details>
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>spinfinity\dIdV3.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span>
+<span class="normal">374</span>
+<span class="normal">375</span>
+<span class="normal">376</span>
+<span class="normal">377</span>
+<span class="normal">378</span>
+<span class="normal">379</span>
+<span class="normal">380</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_IETS_3rd</span><span class="p">(</span><span class="n">spinsys</span><span class="p">:</span> <span class="n">SpinSys</span><span class="p">,</span> <span class="n">V_array</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">energy_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate conductance in 3rd order.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    spinsys : SpinSys</span>
+<span class="sd">        Spin system. J contains signed dimensionless substrate couplings</span>
+<span class="sd">        per spin; J_tip is the signed dimensionless tip coupling of the</span>
+<span class="sd">        readout spin. T is in K; w and lt are in meV.</span>
+<span class="sd">        The Hamiltonian is rebuilt.</span>
+<span class="sd">    V_array : array_like, optional</span>
+<span class="sd">        Bias voltages in mV. Default is 200 points from -30 to 30 mV.</span>
+<span class="sd">    norm : bool, optional</span>
+<span class="sd">        Divide by the first conductance value if True. Default is False.</span>
+<span class="sd">    energy_step : float, optional</span>
+<span class="sd">        Logarithm convolution grid spacing in meV. Default is one quarter</span>
+<span class="sd">        of the smaller nonzero scale among lt and kB*T.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    V_array : ndarray</span>
+<span class="sd">        Bias voltages in mV.</span>
+<span class="sd">    conductance : ndarray</span>
+<span class="sd">        Differential conductance in S, or dimensionless when norm=True.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the ground-state elastic normalization or the requested</span>
+<span class="sd">        first-point normalization is zero.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    Uses thermal populations and factorized broadened-step times logarithm</span>
+<span class="sd">    contributions, as in Ternes (2015), Eqs. (24)-(25).</span>
+<span class="sd">    J=J_tip=0 exactly recovers calc_IETS_2nd.</span>
+<span class="sd">    Eigenstates and the existing second-order thermal caches are refreshed.</span>
+<span class="sd">    """</span>
+    <span class="n">V</span><span class="p">,</span> <span class="n">thermal_energy</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">logarithm</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">tip_paths</span> <span class="o">=</span> <span class="n">_prepare</span><span class="p">(</span>
+        <span class="n">spinsys</span><span class="p">,</span> <span class="n">V_array</span><span class="p">,</span> <span class="n">energy_step</span>
+    <span class="p">)</span>
+
+    <span class="n">rate_0</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_TunnelingMatrixElements</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"st"</span><span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">rate_0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The ground-state elastic normalization is zero."</span><span class="p">)</span>
+
+    <span class="n">_</span><span class="p">,</span> <span class="n">conductance</span> <span class="o">=</span> <span class="n">dIdV</span><span class="o">.</span><span class="n">calc_IETS_2nd</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="n">V_array</span><span class="o">=</span><span class="n">V</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">derivatives</span> <span class="o">=</span> <span class="n">_factorized_conductance</span><span class="p">(</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">E_All</span><span class="p">,</span>
+        <span class="n">V</span><span class="p">,</span>
+        <span class="n">paths</span><span class="p">,</span>
+        <span class="n">thermal_energy</span><span class="p">,</span>
+        <span class="n">grid</span><span class="p">,</span>
+        <span class="n">logarithm</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># The tip-intermediate calculation uses reversed reservoir roles.</span>
+    <span class="n">derivatives</span> <span class="o">+=</span> <span class="n">_factorized_conductance</span><span class="p">(</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">E_All</span><span class="p">,</span>
+        <span class="o">-</span><span class="n">V</span><span class="p">,</span>
+        <span class="n">tip_paths</span><span class="p">,</span>
+        <span class="n">thermal_energy</span><span class="p">,</span>
+        <span class="n">grid</span><span class="p">,</span>
+        <span class="n">logarithm</span><span class="p">,</span>
+    <span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">thermal</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_ThermalPopulations</span><span class="p">(</span><span class="n">spinsys</span><span class="p">)</span>
+    <span class="n">correction</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"i,cvij-&gt;v"</span><span class="p">,</span> <span class="n">thermal</span><span class="p">,</span> <span class="n">derivatives</span><span class="p">)</span>
+    <span class="n">conductance</span> <span class="o">+=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">b0</span><span class="p">)</span> <span class="o">*</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_st</span> <span class="o">/</span> <span class="n">rate_0</span> <span class="o">*</span> <span class="n">correction</span>
+
+    <span class="k">if</span> <span class="n">norm</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">conductance</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot normalize by a zero first conductance value."</span><span class="p">)</span>
+        <span class="n">conductance</span> <span class="o">=</span> <span class="n">conductance</span> <span class="o">/</span> <span class="n">conductance</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">V</span><span class="p">,</span> <span class="n">conductance</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="spinfinity.dIdV3.calc_IETS_3rdR" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">calc_IETS_3rdR</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="n">V_array</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">AllowPumping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">energy_step</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Calculate third-order spectra from corrected rates and populations.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>spinsys</code>
+            </td>
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="SpinSys (spinfinity.SpinSys.SpinSys)" href="../spinsys/#spinfinity.SpinSys.SpinSys">SpinSys</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Spin system. J contains signed dimensionless substrate couplings
+per spin; J_tip is the signed dimensionless tip coupling of the
+readout spin. T is in K; w and lt are in meV.
+The Hamiltonian is rebuilt.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>V_array</code>
+            </td>
+            <td>
+                  <code><span title="array_like">array_like</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Strictly increasing bias voltages in mV, at least two points.
+Default is 200 points from -30 to 30 mV.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>AllowPumping</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Solve the corrected stationary rate equation if True (default);
+otherwise use thermal populations at every bias.</p>
+              </div>
+            </td>
+            <td>
+                  <code>True</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>norm</code>
+            </td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Divide by the first conductance value if True. Default is False.</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>energy_step</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Internal energy spacing in meV; default as in calc_IETS_3rd.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+<th>Name</th>          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+<td><code>V_array</code></td>            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Bias voltages in mV.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>conductance</code></td>            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Differential conductance in S, or dimensionless when norm=True.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+<td><code>populations</code></td>            <td>
+                  <code><span title="ndarray">ndarray</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Eigenstate populations, shape (dimensionOfMatrix, len(V_array)).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If the voltage grid is not strictly increasing with at least two
+points, a normalization is zero, enabled G_tt has nonpositive
+readout G_ss, total rates become negative, or the steady state is not unique.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>spinfinity\dIdV3.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">calc_IETS_3rdR</span><span class="p">(</span>
+    <span class="n">spinsys</span><span class="p">:</span> <span class="n">SpinSys</span><span class="p">,</span>
+    <span class="n">V_array</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+    <span class="n">AllowPumping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">norm</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">energy_step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Calculate third-order spectra from corrected rates and populations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    spinsys : SpinSys</span>
+<span class="sd">        Spin system. J contains signed dimensionless substrate couplings</span>
+<span class="sd">        per spin; J_tip is the signed dimensionless tip coupling of the</span>
+<span class="sd">        readout spin. T is in K; w and lt are in meV.</span>
+<span class="sd">        The Hamiltonian is rebuilt.</span>
+<span class="sd">    V_array : array_like, optional</span>
+<span class="sd">        Strictly increasing bias voltages in mV, at least two points.</span>
+<span class="sd">        Default is 200 points from -30 to 30 mV.</span>
+<span class="sd">    AllowPumping : bool, optional</span>
+<span class="sd">        Solve the corrected stationary rate equation if True (default);</span>
+<span class="sd">        otherwise use thermal populations at every bias.</span>
+<span class="sd">    norm : bool, optional</span>
+<span class="sd">        Divide by the first conductance value if True. Default is False.</span>
+<span class="sd">    energy_step : float, optional</span>
+<span class="sd">        Internal energy spacing in meV; default as in calc_IETS_3rd.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    V_array : ndarray</span>
+<span class="sd">        Bias voltages in mV.</span>
+<span class="sd">    conductance : ndarray</span>
+<span class="sd">        Differential conductance in S, or dimensionless when norm=True.</span>
+<span class="sd">    populations : ndarray</span>
+<span class="sd">        Eigenstate populations, shape (dimensionOfMatrix, len(V_array)).</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the voltage grid is not strictly increasing with at least two</span>
+<span class="sd">        points, a normalization is zero, enabled G_tt has nonpositive</span>
+<span class="sd">        readout G_ss, total rates become negative, or the steady state is not unique.</span>
+<span class="sd">    """</span>
+    <span class="n">V</span><span class="p">,</span> <span class="n">thermal_energy</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">logarithm</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">tip_paths</span> <span class="o">=</span> <span class="n">_prepare</span><span class="p">(</span>
+        <span class="n">spinsys</span><span class="p">,</span> <span class="n">V_array</span><span class="p">,</span> <span class="n">energy_step</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">V</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">V</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="s2">"V_array must be strictly increasing with at least two points."</span>
+        <span class="p">)</span>
+
+    <span class="n">energies</span> <span class="o">=</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">E_All</span>
+    <span class="n">dimension</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">energies</span><span class="p">)</span>
+    <span class="n">transport</span> <span class="o">=</span> <span class="n">_phase_integrals</span><span class="p">(</span>
+        <span class="n">energies</span><span class="p">,</span> <span class="n">V</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">thermal_energy</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">logarithm</span><span class="p">,</span> <span class="n">step</span>
+    <span class="p">)</span>
+    <span class="n">transport</span> <span class="o">+=</span> <span class="n">_phase_integrals</span><span class="p">(</span>
+        <span class="n">energies</span><span class="p">,</span> <span class="o">-</span><span class="n">V</span><span class="p">,</span> <span class="n">tip_paths</span><span class="p">,</span> <span class="n">thermal_energy</span><span class="p">,</span> <span class="n">grid</span><span class="p">,</span> <span class="n">logarithm</span><span class="p">,</span> <span class="n">step</span>
+    <span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">matrix_st</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_TunnelingMatrixElements</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"st"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">matrix_ss</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_TunnelingMatrixElements</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"ss"</span><span class="p">)</span>
+    <span class="n">matrix_tt</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_TunnelingMatrixElements</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"tt"</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">rate_0</span> <span class="o">=</span> <span class="n">matrix_st</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">rate_0</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The ground-state elastic normalization is zero."</span><span class="p">)</span>
+
+    <span class="n">factor</span> <span class="o">=</span> <span class="mf">1e-3</span> <span class="o">/</span> <span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">rate_0</span><span class="p">)</span>
+    <span class="n">effective</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">b0</span><span class="p">)</span> <span class="o">*</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_st</span>
+
+    <span class="c1"># Local substrate corrections, summed incoherently over scattering sites.</span>
+    <span class="n">substrate</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">dimension</span><span class="p">,</span> <span class="n">dimension</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">spinsys</span><span class="o">.</span><span class="n">NSpins</span><span class="p">):</span>
+        <span class="n">local_paths</span> <span class="o">=</span> <span class="n">_pathways</span><span class="p">(</span>
+            <span class="n">spinsys</span><span class="p">,</span>
+            <span class="n">site</span><span class="p">,</span>
+            <span class="n">spinsys</span><span class="o">.</span><span class="n">SamplePolarization</span><span class="p">,</span>
+            <span class="n">spinsys</span><span class="o">.</span><span class="n">SamplePolarization</span><span class="p">,</span>
+            <span class="n">spinsys</span><span class="o">.</span><span class="n">J</span><span class="p">[</span><span class="n">site</span><span class="p">],</span>
+            <span class="n">potential</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">correction</span> <span class="o">=</span> <span class="n">_phase_integrals</span><span class="p">(</span>
+            <span class="n">energies</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span>
+            <span class="n">local_paths</span><span class="p">,</span>
+            <span class="n">thermal_energy</span><span class="p">,</span>
+            <span class="n">grid</span><span class="p">,</span>
+            <span class="n">logarithm</span><span class="p">,</span>
+            <span class="n">step</span><span class="p">,</span>
+        <span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">substrate</span> <span class="o">+=</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_ss</span><span class="p">[</span><span class="n">site</span><span class="p">]</span> <span class="o">*</span> <span class="n">correction</span>
+
+    <span class="n">tip_paths</span> <span class="o">=</span> <span class="n">_pathways</span><span class="p">(</span>
+        <span class="n">spinsys</span><span class="p">,</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">ReadoutSpin</span><span class="p">,</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">TipPolarization</span><span class="p">,</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">TipPolarization</span><span class="p">,</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">J_tip</span><span class="p">,</span>
+        <span class="n">potential</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">tip_correction</span> <span class="o">=</span> <span class="n">_phase_integrals</span><span class="p">(</span>
+        <span class="n">energies</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">]),</span>
+        <span class="n">tip_paths</span><span class="p">,</span>
+        <span class="n">thermal_energy</span><span class="p">,</span>
+        <span class="n">grid</span><span class="p">,</span>
+        <span class="n">logarithm</span><span class="p">,</span>
+        <span class="n">step</span><span class="p">,</span>
+    <span class="p">)[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">tip_scale</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">if</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_tt</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_ss</span><span class="p">[</span><span class="n">spinsys</span><span class="o">.</span><span class="n">ReadoutSpin</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"G_tt requires positive G_ss for the readout spin."</span><span class="p">)</span>
+        <span class="n">tip_scale</span> <span class="o">=</span> <span class="n">effective</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_ss</span><span class="p">[</span><span class="n">spinsys</span><span class="o">.</span><span class="n">ReadoutSpin</span><span class="p">]</span> <span class="o">*</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_tt</span>
+
+    <span class="n">old_voltage</span> <span class="o">=</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">V_DC</span>
+    <span class="n">populations</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">dimension</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">V</span><span class="p">)))</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">V</span><span class="p">))</span>
+    <span class="n">thermal</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_ThermalPopulations</span><span class="p">(</span><span class="n">spinsys</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">bath_integral</span> <span class="o">=</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_RateIntegrals</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"ss"</span><span class="p">)</span>
+        <span class="n">fixed_ss</span> <span class="o">=</span> <span class="n">factor</span> <span class="o">*</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">"k,kij-&gt;ij"</span><span class="p">,</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_ss</span><span class="p">,</span> <span class="n">matrix_ss</span><span class="p">)</span> <span class="o">*</span> <span class="n">bath_integral</span> <span class="o">+</span> <span class="n">substrate</span>
+        <span class="p">)</span>
+        <span class="n">fixed_tt</span> <span class="o">=</span> <span class="n">factor</span> <span class="o">*</span> <span class="n">tip_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">matrix_tt</span> <span class="o">*</span> <span class="n">bath_integral</span> <span class="o">+</span> <span class="n">tip_correction</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">voltage</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">V</span><span class="p">):</span>
+            <span class="n">spinsys</span><span class="o">.</span><span class="n">V_DC</span> <span class="o">=</span> <span class="n">voltage</span>
+            <span class="n">rates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">factor</span>
+                    <span class="o">*</span> <span class="n">effective</span>
+                    <span class="o">*</span> <span class="p">(</span>
+                        <span class="n">matrix_st</span><span class="o">.</span><span class="n">T</span> <span class="o">*</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_RateIntegrals</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"ts"</span><span class="p">)</span>
+                        <span class="o">+</span> <span class="n">transport</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">index</span><span class="p">]</span>
+                    <span class="p">),</span>
+                    <span class="n">factor</span>
+                    <span class="o">*</span> <span class="n">effective</span>
+                    <span class="o">*</span> <span class="p">(</span>
+                        <span class="n">matrix_st</span> <span class="o">*</span> <span class="n">bath</span><span class="o">.</span><span class="n">calc_RateIntegrals</span><span class="p">(</span><span class="n">spinsys</span><span class="p">,</span> <span class="s2">"st"</span><span class="p">)</span>
+                        <span class="o">+</span> <span class="n">transport</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="n">index</span><span class="p">]</span>
+                    <span class="p">),</span>
+                    <span class="n">fixed_ss</span><span class="p">,</span>
+                    <span class="n">fixed_tt</span><span class="p">,</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">rates</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">"Negative total rates: reduce |J|/|J_tip| or increase T."</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">AllowPumping</span><span class="p">:</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">rates</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">generator</span> <span class="o">=</span> <span class="n">total</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span>
+                <span class="n">steady</span> <span class="o">=</span> <span class="n">null_space</span><span class="p">(</span><span class="n">generator</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">steady</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The stationary population is not unique."</span><span class="p">)</span>
+
+                <span class="n">population</span> <span class="o">=</span> <span class="n">steady</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">steady</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">population</span> <span class="o">=</span> <span class="n">thermal</span>
+
+            <span class="n">populations</span><span class="p">[:,</span> <span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">population</span>
+            <span class="n">current</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">const</span><span class="o">.</span><span class="n">e</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">population</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">rates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">rates</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="o">+</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">b0</span> <span class="o">*</span> <span class="n">spinsys</span><span class="o">.</span><span class="n">G_st</span> <span class="o">*</span> <span class="n">voltage</span> <span class="o">*</span> <span class="mf">1e-3</span>
+            <span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">spinsys</span><span class="o">.</span><span class="n">V_DC</span> <span class="o">=</span> <span class="n">old_voltage</span>
+
+    <span class="n">conductance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">gradient</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">V</span> <span class="o">*</span> <span class="mf">1e-3</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">norm</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">conductance</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Cannot normalize by a zero first conductance value."</span><span class="p">)</span>
+        <span class="n">conductance</span> <span class="o">=</span> <span class="n">conductance</span> <span class="o">/</span> <span class="n">conductance</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">V</span><span class="p">,</span> <span class="n">conductance</span><span class="p">,</span> <span class="n">populations</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "content.code.copy", "search.suggest", "search.highlight"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
